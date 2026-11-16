@@ -1,20 +1,382 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MindSuite · Legacy Modernization</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7fb;color:#17253b;font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;padding:16px}
-form{width:min(480px,100%)}
-label{display:block;font-size:14px;font-weight:700;margin-bottom:8px}
-input{width:100%;padding:14px 16px;font:inherit;font-size:18px;border:1px solid #ccd5e2;border-radius:10px;background:#fff;color:inherit}
-input:focus{outline:3px solid #9cacff;outline-offset:2px;border-color:#395ddd}
+:root{--bg:#f7f8fa;--surface:#fff;--ink:#0f1a2a;--ink2:#3a4658;--muted:#6b7686;--line:#e4e7ec;--line2:#d0d5dd;--accent:#2f54eb;--accent-soft:#eef2ff;--accent-ink:#1d39c4;--ok:#127a4a;--ok-soft:#e7f6ee;--warn:#b54708;--ai:#6941c6;--ai-soft:#f4f0ff;--radius:10px;--shadow:0 1px 2px rgba(16,24,40,.05)}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{height:56px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 20px;position:sticky;top:0;z-index:10}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.2px}
+.mark{width:28px;height:28px;border-radius:7px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
+.crumb{color:var(--muted);font-weight:500;display:flex;align-items:center;gap:8px;min-width:0}.crumb b{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.crumb::before{content:"/";color:var(--line2)}
+.chip{font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;background:#f2f4f7;color:var(--ink2);white-space:nowrap}.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.top .sp{flex:1}
+.btn{border:1px solid var(--line2);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;box-shadow:var(--shadow);white-space:nowrap}
+.btn:hover{background:#f9fafb}.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.primary:hover{background:var(--accent-ink)}
+.btn.ghost{border-color:transparent;box-shadow:none;background:none;color:var(--ink2)}.btn.ghost:hover{background:#f2f4f7}
+.btn.ai{border-color:#d9ccfb;background:var(--ai-soft);color:var(--ai)}.btn.ai:hover{background:#ece4ff}
+.shell{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:calc(100vh - 56px)}
+.rail{background:var(--surface);border-right:1px solid var(--line);padding:20px 14px}
+.rail h4{margin:0 8px 12px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600}
+.steps{list-style:none;margin:0;padding:0;position:relative}
+.steps li{position:relative}
+.steps li.it:not(.endsec):not(:last-child)::after{content:"";position:absolute;left:21px;top:34px;bottom:-6px;width:1px;background:var(--line)}
+.steps li.done:not(:last-child)::after{background:#a6d8bf}
+.stp{width:100%;display:flex;gap:12px;align-items:flex-start;text-align:left;border:0;background:none;padding:8px;border-radius:8px;cursor:pointer;margin-bottom:6px}
+.stp:hover:not(:disabled){background:#f9fafb}.stp:disabled{cursor:default}
+.stp .n{flex:none;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--muted);background:var(--surface);position:relative;z-index:1}
+.done .stp .n{background:var(--ok);border-color:var(--ok);color:#fff}
+.cur .stp{background:var(--accent-soft)}.cur .stp .n{border-color:var(--accent);color:var(--accent);background:#fff}
+.stp .t{font-weight:600;font-size:13px;color:var(--ink);display:block}.stp .v{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:190px}
+.stp:disabled .t{color:var(--muted)}
+main{padding:24px 32px 48px;min-width:0}
+.map{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:20px;box-shadow:var(--shadow)}
+.map-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.map-h span{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.pipe{display:flex;align-items:center;overflow-x:auto;padding:2px 2px 6px}
+.node{flex:none;min-width:136px;max-width:176px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fcfcfd;text-align:left;cursor:pointer}
+.node:disabled{cursor:default;border-style:dashed;background:transparent}
+.node small{display:block;font-size:11px;color:var(--muted);font-weight:500}.node b{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node.filled{border-color:#b5dfc9;background:#f6fbf8}.node.now{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px #2f54eb1a}
+.node:disabled b{color:var(--line2)}
+.link{flex:none;width:28px;height:1px;background:var(--line2);position:relative}.link::after{content:"";position:absolute;right:0;top:-3px;border:3.5px solid transparent;border-left:5px solid var(--line2);border-right:0}
+.link.on{background:#7cc4a0}.link.on::after{border-left-color:#7cc4a0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);max-width:920px}
+.card-h{padding:22px 24px 6px}.eyebrow{font-size:12px;font-weight:600;color:var(--accent)}
+.card-h h1{font-size:22px;letter-spacing:-.3px;margin:4px 0 4px}.card-h p{margin:0;color:var(--muted)}
+.card-b{padding:16px 24px 8px}
+.field{width:100%;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);font-size:15px;box-shadow:var(--shadow)}
+.field:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px #2f54eb22}
+.tools{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.searchw{position:relative;flex:1 1 260px}.searchw svg{position:absolute;left:11px;top:50%;margin-top:-8px;color:var(--muted)}
+.searchw .field{padding-left:34px;font-size:14px}
+.count{font-size:12px;color:var(--muted);white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.opt{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;border:1px solid var(--line);border-radius:8px;padding:11px 12px;background:var(--surface);cursor:pointer;transition:border-color .12s,background .12s}
+.opt:hover{border-color:var(--line2);background:#fcfcfd}
+.opt .r{flex:none;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line2);margin-top:2px;background:#fff}
+.opt[aria-checked=true]{border-color:var(--accent);background:var(--accent-soft)}
+.opt[aria-checked=true] .r{border:5px solid var(--accent)}
+.opt.multi .r{border-radius:4px}
+.opt.multi[aria-checked=true] .r{border:0;background:var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/14px no-repeat}
+.rail .sec{margin:14px 8px 6px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.rail .sec:first-child{margin-top:0}
+.opt b{display:block;font-weight:600;font-size:13.5px}.opt small{display:block;color:var(--muted);font-size:12.5px;line-height:1.4;margin-top:1px}
+.tag{display:inline-block;font-size:10.5px;font-weight:600;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px}.tag.ai{background:var(--ai-soft);color:var(--ai)}.tag.you{background:#f2f4f7;color:var(--ink2)}
+.empty{grid-column:1/-1;padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--line2);border-radius:8px}
+.assist{margin-top:14px;border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fcfcfd}
+.assist .tx{flex:1 1 240px}.assist .tx b{display:block;font-size:13px}.assist .tx span{font-size:12.5px;color:var(--muted)}
+.assist .acts{display:flex;gap:8px;flex-wrap:wrap}
+.keyrow{flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
+.keyrow .field{flex:1 1 240px;font-size:13px;padding:8px 10px}.keyrow p{flex-basis:100%;margin:0;font-size:12px;color:var(--muted)}
+.err{flex-basis:100%;color:#b42318;font-size:12.5px}
+.linkbtn{border:0;background:none;padding:0;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer}
+.card-f{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 24px;border-top:1px solid var(--line);margin-top:16px;background:#fcfcfd;border-radius:0 0 var(--radius) var(--radius)}
+.hint{font-size:12px;color:var(--muted)}
+table.sum{width:100%;border-collapse:collapse;font-size:13.5px}
+.sum th{width:34%;text-align:left;font-weight:500;color:var(--muted);padding:11px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.sum td{padding:11px 0;border-bottom:1px solid var(--line);font-weight:600}.sum td small{display:block;font-weight:400;color:var(--muted)}
+.sum td .linkbtn{margin-left:8px;font-weight:500}
+.sum td.sumsec{padding:18px 0 6px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
+.notice{margin-top:16px;padding:12px 14px;border-radius:8px;background:var(--accent-soft);color:var(--accent-ink);font-size:13px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:900px){
+ .shell{grid-template-columns:1fr}.rail{display:none}
+ main{padding:16px}.card-h,.card-b{padding-left:16px;padding-right:16px}.card-f{padding:12px 16px}
+ .grid{grid-template-columns:1fr}.crumb b{max-width:120px}.top{padding:0 16px;gap:10px}.top .chip{display:none}
+}
+@media(max-width:420px){.logo span{display:none}}
 </style></head><body>
-<form onsubmit="return false">
-<label for="project">Project name</label>
-<input id="project" name="project" maxlength="120" autocomplete="off" autofocus>
-</form>
+<header class="top">
+ <div class="logo"><div class="mark">M</div><span>MindSuite</span></div>
+ <div class="crumb">Legacy Modernization <b id="crumbName" hidden></b></div>
+ <span class="chip" id="status">Draft</span>
+ <div class="sp"></div>
+ <button class="btn ghost" id="newBtn" type="button">New</button>
+ <button class="btn" id="exportBtn" type="button" disabled>Export</button>
+</header>
+<div class="shell">
+ <aside class="rail"><h4>Assessment intake</h4><ol class="steps" id="rail"></ol></aside>
+ <main>
+  <section class="map" aria-label="Project flow"><div class="map-h"><span>Project flow</span><span id="progress"></span></div><div class="pipe" id="pipe"></div></section>
+  <section class="card" id="card" aria-live="polite"></section>
+ </main>
+</div>
 <script>
-const f=document.getElementById('project'),K='mindsuite-project-name';
-try{f.value=localStorage.getItem(K)||''}catch{}
-f.addEventListener('input',()=>{try{localStorage.setItem(K,f.value)}catch{}});
+const TYPES=[
+ ['mainframe','Mainframe and midrange systems','Centralized systems running core transactions and batch jobs'],
+ ['desktop','Desktop applications','Software installed on individual computers'],
+ ['clientserver','Client-server systems','Installed clients talking to central application or database servers'],
+ ['web','Web applications and monoliths','Browser-based systems with tightly coupled business functions'],
+ ['packaged','Packaged enterprise systems','Commercial ERP, CRM, HR or finance products, often customized'],
+ ['data','Data and reporting systems','Databases, pipelines, warehouses and reports'],
+ ['integration','Integration and batch systems','Components that connect applications or run scheduled processing'],
+ ['embedded','Embedded and industrial systems','Software tied to equipment, devices or plant environments']];
+const TECH={
+ mainframe:[['cobol-cics','COBOL with CICS','Online transaction screens (3270) and business logic'],['cobol-batch','COBOL batch with JCL','Scheduled batch jobs, sequential/VSAM files'],['pli','PL/I','PL/I programs, often alongside COBOL'],['assembler','Assembler (HLASM)','Low-level mainframe programs and utilities'],['ibmi-rpg','IBM i (AS/400) – RPG / CL','RPG III/IV programs, green screens, DB2 for i'],['natural','Natural / Adabas','Software AG 4GL with Adabas database'],['ims','IMS DB/DC','Hierarchical database and transaction manager'],['db2z','DB2 for z/OS','Mainframe relational database'],['other','Other / not sure','Something else, or not yet known']],
+ desktop:[['vb6','Visual Basic 6','VB6 forms, COM components, ActiveX controls'],['winforms','Windows Forms (.NET Framework)','.NET Framework 2.0–4.x WinForms apps'],['wpf','WPF (.NET Framework)','XAML-based desktop apps on .NET Framework'],['delphi','Delphi / Object Pascal','Borland/Embarcadero Delphi applications'],['swing','Java Swing / AWT','Java desktop clients, often launched via Web Start'],['access','Microsoft Access','Access databases with forms, macros and VBA'],['mfc','C++ / MFC','Native Windows apps using MFC or Win32'],['foxpro','Visual FoxPro','FoxPro forms and DBF databases'],['other','Other / not sure','Something else, or not yet known']],
+ clientserver:[['oracle-forms','Oracle Forms & Reports','Forms 6i–12c with PL/SQL in the database'],['powerbuilder','PowerBuilder','DataWindow-based client apps'],['centura','Centura / Gupta Team Developer','SQLWindows client-server apps'],['progress','Progress OpenEdge (ABL)','4GL apps on the Progress database'],['uniface','Uniface','Model-driven 4GL client-server apps'],['vb-sql','VB6 or .NET client + SQL Server','Thick client with logic in stored procedures'],['delphi-cs','Delphi client-server','Delphi clients over Oracle, InterBase or SQL Server'],['other','Other / not sure','Something else, or not yet known']],
+ web:[['classic-asp','Classic ASP (VBScript)','.asp pages on IIS, often with COM components'],['webforms','ASP.NET Web Forms','.aspx pages, ViewState, .NET Framework'],['javaee','Java EE (EJB, JSF, Struts)','Apps on WebLogic, WebSphere or JBoss'],['php','PHP monolith','Older PHP 5 apps, often without a framework'],['coldfusion','ColdFusion','CFML applications'],['perl-cgi','Perl / CGI','CGI scripts and server-side Perl'],['old-rails','Old Ruby on Rails / Django','Unsupported framework versions'],['plugin-ui','Silverlight / Flash / Java applet UI','Browser plug-in front ends no longer supported'],['other','Other / not sure','Something else, or not yet known']],
+ packaged:[['sap-ecc','SAP ECC / R/3','SAP ERP with ABAP customizations'],['oracle-ebs','Oracle E-Business Suite','Oracle EBS 11i / R12'],['peoplesoft','PeopleSoft','HR, finance or campus solutions'],['jde','JD Edwards','EnterpriseOne or World'],['siebel','Siebel CRM','Oracle Siebel customer management'],['dynamics','Dynamics AX / NAV / GP / CRM','On-premises Microsoft Dynamics versions'],['notes','Lotus Notes / Domino','Notes databases and workflow apps'],['custom-cots','Heavily customized product','Commercial product with extensive custom code'],['other','Other / not sure','Something else, or not yet known']],
+ data:[['plsql','Oracle with heavy PL/SQL','Business logic in packages, procedures and triggers'],['tsql','SQL Server stored procedures','Logic in T-SQL procedures and jobs'],['sybase','Sybase ASE / Informix','Older relational database engines'],['teradata','Teradata / Netezza','On-premises data warehouse appliances'],['informatica','Informatica PowerCenter','Legacy ETL workflows'],['ssis','SSIS / DTS','SQL Server Integration Services packages'],['reports','SSRS / Crystal Reports','Operational and management reports'],['bi','Cognos / Business Objects / MicroStrategy','Legacy BI platforms'],['other','Other / not sure','Something else, or not yet known']],
+ integration:[['mq','IBM MQ / WebSphere Message Broker','Message queues and broker flows'],['tibco','TIBCO BusinessWorks','TIBCO integration processes'],['biztalk','Microsoft BizTalk','Orchestrations and adapters'],['webmethods','webMethods','Software AG integration server'],['soap','SOAP / XML web services','WSDL-based service interfaces'],['files','FTP / SFTP file transfers','Scheduled flat-file or CSV exchanges'],['edi','EDI (X12 / EDIFACT)','Partner document exchange'],['scheduler','Control-M / AutoSys / cron','Batch schedulers and scheduled scripts'],['other','Other / not sure','Something else, or not yet known']],
+ embedded:[['plc','PLC programs (ladder logic)','Programmable logic controllers on the plant floor'],['scada','SCADA / HMI','e.g. Wonderware, WinCC, older iFIX'],['firmware','Embedded C / C++ firmware','Device firmware on microcontrollers'],['rtos','RTOS (VxWorks, QNX)','Real-time operating system software'],['old-os','Windows XP / CE on equipment','Unsupported OS embedded in machines'],['opc','OPC Classic (DA)','DCOM-based industrial data access'],['fieldbus','Modbus / Profibus integrations','Fieldbus protocols and gateways'],['other','Other / not sure','Something else, or not yet known']]};
+const APPROACH=[
+ ['rehost','Rehost (lift and shift)','Move to new infrastructure or cloud with little or no code change.'],
+ ['replatform','Replatform','Move to a newer platform or managed service with small changes.'],
+ ['refactor','Refactor / re-architect','Restructure the code, e.g. split a monolith or move to cloud-native design.'],
+ ['rebuild','Rebuild / rewrite','Write the system again with modern technology, keeping the business rules.'],
+ ['replace','Replace with a product or SaaS','Retire the custom system and adopt a commercial product.'],
+ ['encapsulate','Encapsulate (wrap with APIs)','Keep the core and expose it through APIs for new systems.'],
+ ['retire','Retire','Switch it off and move users or data elsewhere.'],
+ ['undecided','Not decided yet','Let the assessment recommend an approach.']];
+const PURPOSE=[
+ ['finance','Finance and accounting','General ledger, billing, payables, receivables'],
+ ['sales','Orders and sales','Order entry, quoting, pricing, e-commerce'],
+ ['customer','Customer service and CRM','Customer records, contact centre, case handling'],
+ ['hr','HR and payroll','Employee records, payroll, time and attendance'],
+ ['supply','Supply chain and inventory','Purchasing, warehousing, logistics'],
+ ['operations','Manufacturing and operations','Production planning, plant control, maintenance'],
+ ['insurance','Insurance policies and claims','Underwriting, policy admin, claims processing'],
+ ['banking','Banking and payments','Accounts, transactions, payments, lending'],
+ ['health','Healthcare and patient services','Patient records, scheduling, clinical systems'],
+ ['public','Government and public services','Case management, permits, benefits'],
+ ['reporting','Reporting and analytics','Management information and regulatory reports'],
+ ['other','Other','Something else']];
+const CRIT=[
+ ['low','Low','Internal or occasional use. An outage of days is tolerable.'],
+ ['medium','Medium','Supports daily work. An outage of hours causes delays.'],
+ ['high','High','Core to revenue or customers. An outage of an hour has real impact.'],
+ ['mission','Mission-critical','Business stops without it. Needs near-zero downtime.']];
+// Bounded-context candidates per business domain
+const CAPS={
+ finance:[['gl','General ledger','Chart of accounts, journals, period close'],['ap','Accounts payable','Supplier invoices, approvals, payments'],['ar','Accounts receivable','Customer invoices, collections, cash allocation'],['billing','Billing and invoicing','Rating, invoice generation, statements'],['treasury','Treasury and cash','Cash positions, bank reconciliation'],['assets','Fixed assets','Asset register, depreciation'],['budget','Budgeting and forecasting','Plans, forecasts, variance analysis'],['tax','Tax and compliance','Tax calculation, statutory filings']],
+ sales:[['catalog','Product catalogue','Products, bundles, attributes'],['pricing','Pricing and quoting','Price lists, discounts, quotes'],['orders','Order management','Order capture, changes, status'],['fulfil','Fulfilment','Allocation, shipping, delivery'],['returns','Returns and refunds','RMA, credit notes'],['commerce','Online channel','Web shop, cart, checkout'],['commission','Sales commission','Targets, incentives, payouts']],
+ customer:[['cust','Customer master','Customer records, identity, consent'],['cases','Case management','Service requests, complaints, SLAs'],['contact','Contact centre','Calls, chat, routing'],['marketing','Marketing campaigns','Segments, campaigns, leads'],['loyalty','Loyalty','Points, tiers, rewards'],['feedback','Feedback and surveys','NPS, satisfaction, surveys']],
+ hr:[['core-hr','Employee records','Org structure, positions, employee data'],['payroll','Payroll','Pay calculation, deductions, payslips'],['time','Time and attendance','Timesheets, shifts, absences'],['recruit','Recruitment','Vacancies, candidates, onboarding'],['perf','Performance','Goals, reviews, competencies'],['learning','Learning','Courses, certifications'],['benefits','Benefits','Pensions, insurance, allowances']],
+ supply:[['procure','Procurement','Requisitions, purchase orders, suppliers'],['inventory','Inventory','Stock levels, movements, valuation'],['warehouse','Warehouse','Receiving, picking, packing'],['transport','Transport and logistics','Routes, carriers, tracking'],['demand','Demand planning','Forecasts, replenishment'],['supplier','Supplier management','Contracts, performance, onboarding']],
+ operations:[['plan','Production planning','Schedules, capacity, MRP'],['mes','Shop-floor execution','Work orders, tracking, genealogy'],['quality','Quality management','Inspections, non-conformance, CAPA'],['maint','Maintenance','Assets, work orders, preventive maintenance'],['plm','Product engineering','BOMs, specifications, changes'],['hse','Health, safety, environment','Incidents, permits, emissions']],
+ insurance:[['product','Product definition','Coverages, rules, rating tables'],['quote','Quotation and underwriting','Risk assessment, pricing, acceptance'],['policy','Policy administration','Issue, endorsements, renewals, cancellations'],['claims','Claims','First notice of loss, assessment, settlement'],['billing-ins','Premium billing','Instalments, collections, commissions'],['reins','Reinsurance','Treaties, cessions, recoveries'],['broker','Agents and brokers','Distribution, commissions, portals']],
+ banking:[['accounts','Accounts and deposits','Account opening, balances, interest'],['payments','Payments','Transfers, clearing, standing orders'],['cards','Cards','Issuing, authorisation, disputes'],['lending','Lending','Origination, servicing, collections'],['kyc','Customer onboarding and KYC','Identity checks, AML screening'],['risk','Risk and compliance','Credit risk, regulatory reporting'],['trading','Treasury and trading','Positions, settlement']],
+ health:[['patient','Patient administration','Registration, demographics, admissions'],['sched','Scheduling','Appointments, resources, waiting lists'],['clinical','Clinical records','Notes, diagnoses, care plans'],['orders-h','Orders and results','Lab, imaging, prescriptions'],['pharmacy','Pharmacy','Dispensing, stock, formulary'],['billing-h','Patient billing and claims','Coding, invoicing, insurer claims']],
+ public:[['citizen','Citizen records','Registrations, identity, addresses'],['caseg','Case management','Applications, decisions, appeals'],['permits','Permits and licences','Applications, inspections, renewals'],['benefitsg','Benefits and grants','Eligibility, payments'],['revenue','Taxes and fees','Assessment, collection, enforcement'],['records','Records management','Documents, retention, archives']],
+ reporting:[['ingest','Data ingestion','Feeds, ETL, data quality'],['dw','Data warehouse','Models, history, marts'],['mgmt','Management reporting','KPIs, dashboards, packs'],['reg','Regulatory reporting','Statutory and regulator returns'],['adhoc','Self-service analysis','Ad-hoc queries, extracts']],
+ other:[]};
+const SUBDOMAIN=[
+ ['core','Core domain','It is what makes the business different. Competitors cannot simply buy it.'],
+ ['supporting','Supporting subdomain','Specific to the business and necessary, but not a competitive edge.'],
+ ['generic','Generic subdomain','A common problem every business has (e.g. payroll, email). Could be bought off the shelf.'],
+ ['unsure','Not sure yet','Let the assessment help classify it.']];
+const DRIVERS=[
+ ['eos','Vendor or platform end of support','Licences, versions or hardware are out of support'],
+ ['skills','Skills shortage','Few people can maintain the technology'],
+ ['cost','High running cost','Licences, hosting or maintenance are expensive'],
+ ['speed','Slow to change','New features take too long to deliver'],
+ ['scale','Performance or scalability limits','Cannot handle growth or peak load'],
+ ['risk','Security or compliance risk','Audit findings, vulnerabilities, regulation'],
+ ['integration','Hard to integrate','Difficult to connect to new channels or partners'],
+ ['ux','Poor user experience','Users struggle with screens or workflows'],
+ ['data','Data quality or access','Data is hard to trust or get out'],
+ ['strategy','Strategic change','Merger, new business model, cloud strategy']];
+const KNOWLEDGE=[
+ ['experts','Active domain experts','Business people who know the rules are available to the project'],
+ ['docs','Up-to-date documentation','Rules and processes are written down and current'],
+ ['partial','Partly documented','Some documentation exists but is incomplete or outdated'],
+ ['code','Only in the code','The real business rules can only be found by reading the code'],
+ ['vendor','With a vendor or contractor','External party holds most of the knowledge'],
+ ['lost','Largely lost','Key people have left; behaviour is not well understood']];
+const LANGUAGE=[
+ ['shared','Shared and consistent','Business and IT use the same terms with the same meaning'],
+ ['mixed','Mostly shared, some confusion','A few key terms mean different things to different teams'],
+ ['diverged','Different languages','Business terms and system terms differ widely'],
+ ['unknown','Not sure','Needs to be explored in discovery workshops']];
+const RELATIONS=[
+ ['shared-db','Shares a database with other systems','Other applications read or write the same tables'],
+ ['files','Exchanges files','Batch files, CSV or EDI in or out'],
+ ['apis','Calls or exposes APIs / services','SOAP, REST or RPC interfaces'],
+ ['messaging','Uses messaging or events','Queues, topics, ESB flows'],
+ ['upstream','Others depend on its data','It is the source of truth for downstream systems'],
+ ['downstream','Depends on another system’s model','It conforms to a model owned elsewhere'],
+ ['manual','Manual hand-offs','People re-key or copy data between systems'],
+ ['standalone','Mostly standalone','Few or no integrations']];
+const STEPS=[
+ {key:'project',kind:'text',sec:'Project',title:'Project',q:'Name your project',help:'Use the name your team already knows this initiative by.'},
+ {key:'purpose',sec:'Business domain',title:'Business domain',q:'Which business domain does the system serve?',help:'Start from the business, not the technology. This frames the rest of the questions.',opts:()=>PURPOSE},
+ {key:'capabilities',multi:true,sec:'Business domain',title:'Capabilities',q:'Which business capabilities does it handle?',help:'Select all that apply. Each is a candidate bounded context — a part of the business with its own rules and language.',opts:s=>CAPS[s.purpose]||[]},
+ {key:'subdomain',sec:'Business domain',title:'Strategic value',q:'How important is it to your competitive advantage?',help:'Core domains deserve custom investment; generic ones are often better bought.',opts:()=>SUBDOMAIN},
+ {key:'drivers',multi:true,sec:'Business domain',title:'Drivers',q:'Why does it need to change now?',help:'Select all the problems or pressures behind this initiative.',opts:()=>DRIVERS},
+ {key:'knowledge',sec:'Domain knowledge',title:'Domain knowledge',q:'Where does the knowledge of the business rules live?',help:'Modernization succeeds when the domain is understood, not just the code.',opts:()=>KNOWLEDGE},
+ {key:'language',sec:'Domain knowledge',title:'Ubiquitous language',q:'Do business and IT use the same language for this domain?',help:'For example, does “policy”, “order” or “account” mean the same thing to everyone?',opts:()=>LANGUAGE},
+ {key:'relations',multi:true,sec:'Domain knowledge',title:'Context map',q:'How does it relate to other systems?',help:'Select all that apply. This shows the boundaries and dependencies to untangle.',opts:()=>RELATIONS},
+ {key:'legacyType',sec:'Technical landscape',title:'System type',q:'Which type of legacy system is it?',help:'Choose the closest category from the MindSuite doctrine.',opts:()=>TYPES},
+ {key:'technology',sec:'Technical landscape',title:'Technology',q:'Which technology is it built on?',help:'Options are filtered by the system type you selected.',opts:s=>TECH[s.legacyType]||[]},
+ {key:'criticality',sec:'Technical landscape',title:'Criticality',q:'How critical is it to the business?',help:'Based on the impact of the system being unavailable.',opts:()=>CRIT},
+ {key:'approach',sec:'Direction',title:'Approach',q:'What do you intend to do with it?',help:'Pick the direction you have in mind, or let the assessment decide.',opts:()=>APPROACH}];
+const SUMMARY=STEPS.length;
+
+const KEY='mindsuite-flow-v1',AIKEY='mindsuite-anthropic-key';
+const blank=()=>{const o={custom:{}};STEPS.forEach(s=>o[s.key]=s.multi?[]:'');return o};
+let S=blank();
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&typeof s==='object'){for(const st of STEPS){const v=s[st.key];if(st.multi){if(Array.isArray(v))S[st.key]=v.filter(x=>typeof x==='string').slice(0,30)}else if(typeof v==='string')S[st.key]=v.slice(0,120)}
+ if(s.custom&&typeof s.custom==='object')for(const[k,v]of Object.entries(s.custom))if(Array.isArray(v))S.custom[k]=v.filter(o=>Array.isArray(o)&&o.length>=3).map(o=>[String(o[0]).slice(0,80),String(o[1]).slice(0,80),String(o[2]).slice(0,160),o[3]==='ai'?'ai':'you']).slice(0,40)}}catch{}
+// custom options depend on the parent answer for filtered steps
+const cKey=st=>st.key==='technology'?'technology:'+S.legacyType:st.key==='capabilities'?'capabilities:'+S.purpose:st.key;
+const baseOpts=STEPS.map(st=>st.opts);
+STEPS.forEach((st,i)=>{if(st.opts)st.opts=s=>[...baseOpts[i](s),...(S.custom[cKey(st)]||[])]});
+const valid=st=>{if(!st.opts)return;const ids=new Set(st.opts(S).map(o=>o[0]));if(st.multi)S[st.key]=S[st.key].filter(v=>ids.has(v));else if(S[st.key]&&!ids.has(S[st.key]))S[st.key]=''};
+STEPS.forEach(valid);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch{}};
+const getKey=()=>{try{return localStorage.getItem(AIKEY)||''}catch{return ''}};
+const el=(t,p={},k=[])=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(v==null)continue;if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else e.setAttribute(a,v)}for(const c of[].concat(k))if(c!=null)e.append(c);return e};
+const find=(st,v)=>st.opts?st.opts(S).find(o=>o[0]===v):null;
+const picked=st=>st.multi?S[st.key].map(v=>find(st,v)).filter(Boolean):[find(st,S[st.key])].filter(Boolean);
+const answered=st=>st.kind==='text'?!!S[st.key]:picked(st).length>0;
+const label=st=>st.kind==='text'?S[st.key]:picked(st).map(o=>o[1]).join(', ');
+const firstOpen=()=>{const i=STEPS.findIndex(s=>!answered(s));return i<0?SUMMARY:i};
+const reachable=i=>i<=firstOpen();
+let cur=firstOpen(),query={},ai={};
+
+function go(i){if(!reachable(i))return;cur=i;render();window.scrollTo({top:0,behavior:'smooth'})}
+
+function renderRail(){
+ const items=STEPS.map((st,i)=>({i,sec:st.sec,t:st.title,v:answered(st)?label(st):'',done:answered(st)})).concat([{i:SUMMARY,sec:'Review',t:'Review and export',v:firstOpen()===SUMMARY?'Ready':'',done:false}]);
+ items.forEach((it,k)=>{it.endsec=k+1<items.length&&items[k+1].sec!==it.sec});
+ document.getElementById('rail').replaceChildren(...items.flatMap((it,k)=>{const head=!k||items[k-1].sec!==it.sec?[el('li',{class:'sec',text:it.sec})]:[];return[...head,el('li',{class:'it '+(it.endsec?'endsec ':'')+(it.done?'done ':'')+(it.i===cur?'cur':'')},el('button',{class:'stp',type:'button',disabled:reachable(it.i)?null:'',onclick:()=>go(it.i),'aria-current':it.i===cur?'step':null},[el('span',{class:'n',text:it.done?'✓':String(it.i+1)}),el('span',{},[el('span',{class:'t',text:it.t}),el('span',{class:'v',text:it.v||(reachable(it.i)?'Not answered':'—')})])]))]}));
+}
+function renderPipe(){
+ const p=document.getElementById('pipe');const kids=[];
+ STEPS.forEach((st,i)=>{
+  if(i)kids.push(el('span',{class:'link'+(answered(STEPS[i-1])&&answered(st)?' on':''),'aria-hidden':'true'}));
+  kids.push(el('button',{class:'node'+(answered(st)?' filled':'')+(i===cur?' now':''),type:'button',disabled:reachable(i)?null:'',onclick:()=>go(i),title:st.title+(answered(st)?': '+label(st):'')},[el('small',{text:st.title}),el('b',{text:answered(st)?label(st):'—'})]));
+ });
+ p.replaceChildren(...kids);
+ const n=STEPS.filter(answered).length;document.getElementById('progress').textContent=n+' of '+STEPS.length+' complete';
+ const nowEl=p.querySelector('.now');if(nowEl)nowEl.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+function renderTop(){
+ const n=document.getElementById('crumbName');n.hidden=!S.project;n.textContent=S.project;
+ const done=firstOpen()===SUMMARY;const st=document.getElementById('status');st.textContent=done?'Ready for assessment':'Draft';st.className='chip'+(done?' ok':'');
+ document.getElementById('exportBtn').disabled=!done;
+}
+function footer(i,canNext,nextText){
+ const back=el('button',{class:'btn ghost',type:'button',text:'Back',disabled:i===0?'':null,onclick:()=>go(i-1)});
+ const fwd=el('button',{class:'btn primary',type:'submit',text:nextText||'Continue',disabled:canNext?null:''});
+ return el('div',{class:'card-f'},[back,el('span',{class:'hint',text:'Step '+(i+1)+' of '+STEPS.length}),fwd]);
+}
+function textStep(st,i){
+ const inp=el('input',{class:'field',maxlength:'120',autocomplete:'off',placeholder:'e.g. Claims platform modernization','aria-label':st.q});inp.value=S[st.key];
+ const f=footer(i,!!inp.value.trim());const fwd=f.querySelector('.primary');
+ inp.addEventListener('input',()=>fwd.disabled=!inp.value.trim());
+ setTimeout(()=>inp.focus({preventScroll:true}));
+ return el('form',{onsubmit:e=>{e.preventDefault();const v=inp.value.trim();if(!v)return;S[st.key]=v;save();cur=i+1>firstOpen()?firstOpen():i+1;render()}},[
+  el('div',{class:'card-h'},[el('div',{class:'eyebrow',text:'Step '+(i+1)+' · '+st.title}),el('h1',{text:st.q}),el('p',{text:st.help})]),el('div',{class:'card-b'},inp),f]);
+}
+function choose(st,id,forceOn){
+ if(st.multi){const a=S[st.key];const has=a.includes(id);S[st.key]=has&&!forceOn?a.filter(v=>v!==id):has?a:[...a,id]}
+ else S[st.key]=id;
+ // a changed parent answer can invalidate the filtered step that follows it
+ STEPS.forEach(valid);save();render();
+}
+function optionStep(st,i){
+ const icon='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.8"/><path d="m10.6 10.6 3.4 3.4"/></svg>';
+ const search=el('input',{class:'field',type:'search',placeholder:'Search '+st.title.toLowerCase()+'…','aria-label':'Search options'});search.value=query[st.key]||'';
+ const sw=el('div',{class:'searchw'},[search]);sw.insertAdjacentHTML('afterbegin',icon);
+ const count=el('span',{class:'count'}),grid=el('div',{class:'grid',role:st.multi?'group':'radiogroup','aria-label':st.q}),assist=el('div');
+ const draw=()=>{
+  const q=(query[st.key]||'').trim(),ql=q.toLowerCase(),all=st.opts(S);
+  const items=all.filter(o=>!ql||(o[1]+' '+o[2]).toLowerCase().includes(ql));
+  count.textContent=(q?items.length+' of '+all.length+' options':all.length+' options')+(st.multi?' · '+S[st.key].length+' selected':'');
+  const on=id=>st.multi?S[st.key].includes(id):S[st.key]===id;
+  grid.replaceChildren(...items.map(([id,name,hint,src])=>el('button',{class:'opt'+(st.multi?' multi':''),type:'button',role:st.multi?'checkbox':'radio','aria-checked':String(on(id)),onclick:()=>choose(st,id),ondblclick:st.multi?null:()=>{choose(st,id);advance(i)}},[el('span',{class:'r'}),el('span',{},[el('b',{},[name,src?el('span',{class:'tag '+src,text:src==='ai'?'AI':'Custom'}):null]),el('small',{text:hint})])])));
+  if(!items.length)grid.append(el('div',{class:'empty',text:q?'No options match “'+q+'”.':'No options are listed for this selection yet.'}));
+  assist.replaceChildren(assistPanel(st,q,!items.length));
+ };
+ search.addEventListener('input',()=>{query[st.key]=search.value;draw()});
+ draw();
+ return el('form',{onsubmit:e=>{e.preventDefault();advance(i)}},[
+  el('div',{class:'card-h'},[el('div',{class:'eyebrow',text:'Step '+(i+1)+' · '+st.title}),el('h1',{text:st.q}),el('p',{text:st.help})]),
+  el('div',{class:'card-b'},[el('div',{class:'tools'},[sw,count]),grid,assist]),footer(i,answered(st))]);
+}
+function advance(i){if(!answered(STEPS[i]))return;cur=Math.min(i+1,firstOpen());render();window.scrollTo({top:0,behavior:'smooth'})}
+function addCustom(st,lbl,hint,src){
+ const k=cKey(st),arr=S.custom[k]=S.custom[k]||[];
+ const id='c-'+src+'-'+lbl.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40);
+ const dup=st.opts(S).find(o=>o[1].toLowerCase()===lbl.toLowerCase());if(dup)return dup[0];
+ arr.push([id,lbl,hint,src]);return id;
+}
+function assistPanel(st,q,empty){
+ const a=ai[st.key]||{};
+ const kids=[el('div',{class:'tx'},[el('b',{text:empty?'Not finding what you need?':'Need another option?'}),el('span',{text:'Generate suggestions with AI based on your earlier answers'+(q?' and your search':'')+', or add your own.'})]),
+  el('div',{class:'acts'},[
+   el('button',{class:'btn ai',type:'button',disabled:a.loading?'':null,onclick:()=>generate(st,q)},a.loading?[el('span',{class:'spin'}),'Generating…']:['Generate with AI']),
+   q?el('button',{class:'btn',type:'button',text:'Add “'+(q.length>28?q.slice(0,28)+'…':q)+'”',onclick:()=>{const id=addCustom(st,q.slice(0,80),'Added manually','you');query[st.key]='';choose(st,id,true)}}):null])];
+ if(a.needKey){
+  const k=el('input',{class:'field',type:'password',placeholder:'sk-ant-…','aria-label':'Anthropic API key',autocomplete:'off'});
+  kids.push(el('div',{class:'keyrow'},[k,el('button',{class:'btn primary',type:'button',text:'Save and generate',onclick:()=>{const v=k.value.trim();if(!v)return;try{localStorage.setItem(AIKEY,v)}catch{}ai[st.key]={};generate(st,q)}}),el('p',{text:'An Anthropic API key is required. It is stored only in this browser and sent only to Anthropic.'})]));
+ }
+ if(a.error)kids.push(el('div',{class:'err',text:a.error}));
+ if(getKey()&&!a.needKey)kids.push(el('div',{style:'flex-basis:100%'},el('button',{class:'linkbtn',type:'button',text:'Remove saved API key',onclick:()=>{try{localStorage.removeItem(AIKEY)}catch{}render()}})));
+ return el('div',{class:'assist'},kids);
+}
+let sdk=null;
+async function generate(st,q){
+ const key=getKey();
+ if(!key){ai[st.key]={needKey:true};render();return}
+ ai[st.key]={loading:true};render();
+ try{
+  sdk=sdk||(await import('https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.2.0/+esm')).default;
+  const client=new sdk({apiKey:key,dangerouslyAllowBrowser:true});
+  const context=STEPS.filter(s=>s!==st&&answered(s)).map(s=>s.title+': '+label(s)).join('\n');
+  const existing=st.opts(S).map(o=>'- '+o[1]).join('\n');
+  const prompt=`You help a legacy modernization assessment tool that follows Domain-Driven Design: it explores the business domain, bounded contexts and domain knowledge before the technology. The user is answering this question:\n"${st.q}"\n\nTheir answers so far:\n${context||'(none)'}\n\nOptions already listed:\n${existing||'(none)'}\n\n${q?`The user searched for "${q}" and did not find a match. `:''}Suggest up to 6 additional options that fit the question and context${q?' and match what the user searched for':''}. Do not repeat listed options. Each option has a short label (max 6 words) and a one-line hint (max 12 words).`;
+  const res=await client.beta.messages.create({
+   model:'claude-opus-5-5',max_tokens:4000,
+   betas:['server-side-fallback-2026-07-01'],fallbacks:'default',
+   output_config:{effort:'low',format:{type:'json_schema',schema:{type:'object',additionalProperties:false,required:['options'],properties:{options:{type:'array',items:{type:'object',additionalProperties:false,required:['label','hint'],properties:{label:{type:'string'},hint:{type:'string'}}}}}}}},
+   messages:[{role:'user',content:prompt}]});
+  if(res.stop_reason==='refusal')throw new Error('The AI declined this request. Try different wording.');
+  const text=res.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+  const opts=(JSON.parse(text).options||[]).filter(o=>o&&typeof o.label==='string'&&o.label.trim()).slice(0,6);
+  if(!opts.length)throw new Error('No new options were suggested. Try another search.');
+  opts.forEach(o=>addCustom(st,o.label.trim().slice(0,80),String(o.hint||'').trim().slice(0,160)||'Suggested by AI','ai'));
+  save();query[st.key]='';ai[st.key]={};render();
+ }catch(e){
+  const s=e&&e.status;
+  ai[st.key]={error:s===401?'The API key was rejected. Enter a valid key.':s===429?'Rate limited. Wait a moment and try again.':(e&&e.message)||'Something went wrong.',needKey:s===401};
+  if(s===401)try{localStorage.removeItem(AIKEY)}catch{}
+  render();
+ }
+}
+function exportJson(){
+ const out={project:S.project};
+ for(const st of STEPS.slice(1)){const items=picked(st).map(o=>({id:o[0],label:o[1],source:o[3]||'catalog'}));out[st.key]=st.multi?items:(items[0]||null)}
+ out.exportedAt=new Date().toISOString();
+ const u=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}));const a=el('a',{href:u,download:(S.project.replace(/[^\w-]+/g,'_')||'project')+'.json'});a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
+}
+function summaryStep(){
+ const rows=[];let sec='';
+ STEPS.forEach((st,i)=>{
+  if(st.sec!==sec){sec=st.sec;rows.push(el('tr',{},el('td',{colspan:'2',class:'sumsec',text:sec})))}
+  const p=picked(st);
+  rows.push(el('tr',{},[el('th',{text:st.title}),el('td',{},[label(st),el('button',{class:'linkbtn',type:'button',text:'Edit',onclick:()=>go(i)}),!st.multi&&p[0]?el('small',{text:p[0][2]}):null])]));
+ });
+ return el('div',{},[
+  el('div',{class:'card-h'},[el('div',{class:'eyebrow',text:'Review'}),el('h1',{text:S.project}),el('p',{text:'Check the intake details before the assessment begins.'})]),
+  el('div',{class:'card-b'},[el('table',{class:'sum'},el('tbody',{},rows)),el('div',{class:'notice',text:'Intake complete. Automated assessment by the MindSuite agent will be available in a later release.'})]),
+  el('div',{class:'card-f'},[el('button',{class:'btn ghost',type:'button',text:'Back',onclick:()=>go(SUMMARY-1)}),el('span'),el('button',{class:'btn primary',type:'button',text:'Export JSON',onclick:exportJson})])]);
+}
+function render(){
+ if(!reachable(cur))cur=firstOpen();
+ renderTop();renderRail();renderPipe();
+ const st=STEPS[cur];
+ document.getElementById('card').replaceChildren(cur===SUMMARY?summaryStep():st.kind==='text'?textStep(st,cur):optionStep(st,cur));
+}
+document.getElementById('exportBtn').onclick=exportJson;
+document.getElementById('newBtn').onclick=()=>{if(S.project&&!confirm('Start a new project? The current one will be cleared.'))return;S=blank();query={};ai={};cur=0;save();render()};
+render();
 </script>
 </body></html>
