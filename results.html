@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MindSuite · Modernization Results</title>
+<style>
+:root{--ink:#17253b;--muted:#68758a;--line:#e0e6ee;--blue:#395ddd;--light:#edf2ff;--green:#22684e;--amber:#9a5b00;--red:#a8322d}
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif}
+a{color:var(--blue)}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #9cacff;outline-offset:3px}
+header{background:#fff;border-bottom:1px solid var(--line);padding:18px 5%;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.brand{font-size:23px;font-weight:800;letter-spacing:-1px;text-decoration:none;color:var(--ink)}.brand span{color:var(--blue)}.brand small{display:block;font-size:10px;letter-spacing:2px;font-weight:600;color:var(--muted)}
+.pill{background:var(--light);color:var(--blue);padding:6px 12px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
+main{max-width:1100px;margin:auto;padding:38px 5% 60px}
+.eyebrow{color:var(--blue);font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+h1{font-size:34px;line-height:1.2;letter-spacing:-1px;margin:12px 0}h2{font-size:19px;margin:0 0 6px}h3{font-size:14px;margin:0 0 6px}
+p{margin:8px 0;color:var(--muted)}
+.steps{display:flex;gap:24px;border-bottom:1px solid var(--line);padding:20px 0;margin-bottom:26px;color:var(--muted);font-size:12px;flex-wrap:wrap}
+.steps a{color:inherit;text-decoration:none}.steps b{display:inline-grid;place-items:center;border-radius:50%;width:23px;height:23px;background:#e8edf5;margin-right:6px;color:var(--ink)}
+.steps .on{color:var(--blue)}.steps .on b{background:var(--blue);color:#fff}.steps .done b{background:#d7f0e4;color:var(--green)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:13px;padding:25px;margin-bottom:20px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:11px;padding:16px 18px}.kpi small{display:block;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase}.kpi strong{display:block;font-size:22px;margin-top:4px;letter-spacing:-.5px}
+.lvl-low{color:var(--green)}.lvl-medium{color:var(--amber)}.lvl-high{color:var(--red)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+dl{margin:0;font-size:13px}dt{color:var(--muted);margin-top:14px;font-size:12px}dt:first-child{margin-top:0}dd{margin:3px 0 0;font-weight:600;overflow-wrap:anywhere}
+.journey{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.journey span{background:#f6f8fc;border:1px solid var(--line);border-radius:7px;padding:5px 10px;font-weight:600}
+.cat{border:1px solid var(--line);border-radius:10px;padding:18px;margin-top:12px}.cat .tag{font-size:10px;color:var(--blue);font-weight:800;letter-spacing:1px}
+.cat ul,.list{margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink)}.cat li,.list li{margin:3px 0}
+.note{font-size:13px;background:#fff8ec;border:1px solid #f1dcb4;border-radius:8px;padding:12px 14px;color:#6b4a12;margin-top:10px}
+ol.plan{counter-reset:s;list-style:none;padding:0;margin:8px 0 0}ol.plan li{counter-increment:s;position:relative;padding:0 0 14px 38px;font-size:13px}
+ol.plan li::before{content:counter(s);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;background:var(--light);color:var(--blue);font-weight:800;font-size:12px;display:grid;place-items:center}
+ol.plan strong{display:block}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.primary{border:0;border-radius:7px;background:var(--blue);color:#fff;padding:11px 16px;font-size:13px;font-weight:700;text-decoration:none}
+.secondary{background:#fff;border:1px solid var(--line);border-radius:7px;padding:10px 14px;color:var(--ink);font-size:13px;text-decoration:none}
+.empty{text-align:center;padding:50px 25px}
+footer{font-size:11px;color:var(--muted);padding-top:22px}
+@media(max-width:800px){.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}h1{font-size:28px}}
+@media(max-width:480px){main{padding:25px 16px}header{padding:14px 16px}.pill{font-size:10px}.panel{padding:19px}.steps{gap:10px;font-size:10px}}
+@media print{header .pill,.actions,.steps{display:none}body{background:#fff}.panel,.kpi{break-inside:avoid}}
+</style></head><body>
+<header><a class="brand" href="index.html">Mind<span>Suite</span><small>LEGACY MODERNIZATION</small></a><span class="pill">Results · Phase 01</span></header>
+<main>
+<div class="eyebrow">MindSuite Doctrine of Legacy Modernization</div>
+<h1 id="title">Your modernization results</h1>
+<p id="lead">A review of the initiative you scoped, with indicative complexity, considerations per category and suggested next steps.</p>
+<div class="steps"><a class="done" href="index.html#scope"><b>✓</b> Choose your scope</a><a class="done" href="index.html#landscape"><b>✓</b> Describe the landscape</a><span class="on"><b>3</b> Review your brief</span></div>
+<div id="out"></div>
+<footer>MindSuite · HTML prototype · Results are generated in your browser from the brief you entered; nothing is sent to a server. Complexity is indicative, not an assessment.</footer>
+</main>
+<script>
+const KEY='mindsuite-modernization-brief-v1';
+const CATS={
+cloud:{n:'Infrastructure and Cloud Migration',w:2,c:['Inventory servers, VMs, dependencies and network paths before choosing a move pattern (rehost, replatform, refactor).','Confirm landing zone, identity, network and cost controls in the target environment.','Plan cut-over windows and rollback for each wave of workloads.']},
+application:{n:'Application Modernization',w:3,c:['Map business functions to code modules; find tightly coupled areas first.','Decide between incremental change (strangler pattern) and rewrite, per component.','Build automated regression tests before changing behaviour.']},
+database:{n:'Database Migration and Modernization',w:3,c:['Profile schema, stored procedures, triggers and engine-specific features.','Plan data validation (row counts, checksums) and a reconciliation report.','Decide on migration method: offline dump/load, replication or change data capture.']},
+data:{n:'Data Platform and Analytics Modernization',w:2,c:['Catalogue reports, pipelines and their consumers; retire unused ones.','Define data ownership, quality rules and lineage in the target platform.','Run old and new reports in parallel until numbers reconcile.']},
+integration:{n:'Integration Modernization',w:2,c:['List every interface: file drops, SOAP services, queues and scheduled jobs.','Agree API and event contracts with consuming teams before switching.','Keep adapters for legacy partners that cannot change on your timeline.']},
+enterprise:{n:'Enterprise Application Upgrade or Replacement',w:3,c:['Classify customizations: keep, replace with standard features, or drop.','Check vendor support dates and licensing for the target version or SaaS.','Plan data conversion and user training as separate workstreams.']},
+experience:{n:'User Interface and Channel Modernization',w:1,c:['Observe current user journeys; desktop shortcuts and workarounds often hide requirements.','Separate UI changes from back-end logic changes where possible.','Plan accessibility and device support from the start.']},
+security:{n:'Security and Identity Modernization',w:2,c:['Inventory user stores, service accounts and hard-coded credentials.','Map roles and permissions to the central identity model before cut-over.','Coordinate SSO switch with help desk and account recovery processes.']},
+operations:{n:'Delivery and Operations Modernization',w:1,c:['Put source, build and deployment steps under version control.','Define service-level indicators and alerts before decommissioning old monitoring.','Automate one release path end-to-end before scaling to all systems.']},
+industrial:{n:'Embedded and Industrial Modernization',w:3,c:['Confirm equipment, firmware and safety certification constraints.','Plan changes around production windows; test on non-production equipment first.','Account for long hardware lifecycles and vendor dependencies.']}
+};
+const $=id=>document.getElementById(id);
+const el=(tag,props={},kids=[])=>{const e=document.createElement(tag);Object.assign(e,props);for(const k of [].concat(kids))e.append(k);return e;};
+let d=null;try{d=JSON.parse(localStorage.getItem(KEY)||'null')}catch{}
+const sel=d&&Array.isArray(d.selected)?d.selected.filter(id=>CATS[id]):[];
+const v=f=>d&&typeof d[f]==='string'?d[f].trim().slice(0,160):'';
+const out=$('out');
+if(!sel.length){
+ out.append(el('div',{className:'panel empty'},[el('h2',{textContent:'No brief found yet'}),el('p',{textContent:'Choose at least one modernization category in the scoping tool, then come back to see your results. Your draft is stored only in this browser.'}),el('div',{className:'actions',style:'justify-content:center'},[el('a',{className:'primary',href:'index.html',textContent:'Start your brief →'})])]));
+}else{
+ const name=v('project')||'Modernization brief';
+ $('title').textContent=name;document.title='MindSuite · '+name;
+ const system=v('system')||'Not specified',cur=v('current')||'Not specified',tgt=v('target')||'Not decided',fT=v('fromTech')||'Not specified',tT=v('toTech')||'Not decided';
+ // indicative complexity
+ let score=sel.reduce((s,id)=>s+CATS[id].w,0);
+ if(cur!==tgt&&v('current')&&v('target'))score+=2;
+ if(/Mixed|Mainframe|Embedded/.test(system))score+=2;
+ if(!v('target')||!v('toTech'))score+=1;
+ const lvl=score<=4?'Low':score<=9?'Medium':'High';
+ const open=[];
+ if(!v('system'))open.push('Existing system type');if(!v('current'))open.push('Current environment');if(!v('target')||tgt==='Not decided')open.push('Target environment');if(!v('fromTech'))open.push('Current technology');if(!v('toTech'))open.push('Target technology');
+ const kp=(l,val,cls)=>el('div',{className:'kpi'},[el('small',{textContent:l}),el('strong',{textContent:val,className:cls||''})]);
+ out.append(el('div',{className:'kpis'},[kp('Categories in scope',String(sel.length)),kp('Indicative complexity',lvl,'lvl-'+lvl.toLowerCase()),kp('Open decisions',String(open.length),open.length?'lvl-medium':'lvl-low'),kp('Environment change',v('current')&&v('target')?(cur===tgt?'No':'Yes'):'TBD')]));
+ // summary
+ const jr=(a,b)=>el('div',{className:'journey'},[el('span',{textContent:a}),'→',el('span',{textContent:b})]);
+ const sum=el('section',{className:'panel'},[el('h2',{textContent:'Brief summary'}),el('dl',{},[el('dt',{textContent:'Existing system'}),el('dd',{textContent:system}),el('dt',{textContent:'Environment journey'}),el('dd',{},jr(cur,tgt)),el('dt',{textContent:'Technology journey'}),el('dd',{},jr(fT,tT))])]);
+ const od=el('section',{className:'panel'},[el('h2',{textContent:'Open decisions'}),open.length?el('ul',{className:'list'},open.map(o=>el('li',{textContent:o+' — not yet specified'}))):el('p',{textContent:'All brief fields are filled in.'})]);
+ const notes=[];
+ if(sel.includes('cloud')&&sel.includes('database'))notes.push('Cloud migration and database migration are both in scope: sequence them deliberately. Moving the database first or last changes latency, cut-over risk and rollback options.');
+ if(sel.includes('application')&&sel.includes('experience'))notes.push('Application and UI modernization together: agree the API boundary early so front-end and back-end work can proceed in parallel.');
+ if(sel.includes('enterprise')&&sel.includes('integration'))notes.push('Replacing a packaged application usually breaks its interfaces. Treat integration rework as part of the replacement plan.');
+ if(/Mixed/.test(system))notes.push('Mixed or hybrid system: classify each component separately, keeping it linked to the overall platform, as the doctrine recommends.');
+ if(notes.length)od.append(el('h3',{textContent:'Things to watch',style:'margin-top:16px'}),...notes.map(n=>el('div',{className:'note',textContent:n})));
+ out.append(el('div',{className:'grid2'},[sum,od]));
+ // categories
+ const cs=el('section',{className:'panel'},[el('h2',{textContent:'Scope and considerations'}),el('p',{textContent:'Key considerations for each category you selected.'})]);
+ sel.forEach((id,i)=>cs.append(el('div',{className:'cat'},[el('div',{className:'tag',textContent:String(i+1).padStart(2,'0')}),el('h3',{textContent:CATS[id].n}),el('ul',{},CATS[id].c.map(t=>el('li',{textContent:t})))])));
+ out.append(cs);
+ // next steps
+ const steps=[['Confirm the business case','Record business purpose and criticality separately from technology, and name the owner of the initiative.'],['Discover and inventory',`Document components, dependencies and interfaces of the ${system==='Not specified'?'existing system':system.toLowerCase()}.`],['Close open decisions',open.length?'Decide on: '+open.join(', ')+'.':'Validate the decisions in this brief with architecture and business owners.'],['Plan waves','Group work by category and dependency; start with a low-risk pilot to prove the approach.'],['Define success measures','Agree how you will verify the result: reconciled data, passing regression tests, performance and cost targets.']];
+ out.append(el('section',{className:'panel'},[el('h2',{textContent:'Suggested next steps'}),el('ol',{className:'plan'},steps.map(s=>el('li',{},[el('strong',{textContent:s[0]}),el('p',{textContent:s[1],style:'margin:2px 0 0'})])))]));
+ // actions
+ const pr=el('button',{className:'primary',textContent:'Print or save as PDF'});pr.onclick=()=>window.print();
+ const dl=el('button',{className:'secondary',textContent:'Download results (.txt)'});
+ dl.onclick=()=>{const t=['MindSuite Doctrine of Legacy Modernization — Results',name,'','Indicative complexity: '+lvl,'Existing system: '+system,'Environment: '+cur+' → '+tgt,'Technology: '+fT+' → '+tT,'','SCOPE AND CONSIDERATIONS',...sel.flatMap(id=>['• '+CATS[id].n,...CATS[id].c.map(c=>'   - '+c)]),'','OPEN DECISIONS',...(open.length?open.map(o=>'• '+o):['None']),'','NEXT STEPS',...steps.map((s,i)=>(i+1)+'. '+s[0]+': '+s[1])].join('\n');const u=URL.createObjectURL(new Blob([t],{type:'text/plain;charset=utf-8'}));const a=el('a',{href:u,download:'MindSuite_Modernization_Results.txt'});a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);};
+ out.append(el('div',{className:'actions'},[pr,dl,el('a',{className:'secondary',href:'index.html',textContent:'← Edit brief'})]));
+}
+</script></body></html>
