@@ -1,36 +1,212 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MindSuite · Legacy Modernization</title>
 <style>
-:root{--ink:#17253b;--muted:#68758a;--line:#e0e6ee;--blue:#395ddd;--light:#edf2ff}*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif}button,input,select{font:inherit}button,select{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #9cacff;outline-offset:3px}header{background:#fff;border-bottom:1px solid var(--line);padding:18px 5%;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{font-size:23px;font-weight:800;letter-spacing:-1px}.brand span{color:var(--blue)}.brand small{display:block;font-size:10px;letter-spacing:2px;font-weight:600;color:var(--muted)}.pill{background:var(--light);color:var(--blue);padding:6px 12px;border-radius:99px;font-size:12px;font-weight:700}.layout{max-width:1340px;margin:auto;display:grid;grid-template-columns:210px 1fr;min-height:90vh}aside{padding:36px 24px 36px 0;border-right:1px solid var(--line)}aside a{display:block;text-decoration:none;color:var(--muted);padding:12px 16px;border-radius:8px;margin-bottom:7px;font-size:13px}aside a.active{background:#e7edff;color:var(--blue);font-weight:700}.side-note{margin:44px 16px;font-size:12px;color:var(--muted)}main{padding:38px 38px 60px;min-width:0}.eyebrow{color:var(--blue);font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}h1{font-size:34px;line-height:1.2;letter-spacing:-1px;margin:12px 0}h2{font-size:19px;margin:0}h3{font-size:14px;margin:0 0 7px}p{margin:8px 0;color:var(--muted)}.intro{max-width:740px}.steps{display:flex;gap:24px;border-bottom:1px solid var(--line);padding:24px 0;margin-bottom:26px;color:var(--muted);font-size:12px}.steps b{display:inline-grid;place-items:center;border-radius:50%;width:23px;height:23px;background:#e8edf5;margin-right:6px;color:var(--ink)}.steps span:first-child{color:var(--blue)}.steps span:first-child b{background:var(--blue);color:#fff}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 275px;gap:22px;align-items:start}.panel{background:#fff;border:1px solid var(--line);border-radius:13px;padding:25px;margin-bottom:20px;box-shadow:0 4px 18px #17253b03}.section-title{display:flex;align-items:center;gap:12px;margin-bottom:6px}.number{color:var(--blue);font-size:12px;font-weight:800}.help{font-size:12px;margin-bottom:20px}label{font-size:12px;font-weight:700;display:block;margin:16px 0 7px}select,input{width:100%;padding:11px 12px;border:1px solid #ccd5e2;border-radius:7px;background:white;color:var(--ink);min-width:0}select{padding-right:24px}.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.selected{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.chip{border:1px solid #d2dcff;color:#304cba;background:#f0f4ff;border-radius:6px;padding:6px 9px;font-size:11px;text-align:left}.detail{background:#f6f8fc;border-radius:8px;padding:15px;margin-top:16px}.detail p{font-size:12px}.detail strong{font-size:12px}.summary{position:sticky;top:20px}.summary .panel{border-top:3px solid var(--blue)}.summary dl{font-size:12px;margin:20px 0}.summary dt{color:var(--muted);margin-top:17px}.summary dd{margin:4px 0;font-weight:600;overflow-wrap:anywhere}.summary ul{padding-left:17px;margin:5px 0}.primary{border:0;border-radius:7px;background:var(--blue);color:white;padding:11px 16px;font-size:12px;font-weight:700;width:100%}.secondary{background:#fff;border:1px solid var(--line);border-radius:7px;padding:9px 14px;color:var(--ink);font-size:12px}.actions{display:flex;justify-content:space-between;align-items:center;gap:12px}.status{font-size:11px;color:var(--muted)}.catalog-head{display:flex;justify-content:space-between;gap:15px;align-items:center;margin:20px 0 16px}.catalog{display:grid;grid-template-columns:1fr 1fr;gap:12px}.card{border:1px solid var(--line);background:white;border-radius:9px;padding:18px}.card .tag{font-size:10px;color:var(--blue);font-weight:800;letter-spacing:1px}.card p{font-size:12px}.card button{margin-top:12px}.card.chosen{border-color:#9dafea;background:#fafbff}footer{font-size:11px;color:var(--muted);padding-top:22px}#message{min-height:22px;font-size:12px;color:#22684e} @media(max-width:1100px){.layout{grid-template-columns:170px 1fr}.workspace{grid-template-columns:1fr}.summary{position:static}.summary dl{display:grid;grid-template-columns:1fr 1fr;gap:0 15px}main{padding:28px 24px}aside{padding-left:12px}}@media(max-width:700px){.layout{display:block}aside{display:none}main{padding:25px 16px}.two,.catalog{grid-template-columns:1fr}.steps{gap:10px;font-size:10px}h1{font-size:28px}.panel{padding:19px}.catalog-head{align-items:flex-start;flex-direction:column}header{padding:14px 16px}.pill{font-size:10px}.summary dl{display:block}}
+:root{--ink:#17253b;--muted:#68758a;--line:#e0e6ee;--blue:#395ddd;--light:#edf2ff;--bg:#f5f7fb;--card:#fff;--green:#1f7a52;--greenbg:#e3f5ec;--amber:#9a5b00;--amberbg:#fff3dc;--red:#b3352f;--redbg:#fde8e7}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}:focus-visible{outline:3px solid #9cacff;outline-offset:2px}
+header{background:#fff;border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:5}
+.brand{font-size:22px;font-weight:800;letter-spacing:-1px}.brand span{color:var(--blue)}.brand small{display:block;font-size:10px;letter-spacing:2px;font-weight:600;color:var(--muted)}
+.pill{background:var(--light);color:var(--blue);padding:5px 11px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 62px)}
+aside{background:#fff;border-right:1px solid var(--line);padding:22px 14px}
+aside a{display:flex;justify-content:space-between;align-items:center;text-decoration:none;color:var(--muted);padding:10px 12px;border-radius:8px;margin-bottom:4px;font-size:13px;font-weight:600}
+aside a:hover{background:#f3f6fb}aside a.active{background:#e7edff;color:var(--blue)}aside a em{font-style:normal;font-size:11px;background:#eef1f6;border-radius:99px;padding:1px 8px;color:var(--muted)}
+.side-note{margin:28px 12px 0;font-size:12px;color:var(--muted)}
+main{padding:28px 32px 60px;min-width:0;max-width:1240px}
+.eyebrow{color:var(--blue);font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+h1{font-size:28px;line-height:1.2;letter-spacing:-.8px;margin:8px 0 4px}h2{font-size:18px;margin:0}h3{font-size:15px;margin:0}
+p{margin:6px 0;color:var(--muted)}
+.view{display:none}.view.on{display:block}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:11px;padding:14px 16px}.kpi small{display:block;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase}.kpi strong{display:block;font-size:24px;margin-top:2px;letter-spacing:-.5px}
+.connectors{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.conn{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.conn.connected{border-color:#b7dcc8}
+.conn-top{display:flex;align-items:center;gap:12px}.logo{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;flex:none}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-radius:99px;padding:3px 10px;width:max-content}
+.status::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.s-off{background:#eef1f6;color:var(--muted)}.s-scan{background:var(--amberbg);color:var(--amber)}.s-on{background:var(--greenbg);color:var(--green)}
+.meta{font-size:12px;color:var(--muted)}.meta b{color:var(--ink)}
+.bar{height:6px;background:#eef1f6;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--blue);width:0;transition:width .25s}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:8px 13px;font-size:12px;font-weight:700}
+.btn:hover{border-color:#c4cfe0}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn.primary:hover{background:#2f4fc4}.btn.danger{color:var(--red)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.filters input,.filters select{border:1px solid #ccd5e2;border-radius:7px;padding:8px 10px;background:#fff;min-width:0}.filters input{flex:1 1 220px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:860px}th{text-align:left;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);background:#f8fafd;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid #eef1f6;vertical-align:top}tr:last-child td{border-bottom:0}tbody tr:hover{background:#fafbfe}
+td .sub{display:block;font-size:11px;color:var(--muted)}code{font-size:11px;background:#f1f4f9;border-radius:4px;padding:1px 5px}
+.tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.t-legacy{background:var(--redbg);color:var(--red)}.t-aging{background:var(--amberbg);color:var(--amber)}.t-current{background:var(--greenbg);color:var(--green)}
+.src{display:inline-flex;align-items:center;gap:6px;font-size:12px}.dot{width:9px;height:9px;border-radius:3px}
+.empty{text-align:center;padding:44px 20px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.hbar{display:grid;grid-template-columns:200px 1fr 34px;gap:10px;align-items:center;font-size:12px;margin:8px 0}.hbar .bar{height:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chip{border:1px solid #d2dcff;background:#f0f4ff;color:#304cba;border-radius:6px;padding:4px 9px;font-size:12px;font-weight:600}
+.selbar{position:sticky;bottom:16px;margin-top:14px;background:var(--ink);color:#fff;border-radius:10px;padding:10px 14px;display:none;align-items:center;justify-content:space-between;gap:12px}
+.selbar.on{display:flex}.selbar .btn{border:0}
+dialog{border:0;border-radius:14px;padding:0;width:min(440px,calc(100vw - 32px));box-shadow:0 20px 60px #17253b40}dialog::backdrop{background:#17253b66}
+.dlg{padding:22px}.dlg label{display:block;font-size:12px;font-weight:700;margin:14px 0 6px}.dlg input,.dlg select{width:100%;border:1px solid #ccd5e2;border-radius:7px;padding:9px 11px}
+.perm{background:#f6f8fc;border-radius:8px;padding:10px 12px;font-size:12px;margin-top:14px;color:var(--muted)}.perm li{margin:3px 0}
+.dlg .row{justify-content:flex-end;margin-top:18px}
+.toast{position:fixed;right:20px;bottom:20px;background:var(--ink);color:#fff;padding:10px 14px;border-radius:9px;font-size:13px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}.toast.on{opacity:1;transform:none}
+.scope-cat{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:10px}.scope-cat ul{margin:6px 0 0;padding-left:18px;font-size:13px}
+footer{font-size:11px;color:var(--muted);padding-top:24px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}aside{display:flex;gap:4px;overflow-x:auto;padding:8px 12px;border-right:0;border-bottom:1px solid var(--line)}aside a{white-space:nowrap;margin:0}.side-note{display:none}main{padding:22px 16px 50px}.kpis{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.hbar{grid-template-columns:130px 1fr 30px}header{padding:12px 16px}}
+@media(max-width:420px){.pill{display:none}h1{font-size:24px}}
 </style></head><body>
-<header><div class="brand">Mind<span>Suite</span><small>LEGACY MODERNIZATION</small></div><span class="pill">Interactive mockup · Phase 01</span></header>
-<div class="layout"><aside><a class="active" href="#scope">01 &nbsp; Define your initiative</a><a href="#landscape">02 &nbsp; Current & target state</a><a href="#categories">03 &nbsp; Category catalogue</a><div class="side-note">DOCTRINE TO DELIVERY<p>Start with the change you need. Then describe the systems involved.</p></div></aside>
-<main><div class="eyebrow">MindSuite Doctrine of Legacy Modernization</div><h1>Every modernization starts<br>with the right scope.</h1><p class="intro">Identify what you want to change, where you are today, and where you want to go. One initiative can span several categories.</p><div class="steps"><span><b>1</b> Choose your scope</span><span><b>2</b> Describe the landscape</span><a href="results.html" style="color:inherit;text-decoration:none"><b>3</b> Review your brief</a></div>
-<div class="workspace"><div><section id="scope" class="panel"><div class="section-title"><span class="number">01</span><h2>What are you modernizing?</h2></div><p class="help">Choose one or more modernization or migration categories.</p><label for="project">Initiative name</label><input id="project" maxlength="120" placeholder="e.g. Customer platform cloud migration"><label for="category">Modernization or migration category</label><select id="category"><option value="">Select a category to add.</option></select><div id="selected" class="selected" aria-live="polite"></div><div id="detail" class="detail"><strong>Migration and modernization can work together.</strong><p>Moving an application to the cloud and migrating its database are separate choices. Select both when your initiative includes both.</p></div></section>
-<section id="landscape" class="panel"><div class="section-title"><span class="number">02</span><h2>Describe your landscape</h2></div><p class="help">Keep the existing system type separate from the change you want to make.</p><label for="system">Existing system type</label><select id="system"><option value="">Select an existing system type.</option><option>Mainframe and midrange</option><option>Desktop application</option><option>Client-server application</option><option>Web application or monolith</option><option>Packaged enterprise application</option><option>Data and reporting system</option><option>Integration and batch system</option><option>Embedded or industrial system</option><option>Mixed or hybrid system</option><option>Other / not yet known</option></select><div class="two"><div><label for="current">Current environment</label><select id="current"></select></div><div><label for="target">Target environment</label><select id="target"></select></div></div><div class="two"><div><label for="fromTech">Current technology</label><input id="fromTech" maxlength="160" placeholder="e.g. Oracle 11g, Java EE"></div><div><label for="toTech">Target technology</label><input id="toTech" maxlength="160" placeholder="e.g. PostgreSQL, or not decided"></div></div></section><div class="actions"><button class="secondary" id="reset">Reset brief</button><span class="status">Draft stays in this browser</span></div><div id="message" role="status"></div></div>
-<section class="summary" aria-label="Initiative summary"><div class="panel"><div class="eyebrow">Your initiative</div><h2 id="summaryName" style="margin-top:8px">Modernization brief</h2><p class="help">A live summary of your selections.</p><dl><dt>Scope</dt><dd id="sumCategories">No categories selected</dd><dt>Existing system</dt><dd id="sumSystem">Not specified</dd><dt>Environment journey</dt><dd id="sumJourney">Not specified → Not decided</dd><dt>Technology journey</dt><dd id="sumTech">Not specified → Not decided</dd></dl><a class="primary" href="results.html" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px">View results →</a><button class="secondary" style="width:100%" id="download">Download brief </button><p style="font-size:11px;margin-top:12px">Export your choices as a text file for review.</p></div><p style="font-size:12px;padding:0 6px">A migration moves a system. Modernization changes its capabilities, structure or operation.</p></section></div>
-<section id="categories"><div class="catalog-head"><div><div class="eyebrow">Explore the scope</div><h2>Modernization & migration catalogue</h2></div><span class="pill">10 categories · Multiple selections</span></div><div class="catalog" id="catalog"></div></section><footer>MindSuite · HTML prototype · Backend integration comes in a later phase.</footer></main></div>
+<header><div class="brand">Mind<span>Suite</span><small>LEGACY MODERNIZATION</small></div><span class="pill">Prototype · sample data</span></header>
+<div class="layout">
+<aside>
+<a href="#connectors" data-view="connectors" class="active">Connectors <em id="navConn">0</em></a>
+<a href="#inventory" data-view="inventory">System inventory <em id="navInv">0</em></a>
+<a href="#insights" data-view="insights">Insights</a>
+<a href="#scope" data-view="scope">Modernization scope <em id="navScope">0</em></a>
+<div class="side-note">DOCTRINE TO DELIVERY<p>Connect your code repositories. MindSuite discovers legacy systems and classifies them by the doctrine's categories.</p></div>
+</aside>
+<main>
+
+<section class="view on" id="v-connectors">
+<div class="head"><div><div class="eyebrow">Step 1 · Connect sources</div><h1>Code repository connectors</h1><p>Connect a provider to scan its repositories for legacy technology. Scanning is read-only.</p></div>
+<button class="btn" id="resetAll">Reset demo</button></div>
+<div class="kpis" id="kpis"></div>
+<div class="connectors" id="connList"></div>
+</section>
+
+<section class="view" id="v-inventory">
+<div class="head"><div><div class="eyebrow">Step 2 · Discover</div><h1>System inventory</h1><p>Repositories discovered by your connectors, classified by legacy system category.</p></div></div>
+<div class="filters"><input id="q" type="search" placeholder="Search repository or technology" aria-label="Search"><select id="fSrc" aria-label="Filter by connector"></select><select id="fCat" aria-label="Filter by category"></select><select id="fStat" aria-label="Filter by status"><option value="">All statuses</option><option>Legacy</option><option>Aging</option><option>Current</option></select></div>
+<div id="invBody"></div>
+<div class="selbar" id="selbar"><span id="selText"></span><span class="row" style="margin:0"><button class="btn" id="selClear">Clear</button><button class="btn primary" id="selAdd">Add to modernization scope</button></span></div>
+</section>
+
+<section class="view" id="v-insights">
+<div class="head"><div><div class="eyebrow">Step 3 · Understand</div><h1>Insights</h1><p>How the discovered landscape breaks down.</p></div></div>
+<div id="insBody"></div>
+</section>
+
+<section class="view" id="v-scope">
+<div class="head"><div><div class="eyebrow">Step 4 · Plan</div><h1>Modernization scope</h1><p>Repositories you selected, with the modernization categories they suggest.</p></div><div class="row" style="margin:0"><button class="btn" id="exportScope">Download scope (.txt)</button></div></div>
+<div id="scopeBody"></div>
+</section>
+
+<footer>MindSuite · HTML prototype · Connectors are simulated with sample repositories; no data leaves your browser. Real provider integration needs a backend in a later phase.</footer>
+</main></div>
+
+<dialog id="dlg"><form method="dialog" class="dlg" id="dlgForm">
+<h2 id="dlgTitle">Connect</h2><p id="dlgSub"></p>
+<label for="dlgOrg" id="dlgOrgLabel">Organization</label><input id="dlgOrg" required maxlength="60" autocomplete="off">
+<label for="dlgScope">Repositories to scan</label><select id="dlgScope"><option>All repositories</option><option>Selected repositories only</option><option>Public repositories only</option></select>
+<div class="perm"><strong style="color:var(--ink)">Requested access (read-only)</strong><ul style="margin:6px 0 0;padding-left:18px"><li>Repository metadata and languages</li><li>File tree and build files</li><li>Commit history dates</li></ul></div>
+<div class="row"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn primary" value="ok" id="dlgOk">Authorize &amp; scan</button></div>
+</form></dialog>
+<div class="toast" id="toast" role="status"></div>
+
 <script>
-const categories=[
-['cloud','Infrastructure and Cloud Migration','Move hosting environments, servers, VMs and workloads.','On-premises → cloud; data centre → data centre; cloud → cloud.'],
-['application','Application Modernization','Change application code, frameworks, runtime or architecture.','VB6 → .NET; monolith → modular services; runtime upgrades.'],
-['database','Database Migration and Modernization','Move databases or change their engine, version or design.','Oracle → PostgreSQL; on-premises SQL Server → managed cloud database.'],
-['data','Data Platform and Analytics Modernization','Update warehouses, data lakes, pipelines and reporting platforms.','Traditional warehouse → cloud analytics; legacy ETL replacement.'],
-['integration','Integration Modernization','Update how systems communicate and exchange information.','File transfers → APIs; legacy ESB → event-driven integration.'],
-['enterprise','Enterprise Application Upgrade or Replacement','Upgrade or replace packaged business applications.','Legacy ERP → newer ERP or SaaS; CRM replacement.'],
-['experience','User Interface and Channel Modernization','Update how users access and interact with a system.','Desktop screens → web application; adding mobile access.'],
-['security','Security and Identity Modernization','Update authentication, authorization and security controls.','Application-specific logins → centralized SSO.'],
-['operations','Delivery and Operations Modernization','Improve deployment, monitoring and operational processes.','Manual releases → CI/CD; basic logs → centralized observability.'],
-['industrial','Embedded and Industrial Modernization','Update software connected to devices and industrial equipment.','Legacy device software upgrades; industrial gateway modernization.']
-];
-const $=id=>document.getElementById(id),fields=['project','system','current','target','fromTech','toTech'],key='mindsuite-modernization-brief-v1';let selected=[];
-const environments=['On-premises / private data centre','Colocation / hosted data centre','Microsoft Azure','Amazon Web Services (AWS)','Google Cloud (GCP)','Private cloud','Hybrid cloud','Multi-cloud','SaaS / vendor-hosted','Edge / industrial environment','Other','Not decided'];
-for(const id of ['current','target']){const first=new Option(id==='current'?'Select current environment.':'Select target environment.','');$(id).add(first);environments.forEach(e=>$(id).add(new Option(e,e)));}
-categories.forEach(c=>{$('category').add(new Option(c[1],c[0]));const card=document.createElement('article');card.className='card';card.id='card-'+c[0];const tag=document.createElement('div');tag.className='tag';tag.textContent=String(categories.indexOf(c)+1).padStart(2,'0');const h=document.createElement('h3');h.textContent=c[1];const p=document.createElement('p');p.textContent=c[2];const example=document.createElement('p');example.textContent=c[3];const b=document.createElement('button');b.className='secondary';b.textContent='Add to scope +';b.addEventListener('click',()=>toggle(c[0]));card.append(tag,h,p,example,b);$('catalog').append(card);});
-function toggle(id){if(selected.includes(id))selected=selected.filter(v=>v!==id);else selected.push(id);const c=categories.find(v=>v[0]===id);$('detail').replaceChildren();const strong=document.createElement('strong');strong.textContent=c[1];const p=document.createElement('p');p.textContent=c[2]+' '+c[3];$('detail').append(strong,p);render();}
-function render(){ $('selected').replaceChildren();for(const id of selected){const c=categories.find(v=>v[0]===id);const b=document.createElement('button');b.className='chip';b.textContent=c[1]+' x';b.setAttribute('aria-label','Remove '+c[1]);b.addEventListener('click',()=>toggle(id));$('selected').append(b);}for(const c of categories){const on=selected.includes(c[0]);const card=$('card-'+c[0]);card.classList.toggle('chosen',on);card.querySelector('button').textContent=on?'Remove from scope -':'Add to scope +';card.querySelector('button').setAttribute('aria-pressed',String(on));}for(const o of $('category').options)o.disabled=selected.includes(o.value);$('category').value='';$('summaryName').textContent=$('project').value.trim()||'Modernization brief';$('sumCategories').replaceChildren();if(!selected.length)$('sumCategories').textContent='No categories selected';else{const ul=document.createElement('ul');selected.forEach(id=>{const li=document.createElement('li');li.textContent=categories.find(c=>c[0]===id)[1];ul.append(li)});$('sumCategories').append(ul);} $('sumSystem').textContent=$('system').value||'Not specified';$('sumJourney').textContent=($('current').value||'Not specified')+' → '+($('target').value||'Not decided');$('sumTech').textContent=($('fromTech').value.trim()||'Not specified')+' → '+($('toTech').value.trim()||'Not decided');const draft={selected};fields.forEach(f=>draft[f]=$(f).value);try{localStorage.setItem(key,JSON.stringify(draft))}catch{$('message').textContent='Browser storage unavailable. You can still download your brief.'}}
-$('category').addEventListener('change',e=>{if(e.target.value)toggle(e.target.value)});fields.forEach(f=>$(f).addEventListener('input',render));
-$('reset').addEventListener('click',()=>{selected=[];fields.forEach(f=>$(f).value='');$('detail').textContent='Choose one or more categories to define your initiative.';render();$('message').textContent='Your brief has been reset.';});
-$('download').addEventListener('click',()=>{if(!selected.length){$('message').textContent='Select at least one modernization category before downloading.';$('category').focus();return;}const text=['MindSuite Doctrine of Legacy Modernization',$('summaryName').textContent,'','MODERNIZATION SCOPE',...selected.map(id=>' '+categories.find(c=>c[0]===id)[1]),'','EXISTING SYSTEM',$('sumSystem').textContent,'','ENVIRONMENT JOURNEY',$('sumJourney').textContent,'','TECHNOLOGY JOURNEY',$('sumTech').textContent].join('\n');const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='MindSuite_Modernization_Brief.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$('message').textContent='Your brief has been downloaded.';});
-try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved&&typeof saved==='object'){selected=Array.isArray(saved.selected)?[...new Set(saved.selected.filter(id=>categories.some(c=>c[0]===id)))]:[];fields.forEach(f=>{if(typeof saved[f]==='string')$(f).value=saved[f].slice(0,160)});}}catch{}render();
+const SYSCAT={mainframe:'Mainframe and midrange',desktop:'Desktop application',clientserver:'Client-server system',web:'Web application / monolith',packaged:'Packaged enterprise system',data:'Data and reporting system',integration:'Integration and batch system',embedded:'Embedded and industrial system',modern:'Modern / cloud-native'};
+const MODCAT={cloud:['Infrastructure and Cloud Migration','Move hosting, servers and workloads to the target environment.'],application:['Application Modernization','Change code, frameworks, runtime or architecture.'],database:['Database Migration and Modernization','Move or re-platform the database engine or design.'],data:['Data Platform and Analytics Modernization','Update warehouses, pipelines and reporting.'],integration:['Integration Modernization','Replace file transfers / ESB flows with APIs and events.'],enterprise:['Enterprise Application Upgrade or Replacement','Upgrade or replace packaged business applications.'],experience:['User Interface and Channel Modernization','Move desktop screens to web or mobile.'],security:['Security and Identity Modernization','Centralize authentication and authorization.'],operations:['Delivery and Operations Modernization','Introduce CI/CD and observability.'],industrial:['Embedded and Industrial Modernization','Update device and industrial software.']};
+const PROVIDERS=[
+ {id:'github',name:'GitHub',color:'#24292f',ab:'GH',orgLabel:'Organization',ph:'e.g. acme-insurance'},
+ {id:'gitlab',name:'GitLab',color:'#e24329',ab:'GL',orgLabel:'Group',ph:'e.g. acme/platform'},
+ {id:'azure',name:'Azure DevOps',color:'#0078d4',ab:'AZ',orgLabel:'Organization / project',ph:'e.g. acme/Operations'},
+ {id:'bitbucket',name:'Bitbucket',color:'#2684ff',ab:'BB',orgLabel:'Workspace',ph:'e.g. acme-plant'}];
+// name, technology, system category, detection signals, kLOC, last commit year, suggested modernization
+const SAMPLE={
+ github:[['claims-core','COBOL · CICS · JCL','mainframe','*.cbl, *.jcl, copybooks/',412,2019,['application','cloud','integration']],['agent-desktop','Visual Basic 6','desktop','*.vbp, *.frm, *.bas',88,2016,['experience','application']],['policy-portal','Java EE 6 (EJB, JSF) on WebLogic','web','ejb-jar.xml, weblogic.xml',236,2022,['application','cloud']],['nightly-batch','Perl · ksh · cron','integration','*.pl, *.ksh, crontab',12,2018,['integration','operations']],['pricing-service','TypeScript · Node.js 20','modern','package.json, Dockerfile',24,2026,[]]],
+ gitlab:[['erp-customizations','SAP ABAP','packaged','*.abap, transport files',154,2021,['enterprise']],['finance-reports','SSRS · T-SQL stored procedures','data','*.rdl, *.sql',61,2020,['data','database']],['esb-flows','TIBCO BusinessWorks 5','integration','*.process, *.substvar',40,2017,['integration']],['customer-api','Go 1.22 · Kubernetes','modern','go.mod, helm/',31,2026,[]]],
+ azure:[['branch-ops','.NET Framework 3.5 WinForms','clientserver','TargetFrameworkVersion v3.5',130,2020,['application','experience','cloud']],['intranet','Classic ASP · VBScript','web','*.asp, global.asa',45,2015,['application','experience','security']],['auth-ldap','C# custom LDAP auth','web','DirectoryServices, web.config',9,2019,['security']],['release-scripts','PowerShell · manual deploy','integration','deploy*.ps1, no pipeline file',6,2023,['operations']]],
+ bitbucket:[['plant-gateway','C · embedded Linux','embedded','Makefile, *.c, firmware/',70,2018,['industrial']],['orders-forms','Oracle Forms 6i · PL/SQL','clientserver','*.fmb, *.pll, *.pks',190,2014,['application','database']],['dw-etl','Informatica PowerCenter','data','workflow *.xml exports',33,2019,['data']]]};
+const NOW=2026,KEY='mindsuite-connectors-v1';
+let S={conn:{},scope:[]};try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&s.conn)S={conn:s.conn,scope:Array.isArray(s.scope)?s.scope:[]}}catch{}
+for(const k in S.conn)if(S.conn[k].state==='scanning')delete S.conn[k];
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch{}};
+const $=id=>document.getElementById(id);
+const el=(t,p={},k=[])=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==='class')e.className=v;else if(a==='text')e.textContent=v;else if(a.startsWith('on'))e.addEventListener(a.slice(2),v);else e.setAttribute(a,v)}for(const c of[].concat(k))if(c!=null)e.append(c);return e};
+const toast=m=>{const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2400)};
+const status=r=>r.cat==='modern'?'Current':NOW-r.year>=5||['mainframe','desktop','clientserver'].includes(r.cat)?'Legacy':'Aging';
+function repos(){const out=[];for(const p of PROVIDERS){const c=S.conn[p.id];if(!c||c.state!=='connected')continue;for(const r of SAMPLE[p.id])out.push({id:p.id+'/'+r[0],prov:p,org:c.org,name:r[0],tech:r[1],cat:r[2],signals:r[3],kloc:r[4],year:r[5],mods:r[6]})}out.forEach(r=>r.status=status(r));return out}
+let selected=new Set(),timers={};
+
+function renderConnectors(){
+ const rs=repos(),on=PROVIDERS.filter(p=>S.conn[p.id]?.state==='connected').length;
+ const k=(l,v)=>el('div',{class:'kpi'},[el('small',{text:l}),el('strong',{text:String(v)})]);
+ $('kpis').replaceChildren(k('Connected sources',on+' / '+PROVIDERS.length),k('Repositories scanned',rs.length),k('Legacy systems found',rs.filter(r=>r.status==='Legacy').length),k('Lines of code',rs.reduce((a,r)=>a+r.kloc,0)+'k'));
+ $('connList').replaceChildren(...PROVIDERS.map(p=>{
+  const c=S.conn[p.id],st=c?.state;
+  const card=el('article',{class:'conn'+(st==='connected'?' connected':'')});
+  card.append(el('div',{class:'conn-top'},[el('div',{class:'logo',style:'background:'+p.color,text:p.ab}),el('div',{},[el('h3',{text:p.name}),el('div',{class:'meta',text:c?p.orgLabel+': '+c.org:'Code repositories'})])]));
+  if(!st){card.append(el('span',{class:'status s-off',text:'Not connected'}),el('p',{class:'meta',text:'Scan repositories for languages, frameworks and build files.'}),el('div',{class:'row'},el('button',{class:'btn primary',text:'Connect',onclick:()=>openDlg(p)})))}
+  else if(st==='scanning'){const total=SAMPLE[p.id].length,done=Math.min(total,Math.floor(c.progress*total/100));card.append(el('span',{class:'status s-scan',text:'Scanning…'}),el('div',{class:'meta',text:`Analyzing repository ${Math.max(1,done)} of ${total}`}),el('div',{class:'bar'},el('i',{style:'width:'+c.progress+'%'})),el('div',{class:'row'},el('button',{class:'btn',text:'Cancel',onclick:()=>disconnect(p,true)})))}
+  else{const n=SAMPLE[p.id].length,leg=repos().filter(r=>r.prov.id===p.id&&r.status==='Legacy').length;
+   card.append(el('span',{class:'status s-on',text:'Connected'}),el('div',{class:'meta'},[el('b',{text:n+' repositories'}),' · ',el('b',{text:leg+' legacy'}),el('br'),'Last scan: '+new Date(c.at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'})]),
+   el('div',{class:'row'},[el('button',{class:'btn',text:'View repositories',onclick:()=>{$('fSrc').value=p.id;go('inventory')}}),el('button',{class:'btn',text:'Rescan',onclick:()=>scan(p,c.org)}),el('button',{class:'btn danger',text:'Disconnect',onclick:()=>disconnect(p)})]))}
+  return card}));
+ $('navConn').textContent=on;$('navInv').textContent=rs.length;$('navScope').textContent=S.scope.length;
+}
+let dlgP=null;
+function openDlg(p){dlgP=p;$('dlgTitle').textContent='Connect '+p.name;$('dlgSub').textContent='MindSuite will request read-only access to scan repositories.';$('dlgOrgLabel').textContent=p.orgLabel;$('dlgOrg').placeholder=p.ph;$('dlgOrg').value='';$('dlg').showModal();$('dlgOrg').focus()}
+$('dlg').addEventListener('close',()=>{if($('dlg').returnValue==='ok'&&dlgP){const org=$('dlgOrg').value.trim()||'demo';scan(dlgP,org)}dlgP=null});
+function scan(p,org){clearInterval(timers[p.id]);S.conn[p.id]={state:'scanning',org,progress:0};renderAll();
+ timers[p.id]=setInterval(()=>{const c=S.conn[p.id];if(!c||c.state!=='scanning'){clearInterval(timers[p.id]);return}c.progress=Math.min(100,c.progress+12+Math.random()*14);
+  if(c.progress>=100){clearInterval(timers[p.id]);S.conn[p.id]={state:'connected',org,at:Date.now()};save();toast(p.name+': '+SAMPLE[p.id].length+' repositories discovered');renderAll()}else renderConnectors()},350)}
+function disconnect(p,cancel){clearInterval(timers[p.id]);delete S.conn[p.id];const pre=p.id+'/';S.scope=S.scope.filter(i=>!i.startsWith(pre));[...selected].forEach(i=>i.startsWith(pre)&&selected.delete(i));save();toast(p.name+(cancel?' scan cancelled':' disconnected'));renderAll()}
+
+function renderInventory(){
+ const rs=repos();
+ const src=$('fSrc').value,cat=$('fCat').value;
+ $('fSrc').replaceChildren(el('option',{value:'',text:'All connectors'}),...PROVIDERS.filter(p=>S.conn[p.id]?.state==='connected').map(p=>el('option',{value:p.id,text:p.name})));$('fSrc').value=[...$('fSrc').options].some(o=>o.value===src)?src:'';
+ $('fCat').replaceChildren(el('option',{value:'',text:'All categories'}),...Object.entries(SYSCAT).map(([k,v])=>el('option',{value:k,text:v})));$('fCat').value=cat;
+ if(!rs.length){$('invBody').replaceChildren(el('div',{class:'panel empty'},[el('h3',{text:'No repositories yet',style:'color:var(--ink)'}),el('p',{text:'Connect at least one code repository provider to discover systems.'}),el('button',{class:'btn primary',text:'Go to connectors',onclick:()=>go('connectors')})]));updSel();return}
+ const q=$('q').value.trim().toLowerCase(),fs=$('fSrc').value,fc=$('fCat').value,ft=$('fStat').value;
+ const list=rs.filter(r=>(!q||(r.name+' '+r.tech+' '+r.signals).toLowerCase().includes(q))&&(!fs||r.prov.id===fs)&&(!fc||r.cat===fc)&&(!ft||r.status===ft));
+ const all=el('input',{type:'checkbox','aria-label':'Select all visible'});all.checked=list.length&&list.every(r=>selected.has(r.id));all.addEventListener('change',()=>{list.forEach(r=>all.checked?selected.add(r.id):selected.delete(r.id));renderInventory()});
+ const tb=el('tbody');
+ for(const r of list){const cb=el('input',{type:'checkbox','aria-label':'Select '+r.name});cb.checked=selected.has(r.id);cb.addEventListener('change',()=>{cb.checked?selected.add(r.id):selected.delete(r.id);updSel()});
+  const inScope=S.scope.includes(r.id);
+  tb.append(el('tr',{},[el('td',{},cb),el('td',{},[el('strong',{text:r.name}),inScope?el('span',{class:'tag',style:'background:var(--light);color:var(--blue);margin-left:6px',text:'In scope'}):null,el('span',{class:'sub',text:r.org+'/'+r.name})]),
+   el('td',{},el('span',{class:'src'},[el('span',{class:'dot',style:'background:'+r.prov.color}),r.prov.name])),
+   el('td',{},[r.tech,el('span',{class:'sub'},[el('code',{text:r.signals})])]),el('td',{text:SYSCAT[r.cat]}),el('td',{text:r.kloc+'k'}),el('td',{text:String(r.year)}),
+   el('td',{},el('span',{class:'tag t-'+r.status.toLowerCase(),text:r.status}))]))}
+ if(!list.length)tb.append(el('tr',{},el('td',{colspan:'8',class:'empty',text:'No repositories match these filters.'})));
+ $('invBody').replaceChildren(el('div',{class:'tablewrap'},el('table',{},[el('thead',{},el('tr',{},[el('th',{},all),...['Repository','Connector','Detected technology','Legacy category','Size','Last commit','Status'].map(h=>el('th',{text:h}))])),tb])));
+ updSel();
+}
+function updSel(){$('selbar').classList.toggle('on',selected.size>0);$('selText').textContent=selected.size+' selected'}
+$('selClear').onclick=()=>{selected.clear();renderInventory()};
+$('selAdd').onclick=()=>{let n=0;selected.forEach(i=>{if(!S.scope.includes(i)){S.scope.push(i);n++}});selected.clear();save();toast(n+' added to modernization scope');renderAll();go('scope')};
+['q','fSrc','fCat','fStat'].forEach(i=>$(i).addEventListener('input',renderInventory));
+
+function renderInsights(){
+ const rs=repos();
+ if(!rs.length){$('insBody').replaceChildren(el('div',{class:'panel empty'},[el('p',{text:'Insights appear after you connect a repository provider.'}),el('button',{class:'btn primary',text:'Go to connectors',onclick:()=>go('connectors')})]));return}
+ const count=(arr)=>{const m={};arr.forEach(x=>m[x]=(m[x]||0)+1);return Object.entries(m).sort((a,b)=>b[1]-a[1])};
+ const bars=(rows,label)=>{const max=Math.max(...rows.map(r=>r[1]));return rows.map(([k,v])=>el('div',{class:'hbar'},[el('span',{text:label(k)}),el('div',{class:'bar'},el('i',{style:'width:'+(v/max*100)+'%'})),el('strong',{text:String(v)})]))};
+ const byCat=count(rs.map(r=>r.cat)),byStat=count(rs.map(r=>r.status)),byMod=count(rs.flatMap(r=>r.mods));
+ const oldest=[...rs].filter(r=>r.status!=='Current').sort((a,b)=>a.year-b.year||b.kloc-a.kloc).slice(0,5);
+ $('insBody').replaceChildren(el('div',{class:'grid2'},[el('div',{class:'panel'},[el('h2',{text:'By legacy category'}),...bars(byCat,k=>SYSCAT[k])]),el('div',{class:'panel'},[el('h2',{text:'By status'}),...bars(byStat,k=>k),el('h2',{text:'Suggested modernization',style:'margin-top:18px'}),...bars(byMod,k=>MODCAT[k][0].replace(' and ',' & '))])]),
+  el('div',{class:'panel'},[el('h2',{text:'Top modernization candidates'}),el('p',{text:'Oldest legacy code by last commit, then size.'}),...oldest.map(r=>el('div',{class:'hbar',style:'grid-template-columns:1fr auto auto'},[el('span',{},[el('strong',{text:r.name}),' · '+r.tech]),el('span',{class:'tag t-'+r.status.toLowerCase(),text:r.status}),el('span',{class:'meta',text:r.year+' · '+r.kloc+'k'})]))]));
+}
+
+function renderScope(){
+ const rs=repos().filter(r=>S.scope.includes(r.id));
+ $('exportScope').disabled=!rs.length;
+ if(!rs.length){$('scopeBody').replaceChildren(el('div',{class:'panel empty'},[el('h3',{text:'Nothing in scope yet',style:'color:var(--ink)'}),el('p',{text:'Select repositories in the inventory and add them to your modernization scope.'}),el('button',{class:'btn primary',text:'Open inventory',onclick:()=>go('inventory')})]));return}
+ const mods={};rs.forEach(r=>r.mods.forEach(m=>(mods[m]=mods[m]||[]).push(r)));
+ const left=el('div',{class:'panel'},[el('h2',{text:'Systems in scope ('+rs.length+')'}),...rs.map(r=>el('div',{class:'scope-cat',style:'display:flex;justify-content:space-between;gap:10px;align-items:flex-start'},[el('div',{},[el('strong',{text:r.name}),el('div',{class:'meta',text:r.tech+' · '+SYSCAT[r.cat]+' · '+r.prov.name})]),el('button',{class:'btn',text:'Remove',onclick:()=>{S.scope=S.scope.filter(i=>i!==r.id);save();renderAll()}})]))]);
+ const right=el('div',{class:'panel'},[el('h2',{text:'Modernization categories'}),el('p',{text:'Suggested from the technology detected in each repository.'}),
+  ...(Object.keys(mods).length?Object.entries(mods).sort((a,b)=>b[1].length-a[1].length).map(([m,list])=>el('div',{class:'scope-cat'},[el('h3',{text:MODCAT[m][0]}),el('p',{text:MODCAT[m][1]}),el('div',{class:'chips'},list.map(r=>el('span',{class:'chip',text:r.name})))])):[el('p',{text:'The selected repositories use current technology; no modernization category suggested.'})])]);
+ $('scopeBody').replaceChildren(el('div',{class:'grid2'},[left,right]));
+}
+$('exportScope').onclick=()=>{const rs=repos().filter(r=>S.scope.includes(r.id));const mods={};rs.forEach(r=>r.mods.forEach(m=>(mods[m]=mods[m]||[]).push(r.name)));
+ const t=['MindSuite Doctrine of Legacy Modernization — Modernization scope','','SYSTEMS IN SCOPE',...rs.map(r=>`• ${r.prov.name} ${r.org}/${r.name} — ${r.tech} (${SYSCAT[r.cat]}, ${r.kloc}k LOC, last commit ${r.year})`),'','MODERNIZATION CATEGORIES',...Object.entries(mods).map(([m,l])=>`• ${MODCAT[m][0]}: ${l.join(', ')}`),'','Generated from sample connector data (prototype).'].join('\n');
+ const u=URL.createObjectURL(new Blob([t],{type:'text/plain;charset=utf-8'}));const a=el('a',{href:u,download:'MindSuite_Modernization_Scope.txt'});a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
+$('resetAll').onclick=()=>{Object.values(timers).forEach(clearInterval);S={conn:{},scope:[]};selected.clear();save();toast('Demo reset');renderAll()};
+
+function renderAll(){renderConnectors();renderInventory();renderInsights();renderScope()}
+function go(v){if(!['connectors','inventory','insights','scope'].includes(v))v='connectors';document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));document.querySelectorAll('aside a').forEach(a=>a.classList.toggle('active',a.dataset.view===v));if(location.hash!=='#'+v)history.replaceState(null,'','#'+v);if(v==='inventory')renderInventory();window.scrollTo(0,0)}
+document.querySelectorAll('aside a').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();go(a.dataset.view)}));
+renderAll();go(location.hash.slice(1));
 </script></body></html>
