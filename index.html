@@ -6,7 +6,7 @@
 :root{--bg:#f7f8fa;--surface:#fff;--ink:#0f1a2a;--ink2:#3a4658;--muted:#6b7686;--line:#e4e7ec;--line2:#d0d5dd;--accent:#2f54eb;--accent-soft:#eef2ff;--accent-ink:#1d39c4;--ok:#127a4a;--ok-soft:#e7f6ee;--warn:#b54708;--ai:#6941c6;--ai-soft:#f4f0ff;--radius:10px;--shadow:0 1px 2px rgba(16,24,40,.05)}
 *{box-sizing:border-box}html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif;-webkit-font-smoothing:antialiased}
-button,input{font:inherit;color:inherit}:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button,input,select{font:inherit;color:inherit}:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .top{height:56px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 20px;position:sticky;top:0;z-index:10}
 .logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.2px}
 .mark{width:28px;height:28px;border-radius:7px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
@@ -66,6 +66,7 @@ main{padding:24px 32px 48px;min-width:0}
 .rail .sec:first-child{margin-top:0}
 .opt b{display:block;font-weight:600;font-size:13.5px}.opt small{display:block;color:var(--muted);font-size:12.5px;line-height:1.4;margin-top:1px}
 .tag{display:inline-block;font-size:10.5px;font-weight:600;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:1px}.tag.ai{background:var(--ai-soft);color:var(--ai)}.tag.you{background:#f2f4f7;color:var(--ink2)}
+.tech-filters{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}.tech-filters .field{flex:1 1 230px;font-size:13px}.stack-details{padding:14px;border:1px solid var(--line);border-radius:8px;background:#fcfcfd;margin-bottom:16px}.stack-details h2{font-size:15px;margin:0 0 6px}.stack-row{margin-top:12px}.stack-title{display:flex;justify-content:space-between;gap:12px;margin-bottom:5px;font-size:13px}.stack-row .field{font-size:13px}.stack-summary{padding-left:18px;font-weight:400}.stack-summary li{margin:6px 0}
 .option-group{grid-column:1/-1;font-size:12px;font-weight:600;letter-spacing:.4px;color:var(--muted);margin:12px 0 2px}.option-group:first-child{margin-top:0}
 .empty{grid-column:1/-1;padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--line2);border-radius:8px}
 .assist{margin-top:14px;border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fcfcfd}
@@ -117,15 +118,2382 @@ const TYPES=[
  ['data','Data and reporting systems','Databases, pipelines, warehouses and reports'],
  ['integration','Integration and batch systems','Components that connect applications or run scheduled processing'],
  ['embedded','Embedded and industrial systems','Software tied to equipment, devices or plant environments']];
-const TECH={
- mainframe:[['cobol-cics','COBOL with CICS','Online transaction screens (3270) and business logic'],['cobol-batch','COBOL batch with JCL','Scheduled batch jobs, sequential/VSAM files'],['pli','PL/I','PL/I programs, often alongside COBOL'],['assembler','Assembler (HLASM)','Low-level mainframe programs and utilities'],['ibmi-rpg','IBM i (AS/400) – RPG / CL','RPG III/IV programs, green screens, DB2 for i'],['natural','Natural / Adabas','Software AG 4GL with Adabas database'],['ims','IMS DB/DC','Hierarchical database and transaction manager'],['db2z','DB2 for z/OS','Mainframe relational database'],['other','Other / not sure','Something else, or not yet known']],
- desktop:[['vb6','Visual Basic 6','VB6 forms, COM components, ActiveX controls'],['winforms','Windows Forms (.NET Framework)','.NET Framework 2.0–4.x WinForms apps'],['wpf','WPF (.NET Framework)','XAML-based desktop apps on .NET Framework'],['delphi','Delphi / Object Pascal','Borland/Embarcadero Delphi applications'],['swing','Java Swing / AWT','Java desktop clients, often launched via Web Start'],['access','Microsoft Access','Access databases with forms, macros and VBA'],['mfc','C++ / MFC','Native Windows apps using MFC or Win32'],['foxpro','Visual FoxPro','FoxPro forms and DBF databases'],['other','Other / not sure','Something else, or not yet known']],
- clientserver:[['oracle-forms','Oracle Forms & Reports','Forms 6i–12c with PL/SQL in the database'],['powerbuilder','PowerBuilder','DataWindow-based client apps'],['centura','Centura / Gupta Team Developer','SQLWindows client-server apps'],['progress','Progress OpenEdge (ABL)','4GL apps on the Progress database'],['uniface','Uniface','Model-driven 4GL client-server apps'],['vb-sql','VB6 or .NET client + SQL Server','Thick client with logic in stored procedures'],['delphi-cs','Delphi client-server','Delphi clients over Oracle, InterBase or SQL Server'],['other','Other / not sure','Something else, or not yet known']],
- web:[['classic-asp','Classic ASP (VBScript)','.asp pages on IIS, often with COM components'],['webforms','ASP.NET Web Forms','.aspx pages, ViewState, .NET Framework'],['javaee','Java EE (EJB, JSF, Struts)','Apps on WebLogic, WebSphere or JBoss'],['php','PHP monolith','Older PHP 5 apps, often without a framework'],['coldfusion','ColdFusion','CFML applications'],['perl-cgi','Perl / CGI','CGI scripts and server-side Perl'],['old-rails','Old Ruby on Rails / Django','Unsupported framework versions'],['plugin-ui','Silverlight / Flash / Java applet UI','Browser plug-in front ends no longer supported'],['other','Other / not sure','Something else, or not yet known']],
- packaged:[['sap-ecc','SAP ECC / R/3','SAP ERP with ABAP customizations'],['oracle-ebs','Oracle E-Business Suite','Oracle EBS 11i / R12'],['peoplesoft','PeopleSoft','HR, finance or campus solutions'],['jde','JD Edwards','EnterpriseOne or World'],['siebel','Siebel CRM','Oracle Siebel customer management'],['dynamics','Dynamics AX / NAV / GP / CRM','On-premises Microsoft Dynamics versions'],['notes','Lotus Notes / Domino','Notes databases and workflow apps'],['custom-cots','Heavily customized product','Commercial product with extensive custom code'],['other','Other / not sure','Something else, or not yet known']],
- data:[['plsql','Oracle with heavy PL/SQL','Business logic in packages, procedures and triggers'],['tsql','SQL Server stored procedures','Logic in T-SQL procedures and jobs'],['sybase','Sybase ASE / Informix','Older relational database engines'],['teradata','Teradata / Netezza','On-premises data warehouse appliances'],['informatica','Informatica PowerCenter','Legacy ETL workflows'],['ssis','SSIS / DTS','SQL Server Integration Services packages'],['reports','SSRS / Crystal Reports','Operational and management reports'],['bi','Cognos / Business Objects / MicroStrategy','Legacy BI platforms'],['other','Other / not sure','Something else, or not yet known']],
- integration:[['mq','IBM MQ / WebSphere Message Broker','Message queues and broker flows'],['tibco','TIBCO BusinessWorks','TIBCO integration processes'],['biztalk','Microsoft BizTalk','Orchestrations and adapters'],['webmethods','webMethods','Software AG integration server'],['soap','SOAP / XML web services','WSDL-based service interfaces'],['files','FTP / SFTP file transfers','Scheduled flat-file or CSV exchanges'],['edi','EDI (X12 / EDIFACT)','Partner document exchange'],['scheduler','Control-M / AutoSys / cron','Batch schedulers and scheduled scripts'],['other','Other / not sure','Something else, or not yet known']],
- embedded:[['plc','PLC programs (ladder logic)','Programmable logic controllers on the plant floor'],['scada','SCADA / HMI','e.g. Wonderware, WinCC, older iFIX'],['firmware','Embedded C / C++ firmware','Device firmware on microcontrollers'],['rtos','RTOS (VxWorks, QNX)','Real-time operating system software'],['old-os','Windows XP / CE on equipment','Unsupported OS embedded in machines'],['opc','OPC Classic (DA)','DCOM-based industrial data access'],['fieldbus','Modbus / Profibus integrations','Fieldbus protocols and gateways'],['other','Other / not sure','Something else, or not yet known']]};
+const TECH_CATALOG=[
+ [
+  "cobol-cics",
+  "COBOL with CICS",
+  "Online transaction screens (3270) and business logic"
+ ],
+ [
+  "cobol-batch",
+  "COBOL batch with JCL",
+  "Scheduled batch jobs, sequential/VSAM files"
+ ],
+ [
+  "pli",
+  "PL/I",
+  "PL/I programs, often alongside COBOL"
+ ],
+ [
+  "assembler",
+  "Assembler (HLASM)",
+  "Low-level mainframe programs and utilities"
+ ],
+ [
+  "ibmi-rpg",
+  "IBM i (AS/400) – RPG / CL",
+  "RPG III/IV programs, green screens, DB2 for i"
+ ],
+ [
+  "natural",
+  "Natural / Adabas",
+  "Software AG 4GL with Adabas database"
+ ],
+ [
+  "ims",
+  "IMS DB/DC",
+  "Hierarchical database and transaction manager"
+ ],
+ [
+  "db2z",
+  "DB2 for z/OS",
+  "Mainframe relational database"
+ ],
+ [
+  "other",
+  "Other / not sure",
+  "Something else, or not yet known"
+ ],
+ [
+  "mf-cobol",
+  "COBOL compilers and dialects",
+  "IBM VS COBOL II, COBOL for MVS, Enterprise COBOL; Micro Focus and ACUCOBOL"
+ ],
+ [
+  "mf-rpg",
+  "RPG II / III / IV and ILE RPG",
+  "Fixed-format or free-form RPG, CL, DDS and service programs on IBM i"
+ ],
+ [
+  "mf-rexx",
+  "REXX and CLIST",
+  "TSO scripting, automation and operational procedures"
+ ],
+ [
+  "mf-easytrieve",
+  "Easytrieve and CA Gen",
+  "Report programs, generated applications and model repositories"
+ ],
+ [
+  "mf-cics",
+  "CICS Transaction Server",
+  "Regions, BMS maps, COMMAREAs, channels and transaction definitions"
+ ],
+ [
+  "mf-ims-tm",
+  "IMS Transaction Manager",
+  "Message processing programs, transactions and IMS Connect"
+ ],
+ [
+  "mf-vsam",
+  "VSAM and sequential datasets",
+  "KSDS, ESDS, RRDS, copybooks, record layouts and GDGs"
+ ],
+ [
+  "mf-idms",
+  "CA IDMS",
+  "Network database schemas, subschemas and ADS applications"
+ ],
+ [
+  "mf-datacom",
+  "CA Datacom",
+  "Datacom databases, tables and Ideal applications"
+ ],
+ [
+  "mf-db2i",
+  "Db2 for i / DB2/400",
+  "Physical and logical files, SQL, stored procedures and journaling"
+ ],
+ [
+  "mf-zos",
+  "MVS / OS/390 / z/OS",
+  "Mainframe operating environment, JES2/JES3 and Unix System Services"
+ ],
+ [
+  "mf-vse",
+  "VSE / z/VSE",
+  "Batch partitions, CICS and VSE application environments"
+ ],
+ [
+  "mf-ibmi",
+  "OS/400 / i5/OS / IBM i",
+  "AS/400, iSeries and IBM Power operating environments"
+ ],
+ [
+  "mf-nonstop",
+  "Tandem / HPE NonStop",
+  "Guardian, OSS, TAL, COBOL, Pathway and NonStop SQL"
+ ],
+ [
+  "mf-unisys",
+  "Unisys ClearPath MCP / OS 2200",
+  "COBOL, ALGOL, DMSII and enterprise transaction applications"
+ ],
+ [
+  "mf-jcl",
+  "JCL and mainframe scheduling",
+  "JOB/EXEC/DD, PROCs, DFSORT, Control-M and CA 7 schedules"
+ ],
+ [
+  "mf-source",
+  "Endevor / ChangeMan / ISPW",
+  "Source libraries, promotion, compile and release controls"
+ ],
+ [
+  "rt-java-old",
+  "Java 1.1–1.4 / Java 5–7",
+  "JDK/JRE vendor, bytecode level, applets, Web Start and native libraries"
+ ],
+ [
+  "rt-java8",
+  "Java 8",
+  "Oracle, OpenJDK or vendor JDK; record update level and distribution"
+ ],
+ [
+  "rt-java11",
+  "Java 11",
+  "JDK distribution, modules, runtime flags and application compatibility"
+ ],
+ [
+  "rt-java17",
+  "Java 17 / 18 / 19",
+  "Java releases available by 2022; capture the exact JDK version"
+ ],
+ [
+  "rt-net-old",
+  ".NET Framework 1.0–3.5",
+  "CLR 1.x/2.0, C#, VB.NET, assemblies and application configuration"
+ ],
+ [
+  "rt-net4",
+  ".NET Framework 4.0–4.8.1",
+  "CLR 4, C#, VB.NET and Framework-specific dependencies"
+ ],
+ [
+  "rt-netcore",
+  ".NET Core 1 / 2 / 3.1",
+  "Cross-platform runtime, ASP.NET Core and package dependencies"
+ ],
+ [
+  "rt-net",
+  ".NET 5 / 6 / 7",
+  "Unified .NET releases through 2022, runtime and SDK versions"
+ ],
+ [
+  "rt-python",
+  "Python 2.x / 3.x through 3.11",
+  "Interpreter, packages, virtual environments and native extensions"
+ ],
+ [
+  "rt-node",
+  "Node.js 0.x–19",
+  "JavaScript/TypeScript runtime, npm packages and native modules"
+ ],
+ [
+  "rt-php",
+  "PHP 3 / 4 / 5 / 7 / 8.0–8.2",
+  "PHP runtime, extensions, configuration and dependency packages"
+ ],
+ [
+  "rt-ruby",
+  "Ruby 1.8–3.1",
+  "Interpreter, gems, bundler and native dependencies"
+ ],
+ [
+  "rt-c",
+  "C / C++ / Objective-C",
+  "Compiler version, language standard, ABI and native libraries"
+ ],
+ [
+  "rt-go",
+  "Go 1.x through 1.19",
+  "Compiler, modules, native integrations and build configuration"
+ ],
+ [
+  "rt-jvm",
+  "Scala / Groovy / Kotlin",
+  "JVM language versions, compiler and package dependencies"
+ ],
+ [
+  "rt-perl",
+  "Perl 5 / Tcl / shell scripting",
+  "Scripts, modules, interpreters and operating system commands"
+ ],
+ [
+  "rt-js",
+  "JavaScript / TypeScript",
+  "ECMAScript target, TypeScript compiler and browser/runtime constraints"
+ ],
+ [
+  "db-oracle",
+  "Oracle Database",
+  "7 through 21c families; specify edition, patch set and PL/SQL use"
+ ],
+ [
+  "db-sqlserver",
+  "Microsoft SQL Server",
+  "6.5 through 2022 families; specify edition, compatibility level and T-SQL use"
+ ],
+ [
+  "db-postgres",
+  "PostgreSQL 7–15",
+  "Extensions, stored procedures, replication and database versions"
+ ],
+ [
+  "db-mysql",
+  "MySQL 3 / 4 / 5 / 8.0",
+  "Storage engines, SQL modes, procedures and replication"
+ ],
+ [
+  "db-mariadb",
+  "MariaDB 5.5 / 10.x",
+  "Database version, engines, plugins and replication"
+ ],
+ [
+  "db-sqlite",
+  "SQLite / embedded SQL",
+  "Database files, schema, application bindings and locking"
+ ],
+ [
+  "db-firebird",
+  "InterBase / Firebird",
+  "Embedded or server databases, triggers and stored procedures"
+ ],
+ [
+  "db-access",
+  "Access Jet / ACE / DBF files",
+  "File databases, VBA, linked tables and desktop data access"
+ ],
+ [
+  "db-mongo",
+  "MongoDB 1–6",
+  "Document schemas, indexes, replica sets and application drivers"
+ ],
+ [
+  "db-redis",
+  "Redis 1–7",
+  "Caching, persistence, data structures and client dependencies"
+ ],
+ [
+  "db-cassandra",
+  "Cassandra / Couchbase / CouchDB",
+  "Distributed or document storage, consistency and client access"
+ ],
+ [
+  "db-elastic",
+  "Elasticsearch / Solr",
+  "Indexes, mappings, analyzers, queries and search integrations"
+ ],
+ [
+  "db-hana",
+  "SAP HANA",
+  "Database edition, calculation views, SQLScript and application use"
+ ],
+ [
+  "db-cloud",
+  "Managed cloud databases",
+  "Amazon RDS/Aurora, Azure SQL, Cloud SQL, DynamoDB or Cosmos DB"
+ ],
+ [
+  "db-files",
+  "Flat files / CSV / XML / Excel",
+  "File layouts, encodings, shared folders and import/export jobs"
+ ],
+ [
+  "srv-iis",
+  "Microsoft IIS 4–10",
+  "Sites, app pools, ISAPI, authentication and Windows hosting"
+ ],
+ [
+  "srv-tomcat",
+  "Apache Tomcat 3–10",
+  "Servlet/JSP container, WAR deployments and connector configuration"
+ ],
+ [
+  "srv-weblogic",
+  "BEA / Oracle WebLogic",
+  "Domains, managed servers, JMS, JDBC and Java EE applications"
+ ],
+ [
+  "srv-websphere",
+  "IBM WebSphere / Liberty",
+  "Traditional server profiles or Liberty, JVM and application features"
+ ],
+ [
+  "srv-jboss",
+  "JBoss AS / EAP / WildFly",
+  "Java EE/Jakarta EE deployments, datasources and server modules"
+ ],
+ [
+  "srv-glassfish",
+  "GlassFish / Payara / Jetty",
+  "Java application or servlet hosting and runtime configuration"
+ ],
+ [
+  "srv-http",
+  "Apache HTTP Server / Nginx",
+  "Virtual hosts, modules, reverse proxies and TLS termination"
+ ],
+ [
+  "os-windows",
+  "Windows NT / 2000 / XP through Windows 11",
+  "Client OS, architecture, service packs and desktop dependencies"
+ ],
+ [
+  "os-winserver",
+  "Windows Server NT–2022",
+  "Server edition, service packs, roles and authentication dependencies"
+ ],
+ [
+  "os-linux",
+  "Linux distributions",
+  "RHEL, CentOS, SUSE, Debian or Ubuntu; specify release and kernel"
+ ],
+ [
+  "os-unix",
+  "AIX / HP-UX / Solaris / SCO Unix",
+  "Unix release, hardware architecture, libraries and system services"
+ ],
+ [
+  "os-vms",
+  "OpenVMS",
+  "VAX, Alpha or Integrity applications, DCL and runtime dependencies"
+ ],
+ [
+  "os-macos",
+  "Classic Mac OS / macOS",
+  "Platform version, CPU architecture and native application dependencies"
+ ],
+ [
+  "host-vm",
+  "VMware / Hyper-V / KVM",
+  "Virtual machines, guest OS, hypervisors and virtual networking"
+ ],
+ [
+  "host-container",
+  "Docker / Kubernetes / OpenShift",
+  "Images, containers, orchestration and deployment manifests"
+ ],
+ [
+  "host-cloud",
+  "AWS / Azure / Google Cloud",
+  "Compute, storage, networking, identity and managed service dependencies"
+ ],
+ [
+  "host-serverless",
+  "Lambda / Azure Functions / Cloud Functions",
+  "Function runtimes, triggers, bindings and deployment packages"
+ ],
+ [
+  "ops-build",
+  "Ant / Maven / Gradle / MSBuild / Make",
+  "Build files, compiler targets, dependencies and packaging"
+ ],
+ [
+  "ops-source",
+  "CVS / SVN / Git / TFS / TFVC",
+  "Source control repositories, branches and historical build inputs"
+ ],
+ [
+  "ops-ci",
+  "Jenkins / TeamCity / Bamboo / Azure DevOps",
+  "Build agents, pipelines, releases and deployment automation"
+ ],
+ [
+  "ops-config",
+  "Ansible / Puppet / Chef / Terraform",
+  "Infrastructure definitions, configuration, inventory and modules"
+ ],
+ [
+  "ops-schedule",
+  "cron / Windows Task Scheduler / Control-M / AutoSys",
+  "Schedules, job dependencies, accounts and operational scripts"
+ ],
+ [
+  "ops-identity",
+  "Active Directory / LDAP / SAML / OAuth / OIDC",
+  "Directories, authentication providers, federation and application identity"
+ ],
+ [
+  "ops-monitor",
+  "Nagios / Zabbix / Splunk / ELK / Prometheus",
+  "Monitoring agents, logs, metrics, alerts and dashboards"
+ ],
+ [
+  "vb6",
+  "Visual Basic 6",
+  "VB6 forms, COM components, ActiveX controls"
+ ],
+ [
+  "winforms",
+  "Windows Forms (.NET Framework)",
+  ".NET Framework 2.0–4.x WinForms apps"
+ ],
+ [
+  "wpf",
+  "WPF (.NET Framework)",
+  "XAML-based desktop apps on .NET Framework"
+ ],
+ [
+  "delphi",
+  "Delphi / Object Pascal",
+  "Borland/Embarcadero Delphi applications"
+ ],
+ [
+  "swing",
+  "Java Swing / AWT",
+  "Java desktop clients, often launched via Web Start"
+ ],
+ [
+  "access",
+  "Microsoft Access",
+  "Access databases with forms, macros and VBA"
+ ],
+ [
+  "mfc",
+  "C++ / MFC",
+  "Native Windows apps using MFC or Win32"
+ ],
+ [
+  "foxpro",
+  "Visual FoxPro",
+  "FoxPro forms and DBF databases"
+ ],
+ [
+  "desk-vb",
+  "Visual Basic 3 / 4 / 5",
+  "16-bit or 32-bit forms, VBX/OCX controls and DAO/RDO"
+ ],
+ [
+  "desk-vba",
+  "VBA and Office automation",
+  "Excel, Access and Word macros, COM automation and add-ins"
+ ],
+ [
+  "desk-dbase",
+  "dBASE / Clipper / Harbour",
+  "xBase programs, DBF files, indexes and DOS-era workflows"
+ ],
+ [
+  "desk-pascal",
+  "Turbo Pascal / Borland Pascal",
+  "DOS applications, units and compiled native executables"
+ ],
+ [
+  "desk-win32",
+  "Win32 / ATL / COM / ActiveX",
+  "Native C/C++ clients, DLLs, registry dependencies and controls"
+ ],
+ [
+  "desk-vcl",
+  "Delphi VCL / C++Builder",
+  "Native forms, BDE, dbExpress and FireDAC data access"
+ ],
+ [
+  "desk-qt",
+  "Qt 3 / 4 / 5 / 6",
+  "Cross-platform C++ widgets, QML and native application packaging"
+ ],
+ [
+  "desk-gtk",
+  "GTK / wxWidgets",
+  "Native cross-platform desktop interfaces and event-driven code"
+ ],
+ [
+  "desk-swt",
+  "Eclipse RCP / SWT",
+  "Java rich clients, OSGi bundles, plug-ins and native widgets"
+ ],
+ [
+  "desk-javafx",
+  "JavaFX",
+  "FXML, scene graphs, Java modules and desktop deployment"
+ ],
+ [
+  "desk-electron",
+  "Electron / NW.js",
+  "JavaScript desktop shells, Chromium and bundled Node.js runtimes"
+ ],
+ [
+  "desk-dotnet",
+  "WinForms / WPF on .NET Core and .NET 5–7",
+  "Modern .NET desktop migration alongside older Framework applications"
+ ],
+ [
+  "desk-uwp",
+  "Windows Store / UWP",
+  "Windows Runtime APIs, XAML and packaged Windows applications"
+ ],
+ [
+  "desk-filemaker",
+  "FileMaker Pro",
+  "Database files, layouts, scripts and hosted solutions"
+ ],
+ [
+  "desk-labview",
+  "LabVIEW",
+  "Graphical programs, instrument drivers and data acquisition"
+ ],
+ [
+  "desk-citrix",
+  "Citrix / Remote Desktop Services",
+  "Published applications, terminal services, sessions and profiles"
+ ],
+ [
+  "oracle-forms",
+  "Oracle Forms & Reports",
+  "Forms 6i–12c with PL/SQL in the database"
+ ],
+ [
+  "powerbuilder",
+  "PowerBuilder",
+  "DataWindow-based client apps"
+ ],
+ [
+  "centura",
+  "Centura / Gupta Team Developer",
+  "SQLWindows client-server apps"
+ ],
+ [
+  "progress",
+  "Progress OpenEdge (ABL)",
+  "4GL apps on the Progress database"
+ ],
+ [
+  "uniface",
+  "Uniface",
+  "Model-driven 4GL client-server apps"
+ ],
+ [
+  "vb-sql",
+  "VB6 or .NET client + SQL Server",
+  "Thick client with logic in stored procedures"
+ ],
+ [
+  "delphi-cs",
+  "Delphi client-server",
+  "Delphi clients over Oracle, InterBase or SQL Server"
+ ],
+ [
+  "cs-forms-old",
+  "Oracle Forms 3 / 4.5 / 5 / 6i",
+  "Character or GUI forms, triggers, libraries and Oracle Reports"
+ ],
+ [
+  "cs-forms-new",
+  "Oracle Forms 9i / 10g / 11g / 12c",
+  "Forms Services, Java clients, WebLogic and PL/SQL dependencies"
+ ],
+ [
+  "cs-powerbuilder",
+  "PowerBuilder Classic / PowerServer",
+  "PowerScript, PBL libraries, DataWindows and deployment models"
+ ],
+ [
+  "cs-progress",
+  "Progress 4GL / OpenEdge ABL",
+  "Character and GUI clients, AppServer and database business logic"
+ ],
+ [
+  "cs-informix4gl",
+  "Informix 4GL / Genero BDL",
+  "Forms, reports, business language and database access"
+ ],
+ [
+  "cs-mumps",
+  "MUMPS / InterSystems Caché",
+  "Globals, ObjectScript and transactional business applications"
+ ],
+ [
+  "cs-pick",
+  "Pick / UniVerse / UniData",
+  "MultiValue databases, BASIC programs and terminal interfaces"
+ ],
+ [
+  "cs-focus",
+  "FOCUS / WebFOCUS",
+  "4GL reporting, application procedures and data access"
+ ],
+ [
+  "cs-natstar",
+  "NatStar / NS-DK",
+  "4GL client applications, generated code and runtime dependencies"
+ ],
+ [
+  "cs-magic",
+  "Magic / uniPaaS / Magic xpa",
+  "Metadata-driven business applications and runtime engines"
+ ],
+ [
+  "cs-tuxedo",
+  "Oracle Tuxedo",
+  "ATMI services, transaction monitors and distributed C/COBOL servers"
+ ],
+ [
+  "cs-corba",
+  "CORBA / IIOP",
+  "IDL contracts, object request brokers and distributed objects"
+ ],
+ [
+  "cs-dcom",
+  "COM+ / DCOM / Microsoft Transaction Server",
+  "Component services, distributed transactions and Windows identity"
+ ],
+ [
+  "cs-remoting",
+  ".NET Remoting / WCF",
+  "Binary remoting or SOAP services, bindings and contracts"
+ ],
+ [
+  "cs-odbc",
+  "ODBC / JDBC / OLE DB / ADO",
+  "Database drivers, DSNs, connection strings and client libraries"
+ ],
+ [
+  "cs-terminal",
+  "Terminal emulation and screen integration",
+  "3270/5250/VT clients, screen scraping and host connectivity"
+ ],
+ [
+  "classic-asp",
+  "Classic ASP (VBScript)",
+  ".asp pages on IIS, often with COM components"
+ ],
+ [
+  "webforms",
+  "ASP.NET Web Forms",
+  ".aspx pages, ViewState, .NET Framework"
+ ],
+ [
+  "javaee",
+  "Java EE (EJB, JSF, Struts)",
+  "Apps on WebLogic, WebSphere or JBoss"
+ ],
+ [
+  "php",
+  "PHP monolith",
+  "Older PHP 5 apps, often without a framework"
+ ],
+ [
+  "coldfusion",
+  "ColdFusion",
+  "CFML applications"
+ ],
+ [
+  "perl-cgi",
+  "Perl / CGI",
+  "CGI scripts and server-side Perl"
+ ],
+ [
+  "old-rails",
+  "Ruby on Rails / Django (version unknown)",
+  "Existing framework applications; capture the exact framework and runtime versions"
+ ],
+ [
+  "plugin-ui",
+  "Silverlight / Flash / Java applet UI",
+  "Browser plug-in front ends no longer supported"
+ ],
+ [
+  "web-mvc",
+  "ASP.NET MVC 1–5 / Web API",
+  "System.Web applications, Razor views, routing and IIS hosting"
+ ],
+ [
+  "web-core",
+  "ASP.NET Core 1–7",
+  "MVC, Razor Pages, APIs and Kestrel; .NET Core through .NET 7"
+ ],
+ [
+  "web-blazor",
+  "Blazor Server / WebAssembly",
+  "Razor components, browser execution or server-side circuits"
+ ],
+ [
+  "web-servlet",
+  "Servlets / JSP / JSTL",
+  "Java web applications, WAR files and servlet containers"
+ ],
+ [
+  "web-struts",
+  "Struts 1 / 2",
+  "Actions, interceptors, configuration and Java web views"
+ ],
+ [
+  "web-jsf",
+  "JSF / Jakarta Faces / PrimeFaces",
+  "Server-side components, backing beans and facelets"
+ ],
+ [
+  "web-spring",
+  "Spring Framework 1–6",
+  "Dependency injection, MVC, security and transaction management"
+ ],
+ [
+  "web-boot",
+  "Spring Boot 1 / 2 / 3.0",
+  "Boot applications; 3.0 and Spring 6 arrived in late 2022"
+ ],
+ [
+  "web-hibernate",
+  "Hibernate / JPA / MyBatis",
+  "Object-relational mapping, queries and persistence mappings"
+ ],
+ [
+  "web-jquery",
+  "jQuery / Prototype / Dojo",
+  "DOM scripting, widgets, AJAX and browser compatibility"
+ ],
+ [
+  "web-angularjs",
+  "AngularJS 1.x",
+  "Scopes, controllers, directives and two-way data binding"
+ ],
+ [
+  "web-angular",
+  "Angular 2–15",
+  "TypeScript components, RxJS and Angular CLI applications"
+ ],
+ [
+  "web-react",
+  "React 0.x–18",
+  "Component-based UI, routing, state management and build tooling"
+ ],
+ [
+  "web-vue",
+  "Vue 1 / 2 / 3",
+  "Templates, components, Vuex or Pinia and build tooling"
+ ],
+ [
+  "web-ember",
+  "Ember / Backbone / Knockout",
+  "Client-side MVC or MVVM applications and bindings"
+ ],
+ [
+  "web-extjs",
+  "Ext JS / Sencha",
+  "Rich browser components, grids and enterprise web clients"
+ ],
+ [
+  "web-node",
+  "Express / NestJS / Koa",
+  "Node.js APIs, middleware, routes and dependency packages"
+ ],
+ [
+  "web-php-fw",
+  "Laravel / Symfony / Zend / CodeIgniter",
+  "PHP frameworks, ORM layers, templates and application conventions"
+ ],
+ [
+  "web-django",
+  "Django / Flask",
+  "Python web applications, ORM, templates and WSGI deployment"
+ ],
+ [
+  "web-rails",
+  "Ruby on Rails / Sinatra",
+  "Ruby applications, Active Record, templates and Rack hosting"
+ ],
+ [
+  "web-cms",
+  "WordPress / Drupal / Joomla",
+  "CMS core, themes, plug-ins, modules and content databases"
+ ],
+ [
+  "web-portals",
+  "SharePoint / Liferay / WebSphere Portal",
+  "Portlets, custom web parts, content and enterprise identity"
+ ],
+ [
+  "web-next",
+  "Next.js / Nuxt",
+  "Server rendering, static generation and React or Vue applications"
+ ],
+ [
+  "web-grails",
+  "Grails / Play Framework",
+  "JVM web applications using Groovy, Scala or Java"
+ ],
+ [
+  "web-python-asgi",
+  "FastAPI / ASGI",
+  "Python APIs, async request handling and server deployment"
+ ],
+ [
+  "sap-ecc",
+  "SAP ECC / R/3",
+  "SAP ERP with ABAP customizations"
+ ],
+ [
+  "oracle-ebs",
+  "Oracle E-Business Suite",
+  "Oracle EBS 11i / R12"
+ ],
+ [
+  "peoplesoft",
+  "PeopleSoft",
+  "HR, finance or campus solutions"
+ ],
+ [
+  "jde",
+  "JD Edwards",
+  "EnterpriseOne or World"
+ ],
+ [
+  "siebel",
+  "Siebel CRM",
+  "Oracle Siebel customer management"
+ ],
+ [
+  "dynamics",
+  "Dynamics AX / NAV / GP / CRM",
+  "On-premises Microsoft Dynamics versions"
+ ],
+ [
+  "notes",
+  "Lotus Notes / Domino",
+  "Notes databases and workflow apps"
+ ],
+ [
+  "custom-cots",
+  "Heavily customized product",
+  "Commercial product with extensive custom code"
+ ],
+ [
+  "pkg-s4",
+  "SAP S/4HANA (through 2022)",
+  "ERP releases, HANA dependencies, custom ABAP and interfaces"
+ ],
+ [
+  "pkg-abap",
+  "SAP ABAP / NetWeaver",
+  "Reports, enhancements, RFC/BAPI, IDoc and application servers"
+ ],
+ [
+  "pkg-sap-ui",
+  "SAP GUI / Web Dynpro / SAPUI5 / Fiori",
+  "SAP user interfaces, UI services and custom applications"
+ ],
+ [
+  "pkg-sap-bw",
+  "SAP BW / BW on HANA / BW/4HANA",
+  "InfoProviders, transformations, extractors and reporting"
+ ],
+ [
+  "pkg-sap-pi",
+  "SAP PI / PO",
+  "Integration mappings, adapters, orchestration and message monitoring"
+ ],
+ [
+  "pkg-ebs-custom",
+  "Oracle EBS customizations",
+  "PL/SQL, Forms, Reports, OAF, concurrent programs and interfaces"
+ ],
+ [
+  "pkg-peopletools",
+  "PeopleTools / PeopleCode",
+  "Components, Application Engine, SQR and Integration Broker"
+ ],
+ [
+  "pkg-jde-tools",
+  "JD Edwards development tools",
+  "Business functions, event rules, reports and custom objects"
+ ],
+ [
+  "pkg-siebel-tools",
+  "Siebel Tools / eScript",
+  "Business components, workflows, scripts and repository changes"
+ ],
+ [
+  "pkg-d365",
+  "Dynamics 365 / AX / NAV extensions",
+  "X++, C/AL, AL, plug-ins and business application customizations"
+ ],
+ [
+  "pkg-crm",
+  "Salesforce / Force.com",
+  "Apex, Visualforce, Aura, Lightning components and integrations"
+ ],
+ [
+  "pkg-servicenow",
+  "ServiceNow",
+  "Business rules, workflows, scripts, tables and integrations"
+ ],
+ [
+  "pkg-infor",
+  "Infor / Baan / Lawson",
+  "ERP modules, customizations, interfaces and batch processes"
+ ],
+ [
+  "pkg-ifs",
+  "IFS Applications",
+  "Enterprise modules, customizations, reports and integrations"
+ ],
+ [
+  "pkg-sage",
+  "Sage / Epicor / QAD",
+  "ERP products, version-specific extensions and data integrations"
+ ],
+ [
+  "pkg-maximo",
+  "IBM Maximo",
+  "Asset management, automation scripts, workflows and integrations"
+ ],
+ [
+  "pkg-docs",
+  "Documentum / OpenText / IBM FileNet",
+  "Content repositories, document workflows and custom integrations"
+ ],
+ [
+  "pkg-bpm",
+  "Pega / Appian / IBM BPM",
+  "Case models, rules, process definitions and connectors"
+ ],
+ [
+  "pkg-rpa",
+  "UiPath / Automation Anywhere / Blue Prism",
+  "Robotic workflows, selectors, orchestrators and credentials"
+ ],
+ [
+  "pkg-domino",
+  "Domino Designer / LotusScript",
+  "Notes forms, views, agents, Formula language and LotusScript"
+ ],
+ [
+  "plsql",
+  "Oracle with heavy PL/SQL",
+  "Business logic in packages, procedures and triggers"
+ ],
+ [
+  "tsql",
+  "SQL Server stored procedures",
+  "Logic in T-SQL procedures and jobs"
+ ],
+ [
+  "sybase",
+  "Sybase ASE / Informix",
+  "Older relational database engines"
+ ],
+ [
+  "teradata",
+  "Teradata / Netezza",
+  "On-premises data warehouse appliances"
+ ],
+ [
+  "informatica",
+  "Informatica PowerCenter",
+  "Legacy ETL workflows"
+ ],
+ [
+  "ssis",
+  "SSIS / DTS",
+  "SQL Server Integration Services packages"
+ ],
+ [
+  "reports",
+  "SSRS / Crystal Reports",
+  "Operational and management reports"
+ ],
+ [
+  "bi",
+  "Cognos / Business Objects / MicroStrategy",
+  "Legacy BI platforms"
+ ],
+ [
+  "data-oracle",
+  "Oracle Database 7–21c",
+  "7/8/8i/9i/10g/11g/12c/18c/19c/21c, PL/SQL and database options"
+ ],
+ [
+  "data-sqlserver",
+  "SQL Server 6.5–2022",
+  "7/2000/2005/2008/R2/2012/2014/2016/2017/2019/2022, T-SQL and jobs"
+ ],
+ [
+  "data-db2",
+  "Db2 LUW",
+  "Distributed Db2 databases, SQL PL and platform dependencies"
+ ],
+ [
+  "data-informix",
+  "IBM Informix",
+  "SPL procedures, Informix databases and associated applications"
+ ],
+ [
+  "data-ase",
+  "Sybase / SAP ASE",
+  "Transact-SQL, stored procedures and enterprise relational databases"
+ ],
+ [
+  "data-teradata",
+  "Teradata",
+  "MPP warehouse, SQL, utilities and workload management"
+ ],
+ [
+  "data-netezza",
+  "IBM Netezza",
+  "Warehouse appliances, SQL and data loading pipelines"
+ ],
+ [
+  "data-greenplum",
+  "Greenplum / Vertica",
+  "Analytical databases, distributed queries and data loading"
+ ],
+ [
+  "data-datastage",
+  "IBM DataStage / QualityStage",
+  "ETL jobs, parallel stages, metadata and data quality rules"
+ ],
+ [
+  "data-talend",
+  "Talend / Pentaho Data Integration",
+  "Data integration jobs, transformations and connector dependencies"
+ ],
+ [
+  "data-odi",
+  "Oracle Warehouse Builder / ODI",
+  "Mappings, knowledge modules, orchestration and ELT"
+ ],
+ [
+  "data-abinitio",
+  "Ab Initio",
+  "Graphs, transformations, metadata and enterprise data processing"
+ ],
+ [
+  "data-sas",
+  "SAS 8 / 9 / Viya",
+  "SAS code, macros, datasets, jobs and analytical applications"
+ ],
+ [
+  "data-hadoop",
+  "Hadoop / HDFS / MapReduce / YARN",
+  "Distributed storage, batch processing and cluster dependencies"
+ ],
+ [
+  "data-hive",
+  "Hive / Impala / HBase",
+  "SQL query engines, metastore schemas and Hadoop data access"
+ ],
+ [
+  "data-spark",
+  "Apache Spark 1–3",
+  "Scala, Python, SQL, streaming and distributed processing"
+ ],
+ [
+  "data-kettle",
+  "Informatica MDM / IBM MDM",
+  "Master data models, matching, survivorship and stewardship"
+ ],
+ [
+  "data-ssas",
+  "SSAS multidimensional / tabular",
+  "Cubes, dimensions, DAX, MDX and semantic models"
+ ],
+ [
+  "data-powerbi",
+  "Power BI",
+  "Data models, Power Query, DAX, gateways and reports"
+ ],
+ [
+  "data-tableau",
+  "Tableau",
+  "Workbooks, extracts, calculated fields and server deployments"
+ ],
+ [
+  "data-qlik",
+  "QlikView / Qlik Sense",
+  "Load scripts, associative models and analytical applications"
+ ],
+ [
+  "data-bobj",
+  "SAP BusinessObjects / Crystal Reports",
+  "Universes, Web Intelligence and formatted reports"
+ ],
+ [
+  "data-cognos",
+  "IBM Cognos / TM1",
+  "Reports, models, planning cubes and calculations"
+ ],
+ [
+  "data-microstrategy",
+  "MicroStrategy",
+  "Metadata, semantic models, reports and dashboards"
+ ],
+ [
+  "data-airflow",
+  "Airflow / Oozie / Luigi",
+  "Data workflow scheduling, dependencies and job orchestration"
+ ],
+ [
+  "data-cloud-dw",
+  "Snowflake / Redshift / BigQuery / Synapse",
+  "Cloud warehouse deployments and associated data pipelines"
+ ],
+ [
+  "data-databricks",
+  "Databricks / Delta Lake",
+  "Spark jobs, notebooks, lakehouse tables and pipelines"
+ ],
+ [
+  "mq",
+  "IBM MQ / WebSphere Message Broker",
+  "Message queues and broker flows"
+ ],
+ [
+  "tibco",
+  "TIBCO BusinessWorks",
+  "TIBCO integration processes"
+ ],
+ [
+  "biztalk",
+  "Microsoft BizTalk",
+  "Orchestrations and adapters"
+ ],
+ [
+  "webmethods",
+  "webMethods",
+  "Software AG integration server"
+ ],
+ [
+  "soap",
+  "SOAP / XML web services",
+  "WSDL-based service interfaces"
+ ],
+ [
+  "files",
+  "FTP / SFTP file transfers",
+  "Scheduled flat-file or CSV exchanges"
+ ],
+ [
+  "edi",
+  "EDI (X12 / EDIFACT)",
+  "Partner document exchange"
+ ],
+ [
+  "scheduler",
+  "Control-M / AutoSys / cron",
+  "Batch schedulers and scheduled scripts"
+ ],
+ [
+  "int-ibm-mq",
+  "MQSeries / WebSphere MQ / IBM MQ",
+  "Queue managers, channels, queues and message contracts"
+ ],
+ [
+  "int-iib",
+  "WebSphere Message Broker / IIB / ACE",
+  "Message flows, ESQL, mappings and integration nodes"
+ ],
+ [
+  "int-mule",
+  "Mule ESB / Mule 3 / Mule 4",
+  "Flows, connectors, DataWeave and runtime deployment"
+ ],
+ [
+  "int-wso2",
+  "WSO2 ESB / Enterprise Integrator",
+  "Mediators, sequences, adapters and service integration"
+ ],
+ [
+  "int-oracle-soa",
+  "Oracle SOA Suite / Service Bus",
+  "BPEL, composites, adapters, routing and transformations"
+ ],
+ [
+  "int-fuse",
+  "Apache Camel / ServiceMix / Red Hat Fuse",
+  "Routes, enterprise integration patterns and OSGi runtimes"
+ ],
+ [
+  "int-spring",
+  "Spring Integration / Spring Batch",
+  "Channels, adapters, batch jobs and restart semantics"
+ ],
+ [
+  "int-tibco-rv",
+  "TIBCO Rendezvous / EMS",
+  "Publish-subscribe messaging, JMS and transport configuration"
+ ],
+ [
+  "int-jms",
+  "JMS / ActiveMQ / Artemis",
+  "Broker destinations, consumers, persistence and delivery semantics"
+ ],
+ [
+  "int-rabbit",
+  "RabbitMQ / AMQP",
+  "Exchanges, bindings, queues and message routing"
+ ],
+ [
+  "int-kafka",
+  "Apache Kafka / Kafka Connect",
+  "Topics, partitions, consumer groups, connectors and schemas"
+ ],
+ [
+  "int-rest",
+  "REST / HTTP APIs",
+  "Resources, contracts, authentication and versioned endpoints"
+ ],
+ [
+  "int-grpc",
+  "gRPC / Protocol Buffers",
+  "Service contracts, generated clients and RPC communication"
+ ],
+ [
+  "int-graphql",
+  "GraphQL",
+  "Schemas, resolvers and client query contracts"
+ ],
+ [
+  "int-xml",
+  "XML / XSLT / XPath / XSD",
+  "Document schemas, transformations and validation"
+ ],
+ [
+  "int-mft",
+  "Managed file transfer / SFTP / AS2",
+  "Trading partner connections, file delivery and acknowledgements"
+ ],
+ [
+  "int-health",
+  "HL7 v2 / CDA / FHIR",
+  "Healthcare messages, documents and resource-based interfaces"
+ ],
+ [
+  "int-iso",
+  "SWIFT / ISO 8583 / ISO 20022",
+  "Financial message formats, payment interfaces and transformations"
+ ],
+ [
+  "int-api-gw",
+  "Apigee / Kong / Azure API Management",
+  "API gateways, routing, policies and consumer access"
+ ],
+ [
+  "int-ipaas",
+  "Boomi / Informatica Cloud / Azure Logic Apps",
+  "Cloud integration workflows, connectors and mappings"
+ ],
+ [
+  "int-etl-cdc",
+  "Oracle GoldenGate / Debezium / CDC",
+  "Change capture, replication, logs and downstream delivery"
+ ],
+ [
+  "plc",
+  "PLC programs (ladder logic)",
+  "Programmable logic controllers on the plant floor"
+ ],
+ [
+  "scada",
+  "SCADA / HMI",
+  "e.g. Wonderware, WinCC, older iFIX"
+ ],
+ [
+  "firmware",
+  "Embedded C / C++ firmware",
+  "Device firmware on microcontrollers"
+ ],
+ [
+  "rtos",
+  "RTOS (VxWorks, QNX)",
+  "Real-time operating system software"
+ ],
+ [
+  "old-os",
+  "Windows XP / CE on equipment",
+  "Windows XP or CE images, device drivers and hardware dependencies"
+ ],
+ [
+  "opc",
+  "OPC Classic (DA)",
+  "DCOM-based industrial data access"
+ ],
+ [
+  "fieldbus",
+  "Modbus / Profibus integrations",
+  "Fieldbus protocols and gateways"
+ ],
+ [
+  "ot-siemens",
+  "Siemens SIMATIC S5 / S7 / TIA Portal",
+  "PLC logic, STEP 7 projects, hardware and communications"
+ ],
+ [
+  "ot-rockwell",
+  "Allen-Bradley / Rockwell RSLogix / Studio 5000",
+  "PLC programs, ladder logic, controllers and I/O"
+ ],
+ [
+  "ot-schneider",
+  "Schneider Modicon / Unity Pro / Control Expert",
+  "PLC applications, function blocks and industrial communications"
+ ],
+ [
+  "ot-omron",
+  "Mitsubishi / Omron PLCs",
+  "Controller programs, I/O mapping and engineering projects"
+ ],
+ [
+  "ot-codesys",
+  "CODESYS / Beckhoff TwinCAT",
+  "IEC 61131-3 logic, runtimes, motion and controller projects"
+ ],
+ [
+  "ot-dcs",
+  "Emerson DeltaV / Honeywell Experion / ABB 800xA",
+  "Distributed process control, controllers, graphics and historians"
+ ],
+ [
+  "ot-scada",
+  "Wonderware InTouch / WinCC / iFIX / Citect",
+  "SCADA tags, alarms, screens, scripts and plant interfaces"
+ ],
+ [
+  "ot-ignition",
+  "Ignition / FactoryTalk",
+  "Industrial visualization, gateways, tags and application projects"
+ ],
+ [
+  "ot-historian",
+  "OSIsoft PI / industrial historians",
+  "Time-series tags, asset models, archives and plant reporting"
+ ],
+ [
+  "ot-opcua",
+  "OPC UA",
+  "Industrial information models, services and secure communications"
+ ],
+ [
+  "ot-mqtt",
+  "MQTT / industrial IoT gateways",
+  "Telemetry topics, brokers, device identity and edge connectivity"
+ ],
+ [
+  "ot-protocols",
+  "PROFINET / EtherNet/IP / CAN / BACnet",
+  "Industrial and building automation protocols and device networks"
+ ],
+ [
+  "ot-free",
+  "FreeRTOS / ThreadX / RTEMS",
+  "Embedded scheduling, tasks, device drivers and hardware dependencies"
+ ],
+ [
+  "ot-linux",
+  "Embedded Linux / Yocto / Buildroot",
+  "Kernel, board support packages, root filesystems and toolchains"
+ ],
+ [
+  "ot-wince",
+  "Windows CE / Embedded / IoT",
+  "Device operating systems, runtime images and hardware drivers"
+ ],
+ [
+  "ot-mobile",
+  "Android / Java ME / Symbian",
+  "Handheld and device applications, platform APIs and packaging"
+ ],
+ [
+  "ot-tools",
+  "Keil / IAR / GNU embedded toolchains",
+  "Cross-compilers, linker scripts, debuggers and target architectures"
+ ],
+ [
+  "ot-matlab",
+  "MATLAB / Simulink",
+  "Models, control algorithms, generated code and test environments"
+ ]
+];
+const TECH_LAYERS=["Languages & runtimes","UI & application frameworks","Databases & storage","Middleware & integration","Enterprise applications","Data & analytics","Operating systems & hosting","Industrial & device platforms","Build, release & operations","Other / custom"];
+const TECH_LAYER={
+ "rt-java-old": "Languages & runtimes",
+ "rt-java8": "Languages & runtimes",
+ "rt-java11": "Languages & runtimes",
+ "rt-java17": "Languages & runtimes",
+ "rt-net-old": "Languages & runtimes",
+ "rt-net4": "Languages & runtimes",
+ "rt-netcore": "Languages & runtimes",
+ "rt-net": "Languages & runtimes",
+ "rt-python": "Languages & runtimes",
+ "rt-node": "Languages & runtimes",
+ "rt-php": "Languages & runtimes",
+ "rt-ruby": "Languages & runtimes",
+ "rt-c": "Languages & runtimes",
+ "rt-go": "Languages & runtimes",
+ "rt-jvm": "Languages & runtimes",
+ "rt-perl": "Languages & runtimes",
+ "rt-js": "Languages & runtimes",
+ "db-oracle": "Databases & storage",
+ "db-sqlserver": "Databases & storage",
+ "db-postgres": "Databases & storage",
+ "db-mysql": "Databases & storage",
+ "db-mariadb": "Databases & storage",
+ "db-sqlite": "Databases & storage",
+ "db-firebird": "Databases & storage",
+ "db-access": "Databases & storage",
+ "db-mongo": "Databases & storage",
+ "db-redis": "Databases & storage",
+ "db-cassandra": "Databases & storage",
+ "db-elastic": "Databases & storage",
+ "db-hana": "Databases & storage",
+ "db-cloud": "Databases & storage",
+ "db-files": "Databases & storage",
+ "srv-iis": "Middleware & integration",
+ "srv-tomcat": "Middleware & integration",
+ "srv-weblogic": "Middleware & integration",
+ "srv-websphere": "Middleware & integration",
+ "srv-jboss": "Middleware & integration",
+ "srv-glassfish": "Middleware & integration",
+ "srv-http": "Middleware & integration",
+ "os-windows": "Operating systems & hosting",
+ "os-winserver": "Operating systems & hosting",
+ "os-linux": "Operating systems & hosting",
+ "os-unix": "Operating systems & hosting",
+ "os-vms": "Operating systems & hosting",
+ "os-macos": "Operating systems & hosting",
+ "host-vm": "Operating systems & hosting",
+ "host-container": "Operating systems & hosting",
+ "host-cloud": "Operating systems & hosting",
+ "host-serverless": "Operating systems & hosting",
+ "ops-build": "Build, release & operations",
+ "ops-source": "Build, release & operations",
+ "ops-ci": "Build, release & operations",
+ "ops-config": "Build, release & operations",
+ "ops-schedule": "Build, release & operations",
+ "ops-identity": "Middleware & integration",
+ "ops-monitor": "Build, release & operations",
+ "cobol-cics": "Languages & runtimes",
+ "cobol-batch": "Languages & runtimes",
+ "pli": "Languages & runtimes",
+ "assembler": "Languages & runtimes",
+ "ibmi-rpg": "Languages & runtimes",
+ "natural": "Languages & runtimes",
+ "ims": "Databases & storage",
+ "db2z": "Databases & storage",
+ "other": "Other / custom",
+ "mf-cobol": "Languages & runtimes",
+ "mf-rpg": "Languages & runtimes",
+ "mf-rexx": "Languages & runtimes",
+ "mf-easytrieve": "Languages & runtimes",
+ "mf-cics": "Middleware & integration",
+ "mf-ims-tm": "Middleware & integration",
+ "mf-vsam": "Databases & storage",
+ "mf-idms": "Databases & storage",
+ "mf-datacom": "Databases & storage",
+ "mf-db2i": "Databases & storage",
+ "mf-zos": "Operating systems & hosting",
+ "mf-vse": "Operating systems & hosting",
+ "mf-ibmi": "Operating systems & hosting",
+ "mf-nonstop": "Operating systems & hosting",
+ "mf-unisys": "Operating systems & hosting",
+ "mf-jcl": "Build, release & operations",
+ "mf-source": "Build, release & operations",
+ "vb6": "UI & application frameworks",
+ "winforms": "UI & application frameworks",
+ "wpf": "UI & application frameworks",
+ "delphi": "UI & application frameworks",
+ "swing": "UI & application frameworks",
+ "access": "UI & application frameworks",
+ "mfc": "UI & application frameworks",
+ "foxpro": "UI & application frameworks",
+ "desk-vb": "Languages & runtimes",
+ "desk-vba": "Languages & runtimes",
+ "desk-dbase": "Languages & runtimes",
+ "desk-pascal": "Languages & runtimes",
+ "desk-win32": "UI & application frameworks",
+ "desk-vcl": "UI & application frameworks",
+ "desk-qt": "UI & application frameworks",
+ "desk-gtk": "UI & application frameworks",
+ "desk-swt": "UI & application frameworks",
+ "desk-javafx": "UI & application frameworks",
+ "desk-electron": "UI & application frameworks",
+ "desk-dotnet": "UI & application frameworks",
+ "desk-uwp": "UI & application frameworks",
+ "desk-filemaker": "Enterprise applications",
+ "desk-labview": "Industrial & device platforms",
+ "desk-citrix": "Operating systems & hosting",
+ "oracle-forms": "UI & application frameworks",
+ "powerbuilder": "UI & application frameworks",
+ "centura": "UI & application frameworks",
+ "progress": "UI & application frameworks",
+ "uniface": "UI & application frameworks",
+ "vb-sql": "UI & application frameworks",
+ "delphi-cs": "UI & application frameworks",
+ "cs-forms-old": "UI & application frameworks",
+ "cs-forms-new": "UI & application frameworks",
+ "cs-powerbuilder": "UI & application frameworks",
+ "cs-progress": "Languages & runtimes",
+ "cs-informix4gl": "Languages & runtimes",
+ "cs-mumps": "Languages & runtimes",
+ "cs-pick": "Databases & storage",
+ "cs-focus": "Data & analytics",
+ "cs-natstar": "UI & application frameworks",
+ "cs-magic": "UI & application frameworks",
+ "cs-tuxedo": "Middleware & integration",
+ "cs-corba": "Middleware & integration",
+ "cs-dcom": "Middleware & integration",
+ "cs-remoting": "Middleware & integration",
+ "cs-odbc": "Middleware & integration",
+ "cs-terminal": "UI & application frameworks",
+ "classic-asp": "UI & application frameworks",
+ "webforms": "UI & application frameworks",
+ "javaee": "UI & application frameworks",
+ "php": "UI & application frameworks",
+ "coldfusion": "UI & application frameworks",
+ "perl-cgi": "UI & application frameworks",
+ "old-rails": "UI & application frameworks",
+ "plugin-ui": "UI & application frameworks",
+ "web-mvc": "UI & application frameworks",
+ "web-core": "UI & application frameworks",
+ "web-blazor": "UI & application frameworks",
+ "web-servlet": "UI & application frameworks",
+ "web-struts": "UI & application frameworks",
+ "web-jsf": "UI & application frameworks",
+ "web-spring": "UI & application frameworks",
+ "web-boot": "UI & application frameworks",
+ "web-hibernate": "Middleware & integration",
+ "web-jquery": "UI & application frameworks",
+ "web-angularjs": "UI & application frameworks",
+ "web-angular": "UI & application frameworks",
+ "web-react": "UI & application frameworks",
+ "web-vue": "UI & application frameworks",
+ "web-ember": "UI & application frameworks",
+ "web-extjs": "UI & application frameworks",
+ "web-node": "UI & application frameworks",
+ "web-php-fw": "UI & application frameworks",
+ "web-django": "UI & application frameworks",
+ "web-rails": "UI & application frameworks",
+ "web-cms": "Enterprise applications",
+ "web-portals": "Enterprise applications",
+ "web-next": "UI & application frameworks",
+ "web-grails": "UI & application frameworks",
+ "web-python-asgi": "UI & application frameworks",
+ "sap-ecc": "Enterprise applications",
+ "oracle-ebs": "Enterprise applications",
+ "peoplesoft": "Enterprise applications",
+ "jde": "Enterprise applications",
+ "siebel": "Enterprise applications",
+ "dynamics": "Enterprise applications",
+ "notes": "Enterprise applications",
+ "custom-cots": "Enterprise applications",
+ "pkg-s4": "Enterprise applications",
+ "pkg-abap": "Languages & runtimes",
+ "pkg-sap-ui": "UI & application frameworks",
+ "pkg-sap-bw": "Data & analytics",
+ "pkg-sap-pi": "Middleware & integration",
+ "pkg-ebs-custom": "Languages & runtimes",
+ "pkg-peopletools": "Languages & runtimes",
+ "pkg-jde-tools": "Languages & runtimes",
+ "pkg-siebel-tools": "Languages & runtimes",
+ "pkg-d365": "Enterprise applications",
+ "pkg-crm": "Enterprise applications",
+ "pkg-servicenow": "Enterprise applications",
+ "pkg-infor": "Enterprise applications",
+ "pkg-ifs": "Enterprise applications",
+ "pkg-sage": "Enterprise applications",
+ "pkg-maximo": "Enterprise applications",
+ "pkg-docs": "Enterprise applications",
+ "pkg-bpm": "Enterprise applications",
+ "pkg-rpa": "Enterprise applications",
+ "pkg-domino": "Languages & runtimes",
+ "plsql": "Databases & storage",
+ "tsql": "Databases & storage",
+ "sybase": "Databases & storage",
+ "teradata": "Databases & storage",
+ "informatica": "Data & analytics",
+ "ssis": "Data & analytics",
+ "reports": "Data & analytics",
+ "bi": "Data & analytics",
+ "data-oracle": "Databases & storage",
+ "data-sqlserver": "Databases & storage",
+ "data-db2": "Databases & storage",
+ "data-informix": "Databases & storage",
+ "data-ase": "Databases & storage",
+ "data-teradata": "Databases & storage",
+ "data-netezza": "Databases & storage",
+ "data-greenplum": "Databases & storage",
+ "data-datastage": "Data & analytics",
+ "data-talend": "Data & analytics",
+ "data-odi": "Data & analytics",
+ "data-abinitio": "Data & analytics",
+ "data-sas": "Data & analytics",
+ "data-hadoop": "Data & analytics",
+ "data-hive": "Data & analytics",
+ "data-spark": "Data & analytics",
+ "data-kettle": "Data & analytics",
+ "data-ssas": "Data & analytics",
+ "data-powerbi": "Data & analytics",
+ "data-tableau": "Data & analytics",
+ "data-qlik": "Data & analytics",
+ "data-bobj": "Data & analytics",
+ "data-cognos": "Data & analytics",
+ "data-microstrategy": "Data & analytics",
+ "data-airflow": "Data & analytics",
+ "data-cloud-dw": "Data & analytics",
+ "data-databricks": "Data & analytics",
+ "mq": "Middleware & integration",
+ "tibco": "Middleware & integration",
+ "biztalk": "Middleware & integration",
+ "webmethods": "Middleware & integration",
+ "soap": "Middleware & integration",
+ "files": "Middleware & integration",
+ "edi": "Middleware & integration",
+ "scheduler": "Middleware & integration",
+ "int-ibm-mq": "Middleware & integration",
+ "int-iib": "Middleware & integration",
+ "int-mule": "Middleware & integration",
+ "int-wso2": "Middleware & integration",
+ "int-oracle-soa": "Middleware & integration",
+ "int-fuse": "Middleware & integration",
+ "int-spring": "Middleware & integration",
+ "int-tibco-rv": "Middleware & integration",
+ "int-jms": "Middleware & integration",
+ "int-rabbit": "Middleware & integration",
+ "int-kafka": "Middleware & integration",
+ "int-rest": "Middleware & integration",
+ "int-grpc": "Middleware & integration",
+ "int-graphql": "Middleware & integration",
+ "int-xml": "Middleware & integration",
+ "int-mft": "Middleware & integration",
+ "int-health": "Middleware & integration",
+ "int-iso": "Middleware & integration",
+ "int-api-gw": "Middleware & integration",
+ "int-ipaas": "Middleware & integration",
+ "int-etl-cdc": "Middleware & integration",
+ "plc": "Industrial & device platforms",
+ "scada": "Industrial & device platforms",
+ "firmware": "Industrial & device platforms",
+ "rtos": "Operating systems & hosting",
+ "old-os": "Operating systems & hosting",
+ "opc": "Middleware & integration",
+ "fieldbus": "Middleware & integration",
+ "ot-siemens": "Industrial & device platforms",
+ "ot-rockwell": "Industrial & device platforms",
+ "ot-schneider": "Industrial & device platforms",
+ "ot-omron": "Industrial & device platforms",
+ "ot-codesys": "Industrial & device platforms",
+ "ot-dcs": "Industrial & device platforms",
+ "ot-scada": "Industrial & device platforms",
+ "ot-ignition": "Industrial & device platforms",
+ "ot-historian": "Data & analytics",
+ "ot-opcua": "Middleware & integration",
+ "ot-mqtt": "Middleware & integration",
+ "ot-protocols": "Middleware & integration",
+ "ot-free": "Industrial & device platforms",
+ "ot-linux": "Operating systems & hosting",
+ "ot-wince": "Operating systems & hosting",
+ "ot-mobile": "Industrial & device platforms",
+ "ot-tools": "Build, release & operations",
+ "ot-matlab": "Industrial & device platforms"
+};
+const TECH_PREFERRED={
+ "mainframe": [
+  "cobol-cics",
+  "cobol-batch",
+  "pli",
+  "assembler",
+  "ibmi-rpg",
+  "natural",
+  "ims",
+  "db2z",
+  "other",
+  "mf-cobol",
+  "mf-rpg",
+  "mf-rexx",
+  "mf-easytrieve",
+  "mf-cics",
+  "mf-ims-tm",
+  "mf-vsam",
+  "mf-idms",
+  "mf-datacom",
+  "mf-db2i",
+  "mf-zos",
+  "mf-vse",
+  "mf-ibmi",
+  "mf-nonstop",
+  "mf-unisys",
+  "mf-jcl",
+  "mf-source",
+  "rt-java-old",
+  "rt-java8",
+  "rt-java11",
+  "rt-java17",
+  "rt-net-old",
+  "rt-net4",
+  "rt-netcore",
+  "rt-net",
+  "rt-python",
+  "rt-node",
+  "rt-php",
+  "rt-ruby",
+  "rt-c",
+  "rt-go",
+  "rt-jvm",
+  "rt-perl",
+  "rt-js",
+  "db-oracle",
+  "db-sqlserver",
+  "db-postgres",
+  "db-mysql",
+  "db-mariadb",
+  "db-sqlite",
+  "db-firebird",
+  "db-access",
+  "db-mongo",
+  "db-redis",
+  "db-cassandra",
+  "db-elastic",
+  "db-hana",
+  "db-cloud",
+  "db-files",
+  "srv-iis",
+  "srv-tomcat",
+  "srv-weblogic",
+  "srv-websphere",
+  "srv-jboss",
+  "srv-glassfish",
+  "srv-http",
+  "os-windows",
+  "os-winserver",
+  "os-linux",
+  "os-unix",
+  "os-vms",
+  "os-macos",
+  "host-vm",
+  "host-container",
+  "host-cloud",
+  "host-serverless",
+  "ops-build",
+  "ops-source",
+  "ops-ci",
+  "ops-config",
+  "ops-schedule",
+  "ops-identity",
+  "ops-monitor"
+ ],
+ "desktop": [
+  "vb6",
+  "winforms",
+  "wpf",
+  "delphi",
+  "swing",
+  "access",
+  "mfc",
+  "foxpro",
+  "other",
+  "desk-vb",
+  "desk-vba",
+  "desk-dbase",
+  "desk-pascal",
+  "desk-win32",
+  "desk-vcl",
+  "desk-qt",
+  "desk-gtk",
+  "desk-swt",
+  "desk-javafx",
+  "desk-electron",
+  "desk-dotnet",
+  "desk-uwp",
+  "desk-filemaker",
+  "desk-labview",
+  "desk-citrix",
+  "rt-java-old",
+  "rt-java8",
+  "rt-java11",
+  "rt-java17",
+  "rt-net-old",
+  "rt-net4",
+  "rt-netcore",
+  "rt-net",
+  "rt-python",
+  "rt-node",
+  "rt-php",
+  "rt-ruby",
+  "rt-c",
+  "rt-go",
+  "rt-jvm",
+  "rt-perl",
+  "rt-js",
+  "db-oracle",
+  "db-sqlserver",
+  "db-postgres",
+  "db-mysql",
+  "db-mariadb",
+  "db-sqlite",
+  "db-firebird",
+  "db-access",
+  "db-mongo",
+  "db-redis",
+  "db-cassandra",
+  "db-elastic",
+  "db-hana",
+  "db-cloud",
+  "db-files",
+  "srv-iis",
+  "srv-tomcat",
+  "srv-weblogic",
+  "srv-websphere",
+  "srv-jboss",
+  "srv-glassfish",
+  "srv-http",
+  "os-windows",
+  "os-winserver",
+  "os-linux",
+  "os-unix",
+  "os-vms",
+  "os-macos",
+  "host-vm",
+  "host-container",
+  "host-cloud",
+  "host-serverless",
+  "ops-build",
+  "ops-source",
+  "ops-ci",
+  "ops-config",
+  "ops-schedule",
+  "ops-identity",
+  "ops-monitor"
+ ],
+ "clientserver": [
+  "oracle-forms",
+  "powerbuilder",
+  "centura",
+  "progress",
+  "uniface",
+  "vb-sql",
+  "delphi-cs",
+  "other",
+  "cs-forms-old",
+  "cs-forms-new",
+  "cs-powerbuilder",
+  "cs-progress",
+  "cs-informix4gl",
+  "cs-mumps",
+  "cs-pick",
+  "cs-focus",
+  "cs-natstar",
+  "cs-magic",
+  "cs-tuxedo",
+  "cs-corba",
+  "cs-dcom",
+  "cs-remoting",
+  "cs-odbc",
+  "cs-terminal",
+  "rt-java-old",
+  "rt-java8",
+  "rt-java11",
+  "rt-java17",
+  "rt-net-old",
+  "rt-net4",
+  "rt-netcore",
+  "rt-net",
+  "rt-python",
+  "rt-node",
+  "rt-php",
+  "rt-ruby",
+  "rt-c",
+  "rt-go",
+  "rt-jvm",
+  "rt-perl",
+  "rt-js",
+  "db-oracle",
+  "db-sqlserver",
+  "db-postgres",
+  "db-mysql",
+  "db-mariadb",
+  "db-sqlite",
+  "db-firebird",
+  "db-access",
+  "db-mongo",
+  "db-redis",
+  "db-cassandra",
+  "db-elastic",
+  "db-hana",
+  "db-cloud",
+  "db-files",
+  "srv-iis",
+  "srv-tomcat",
+  "srv-weblogic",
+  "srv-websphere",
+  "srv-jboss",
+  "srv-glassfish",
+  "srv-http",
+  "os-windows",
+  "os-winserver",
+  "os-linux",
+  "os-unix",
+  "os-vms",
+  "os-macos",
+  "host-vm",
+  "host-container",
+  "host-cloud",
+  "host-serverless",
+  "ops-build",
+  "ops-source",
+  "ops-ci",
+  "ops-config",
+  "ops-schedule",
+  "ops-identity",
+  "ops-monitor"
+ ],
+ "web": [
+  "classic-asp",
+  "webforms",
+  "javaee",
+  "php",
+  "coldfusion",
+  "perl-cgi",
+  "old-rails",
+  "plugin-ui",
+  "other",
+  "web-mvc",
+  "web-core",
+  "web-blazor",
+  "web-servlet",
+  "web-struts",
+  "web-jsf",
+  "web-spring",
+  "web-boot",
+  "web-hibernate",
+  "web-jquery",
+  "web-angularjs",
+  "web-angular",
+  "web-react",
+  "web-vue",
+  "web-ember",
+  "web-extjs",
+  "web-node",
+  "web-php-fw",
+  "web-django",
+  "web-rails",
+  "web-cms",
+  "web-portals",
+  "web-next",
+  "web-grails",
+  "web-python-asgi",
+  "rt-java-old",
+  "rt-java8",
+  "rt-java11",
+  "rt-java17",
+  "rt-net-old",
+  "rt-net4",
+  "rt-netcore",
+  "rt-net",
+  "rt-python",
+  "rt-node",
+  "rt-php",
+  "rt-ruby",
+  "rt-c",
+  "rt-go",
+  "rt-jvm",
+  "rt-perl",
+  "rt-js",
+  "db-oracle",
+  "db-sqlserver",
+  "db-postgres",
+  "db-mysql",
+  "db-mariadb",
+  "db-sqlite",
+  "db-firebird",
+  "db-access",
+  "db-mongo",
+  "db-redis",
+  "db-cassandra",
+  "db-elastic",
+  "db-hana",
+  "db-cloud",
+  "db-files",
+  "srv-iis",
+  "srv-tomcat",
+  "srv-weblogic",
+  "srv-websphere",
+  "srv-jboss",
+  "srv-glassfish",
+  "srv-http",
+  "os-windows",
+  "os-winserver",
+  "os-linux",
+  "os-unix",
+  "os-vms",
+  "os-macos",
+  "host-vm",
+  "host-container",
+  "host-cloud",
+  "host-serverless",
+  "ops-build",
+  "ops-source",
+  "ops-ci",
+  "ops-config",
+  "ops-schedule",
+  "ops-identity",
+  "ops-monitor"
+ ],
+ "packaged": [
+  "sap-ecc",
+  "oracle-ebs",
+  "peoplesoft",
+  "jde",
+  "siebel",
+  "dynamics",
+  "notes",
+  "custom-cots",
+  "other",
+  "pkg-s4",
+  "pkg-abap",
+  "pkg-sap-ui",
+  "pkg-sap-bw",
+  "pkg-sap-pi",
+  "pkg-ebs-custom",
+  "pkg-peopletools",
+  "pkg-jde-tools",
+  "pkg-siebel-tools",
+  "pkg-d365",
+  "pkg-crm",
+  "pkg-servicenow",
+  "pkg-infor",
+  "pkg-ifs",
+  "pkg-sage",
+  "pkg-maximo",
+  "pkg-docs",
+  "pkg-bpm",
+  "pkg-rpa",
+  "pkg-domino",
+  "rt-java-old",
+  "rt-java8",
+  "rt-java11",
+  "rt-java17",
+  "rt-net-old",
+  "rt-net4",
+  "rt-netcore",
+  "rt-net",
+  "rt-python",
+  "rt-node",
+  "rt-php",
+  "rt-ruby",
+  "rt-c",
+  "rt-go",
+  "rt-jvm",
+  "rt-perl",
+  "rt-js",
+  "db-oracle",
+  "db-sqlserver",
+  "db-postgres",
+  "db-mysql",
+  "db-mariadb",
+  "db-sqlite",
+  "db-firebird",
+  "db-access",
+  "db-mongo",
+  "db-redis",
+  "db-cassandra",
+  "db-elastic",
+  "db-hana",
+  "db-cloud",
+  "db-files",
+  "srv-iis",
+  "srv-tomcat",
+  "srv-weblogic",
+  "srv-websphere",
+  "srv-jboss",
+  "srv-glassfish",
+  "srv-http",
+  "os-windows",
+  "os-winserver",
+  "os-linux",
+  "os-unix",
+  "os-vms",
+  "os-macos",
+  "host-vm",
+  "host-container",
+  "host-cloud",
+  "host-serverless",
+  "ops-build",
+  "ops-source",
+  "ops-ci",
+  "ops-config",
+  "ops-schedule",
+  "ops-identity",
+  "ops-monitor"
+ ],
+ "data": [
+  "plsql",
+  "tsql",
+  "sybase",
+  "teradata",
+  "informatica",
+  "ssis",
+  "reports",
+  "bi",
+  "other",
+  "data-oracle",
+  "data-sqlserver",
+  "data-db2",
+  "data-informix",
+  "data-ase",
+  "data-teradata",
+  "data-netezza",
+  "data-greenplum",
+  "data-datastage",
+  "data-talend",
+  "data-odi",
+  "data-abinitio",
+  "data-sas",
+  "data-hadoop",
+  "data-hive",
+  "data-spark",
+  "data-kettle",
+  "data-ssas",
+  "data-powerbi",
+  "data-tableau",
+  "data-qlik",
+  "data-bobj",
+  "data-cognos",
+  "data-microstrategy",
+  "data-airflow",
+  "data-cloud-dw",
+  "data-databricks",
+  "rt-java-old",
+  "rt-java8",
+  "rt-java11",
+  "rt-java17",
+  "rt-net-old",
+  "rt-net4",
+  "rt-netcore",
+  "rt-net",
+  "rt-python",
+  "rt-node",
+  "rt-php",
+  "rt-ruby",
+  "rt-c",
+  "rt-go",
+  "rt-jvm",
+  "rt-perl",
+  "rt-js",
+  "db-oracle",
+  "db-sqlserver",
+  "db-postgres",
+  "db-mysql",
+  "db-mariadb",
+  "db-sqlite",
+  "db-firebird",
+  "db-access",
+  "db-mongo",
+  "db-redis",
+  "db-cassandra",
+  "db-elastic",
+  "db-hana",
+  "db-cloud",
+  "db-files",
+  "srv-iis",
+  "srv-tomcat",
+  "srv-weblogic",
+  "srv-websphere",
+  "srv-jboss",
+  "srv-glassfish",
+  "srv-http",
+  "os-windows",
+  "os-winserver",
+  "os-linux",
+  "os-unix",
+  "os-vms",
+  "os-macos",
+  "host-vm",
+  "host-container",
+  "host-cloud",
+  "host-serverless",
+  "ops-build",
+  "ops-source",
+  "ops-ci",
+  "ops-config",
+  "ops-schedule",
+  "ops-identity",
+  "ops-monitor"
+ ],
+ "integration": [
+  "mq",
+  "tibco",
+  "biztalk",
+  "webmethods",
+  "soap",
+  "files",
+  "edi",
+  "scheduler",
+  "other",
+  "int-ibm-mq",
+  "int-iib",
+  "int-mule",
+  "int-wso2",
+  "int-oracle-soa",
+  "int-fuse",
+  "int-spring",
+  "int-tibco-rv",
+  "int-jms",
+  "int-rabbit",
+  "int-kafka",
+  "int-rest",
+  "int-grpc",
+  "int-graphql",
+  "int-xml",
+  "int-mft",
+  "int-health",
+  "int-iso",
+  "int-api-gw",
+  "int-ipaas",
+  "int-etl-cdc",
+  "rt-java-old",
+  "rt-java8",
+  "rt-java11",
+  "rt-java17",
+  "rt-net-old",
+  "rt-net4",
+  "rt-netcore",
+  "rt-net",
+  "rt-python",
+  "rt-node",
+  "rt-php",
+  "rt-ruby",
+  "rt-c",
+  "rt-go",
+  "rt-jvm",
+  "rt-perl",
+  "rt-js",
+  "db-oracle",
+  "db-sqlserver",
+  "db-postgres",
+  "db-mysql",
+  "db-mariadb",
+  "db-sqlite",
+  "db-firebird",
+  "db-access",
+  "db-mongo",
+  "db-redis",
+  "db-cassandra",
+  "db-elastic",
+  "db-hana",
+  "db-cloud",
+  "db-files",
+  "srv-iis",
+  "srv-tomcat",
+  "srv-weblogic",
+  "srv-websphere",
+  "srv-jboss",
+  "srv-glassfish",
+  "srv-http",
+  "os-windows",
+  "os-winserver",
+  "os-linux",
+  "os-unix",
+  "os-vms",
+  "os-macos",
+  "host-vm",
+  "host-container",
+  "host-cloud",
+  "host-serverless",
+  "ops-build",
+  "ops-source",
+  "ops-ci",
+  "ops-config",
+  "ops-schedule",
+  "ops-identity",
+  "ops-monitor"
+ ],
+ "embedded": [
+  "plc",
+  "scada",
+  "firmware",
+  "rtos",
+  "old-os",
+  "opc",
+  "fieldbus",
+  "other",
+  "ot-siemens",
+  "ot-rockwell",
+  "ot-schneider",
+  "ot-omron",
+  "ot-codesys",
+  "ot-dcs",
+  "ot-scada",
+  "ot-ignition",
+  "ot-historian",
+  "ot-opcua",
+  "ot-mqtt",
+  "ot-protocols",
+  "ot-free",
+  "ot-linux",
+  "ot-wince",
+  "ot-mobile",
+  "ot-tools",
+  "ot-matlab",
+  "rt-java-old",
+  "rt-java8",
+  "rt-java11",
+  "rt-java17",
+  "rt-net-old",
+  "rt-net4",
+  "rt-netcore",
+  "rt-net",
+  "rt-python",
+  "rt-node",
+  "rt-php",
+  "rt-ruby",
+  "rt-c",
+  "rt-go",
+  "rt-jvm",
+  "rt-perl",
+  "rt-js",
+  "db-oracle",
+  "db-sqlserver",
+  "db-postgres",
+  "db-mysql",
+  "db-mariadb",
+  "db-sqlite",
+  "db-firebird",
+  "db-access",
+  "db-mongo",
+  "db-redis",
+  "db-cassandra",
+  "db-elastic",
+  "db-hana",
+  "db-cloud",
+  "db-files",
+  "srv-iis",
+  "srv-tomcat",
+  "srv-weblogic",
+  "srv-websphere",
+  "srv-jboss",
+  "srv-glassfish",
+  "srv-http",
+  "os-windows",
+  "os-winserver",
+  "os-linux",
+  "os-unix",
+  "os-vms",
+  "os-macos",
+  "host-vm",
+  "host-container",
+  "host-cloud",
+  "host-serverless",
+  "ops-build",
+  "ops-source",
+  "ops-ci",
+  "ops-config",
+  "ops-schedule",
+  "ops-identity",
+  "ops-monitor"
+ ]
+};
+const techLayer=id=>TECH_LAYER[id]||'Other / custom';
 const APPROACH=[
  ['rehost','Rehost (lift and shift)','Move to new infrastructure or cloud with little or no code change.'],
  ['replatform','Replatform','Move to a newer platform or managed service with small changes.'],
@@ -275,15 +2643,16 @@ const STEPS=[
  {key:'language',sec:'Domain knowledge',title:'Ubiquitous language',q:'Do business and IT use the same language for this domain?',help:'For example, does “policy”, “order” or “account” mean the same thing to everyone?',opts:()=>LANGUAGE},
  {key:'relations',multi:true,sec:'Domain knowledge',title:'Context map',q:'How does it relate to other systems?',help:'Select all that apply. This shows the boundaries and dependencies to untangle.',opts:()=>RELATIONS},
  {key:'legacyType',sec:'Technical landscape',title:'System type',q:'Which type of legacy system is it?',help:'Choose the closest category from the MindSuite doctrine.',opts:()=>TYPES},
- {key:'technology',sec:'Technical landscape',title:'Technology',q:'Which technology is it built on?',help:'Options are filtered by the system type you selected.',opts:s=>TECH[s.legacyType]||[]},
+ {key:'technology',multi:true,sec:'Technical landscape',title:'Technology',q:'Which technologies make up the system?',help:'For estates built or evolved from 1990–2022. Select all languages, frameworks, databases and platforms in use, then record exact versions below. Catalog inclusion does not imply that a technology needs replacing.',opts:()=>TECH_CATALOG},
  {key:'criticality',sec:'Technical landscape',title:'Criticality',q:'How critical is it to the business?',help:'Based on the impact of the system being unavailable.',opts:()=>CRIT},
  {key:'approach',sec:'Direction',title:'Approach',q:'What do you intend to do with it?',help:'Pick the direction you have in mind, or let the assessment decide.',opts:()=>APPROACH}];
 const SUMMARY=STEPS.length;
 
 const KEY='mindsuite-flow-v1',AIKEY='mindsuite-anthropic-key';
-const blank=()=>{const o={custom:{}};STEPS.forEach(s=>o[s.key]=s.multi?[]:'');return o};
+const blank=()=>{const o={custom:{},technologyDetails:{}};STEPS.forEach(s=>o[s.key]=s.multi?[]:'');return o};
 let S=blank();
-try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&typeof s==='object'){for(const st of STEPS){const v=s[st.key];if(st.multi){if(Array.isArray(v))S[st.key]=v.filter(x=>typeof x==='string').slice(0,30)}else if(typeof v==='string')S[st.key]=v.slice(0,120)}
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&typeof s==='object'){for(const st of STEPS){const v=s[st.key];if(st.multi){const a=Array.isArray(v)?v:st.key==='technology'&&typeof v==='string'&&v?[v]:[];S[st.key]=[...new Set(a.filter(x=>typeof x==='string'))].slice(0,st.key==='technology'?100:30)}else if(typeof v==='string')S[st.key]=v.slice(0,120)}
+ if(s.technologyDetails&&typeof s.technologyDetails==='object')for(const [id,v]of Object.entries(s.technologyDetails))if(typeof v==='string'&&S.technology.includes(id))S.technologyDetails[id]=v.slice(0,240);
  if(s.custom&&typeof s.custom==='object')for(const[k,v]of Object.entries(s.custom))if(Array.isArray(v))S.custom[k]=v.filter(o=>Array.isArray(o)&&o.length>=3).map(o=>[String(o[0]).slice(0,80),String(o[1]).slice(0,80),String(o[2]).slice(0,160),o[3]==='ai'?'ai':'you']).slice(0,40)}}catch{}
 // custom options depend on the parent answer for filtered steps
 const cKey=st=>st.key==='technology'?'technology:'+S.legacyType:st.key==='capabilities'?'capabilities:'+S.purpose:st.key;
@@ -300,7 +2669,7 @@ const answered=st=>st.kind==='text'?!!S[st.key]:picked(st).length>0;
 const label=st=>st.kind==='text'?S[st.key]:picked(st).map(o=>o[1]).join(', ');
 const firstOpen=()=>{const i=STEPS.findIndex(s=>!answered(s));return i<0?SUMMARY:i};
 const reachable=i=>i<=firstOpen();
-let cur=firstOpen(),query={},ai={};
+let cur=firstOpen(),query={},ai={},techScope='recommended',techFilter='';
 
 function go(i){if(!reachable(i))return;cur=i;render();window.scrollTo({top:0,behavior:'smooth'})}
 
@@ -340,36 +2709,62 @@ function textStep(st,i){
 function choose(st,id,forceOn){
  if(st.multi){const a=S[st.key];const has=a.includes(id);S[st.key]=has&&!forceOn?a.filter(v=>v!==id):has?a:[...a,id]}
  else S[st.key]=id;
+ if(st.key==='technology'&&!S.technology.includes(id))delete S.technologyDetails[id];
+ if(st.key==='legacyType'){techScope='recommended';techFilter='';query.technology='';}
  // a changed parent answer can invalidate the filtered step that follows it
- STEPS.forEach(valid);save();render();
+ STEPS.forEach(valid);for(const id of Object.keys(S.technologyDetails))if(!S.technology.includes(id))delete S.technologyDetails[id];save();render();
+}
+function technologySelections(st){
+ const rows=picked(st);
+ if(!rows.length)return el('p',{class:'hint',text:'Choose the components in your stack. Exact versions can be recorded after selection.'});
+ return el('section',{class:'stack-details','aria-label':'Selected technology stack'},[
+  el('h2',{text:'Selected stack · '+rows.length}),
+  el('p',{class:'hint',text:'Add exact versions, editions, patch levels or deployment details where known. Leave unknown details blank.'}),
+  ...rows.map(([id,name])=>{
+   const input=el('input',{class:'field',maxlength:'240','aria-label':'Version and details for '+name,placeholder:'Version / edition / patch / deployment (optional)'});
+   input.value=S.technologyDetails[id]||'';
+   input.addEventListener('input',()=>{S.technologyDetails[id]=input.value;save()});
+   return el('div',{class:'stack-row'},[el('div',{class:'stack-title'},[el('b',{text:name}),el('button',{class:'linkbtn',type:'button',text:'Remove','aria-label':'Remove '+name,onclick:()=>choose(st,id)})]),input]);
+  })]);
 }
 function optionStep(st,i){
  const icon='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.8"/><path d="m10.6 10.6 3.4 3.4"/></svg>';
  const search=el('input',{class:'field',type:'search',placeholder:'Search '+st.title.toLowerCase()+'…','aria-label':'Search options'});search.value=query[st.key]||'';
  const sw=el('div',{class:'searchw'},[search]);sw.insertAdjacentHTML('afterbegin',icon);
  const count=el('span',{class:'count'}),grid=el('div',{class:'grid',role:st.multi?'group':'radiogroup','aria-label':st.q}),assist=el('div');
+ const technology=st.key==='technology';
+ const scope=technology?el('select',{class:'field','aria-label':'Technology catalog scope'},[el('option',{value:'recommended',text:'Suggested for this system type'}),el('option',{value:'all',text:'All system types'})]):null;
+ const layer=technology?el('select',{class:'field','aria-label':'Technology layer'},[el('option',{value:'',text:'All technology layers'}),...TECH_LAYERS.map(l=>el('option',{value:l,text:l}))]):null;
+ if(technology){scope.value=techScope;layer.value=techFilter;}
  const draw=()=>{
   const q=(query[st.key]||'').trim(),ql=q.toLowerCase(),all=st.opts(S);
   let items=all.filter(o=>optionMatches(st,o,ql));
+  if(technology){
+   const preferred=new Set(TECH_PREFERRED[S.legacyType]||[]);
+   items=items.filter(o=>(techScope==='all'||preferred.has(o[0])||S.technology.includes(o[0])||o[3])&&(!techFilter||techLayer(o[0])===techFilter));
+   items.sort((a,b)=>TECH_LAYERS.indexOf(techLayer(a[0]))-TECH_LAYERS.indexOf(techLayer(b[0]))||a[1].localeCompare(b[1]));
+  }
   if(st.key==='purpose'){
    const groups=['Shared business functions','Industry-specific domains','Other business areas'];
    items=items.slice().sort((a,b)=>groups.indexOf(domainGroup(a[0]))-groups.indexOf(domainGroup(b[0]))||a[1].localeCompare(b[1]));
   }
-  count.textContent=(q?items.length+' of '+all.length+' options':all.length+' options')+(st.multi?' · '+S[st.key].length+' selected':'');
+  count.textContent=(q||technology?items.length+' of '+all.length+' options':all.length+' options')+(st.multi?' · '+S[st.key].length+' selected':'');
   const on=id=>st.multi?S[st.key].includes(id):S[st.key]===id;
   let group='';
   grid.replaceChildren(...items.flatMap(([id,name,hint,src])=>{
-   const heading=st.key==='purpose'&&domainGroup(id)!==group?[el('h2',{class:'option-group',text:group=domainGroup(id)})]:[];
+   const nextGroup=st.key==='purpose'?domainGroup(id):technology?techLayer(id):'';
+   const heading=nextGroup&&nextGroup!==group?[el('h2',{class:'option-group',text:group=nextGroup})]:[];
    return [...heading,el('button',{class:'opt'+(st.multi?' multi':''),type:'button',role:st.multi?'checkbox':'radio','aria-checked':String(on(id)),onclick:()=>choose(st,id),ondblclick:st.multi?null:()=>{choose(st,id);advance(i)}},[el('span',{class:'r'}),el('span',{},[el('b',{},[name,src?el('span',{class:'tag '+src,text:src==='ai'?'AI':'Custom'}):null]),el('small',{text:hint})])])];
   }));
   if(!items.length)grid.append(el('div',{class:'empty',text:q?'No options match “'+q+'”.':'No options are listed for this selection yet.'}));
-  assist.replaceChildren(assistPanel(st,q,!items.length));
+  assist.replaceChildren(...(technology?[el('p',{class:'hint',text:'Missing a component? Try All system types and All technology layers, or search to add your own.'})]:[]),assistPanel(st,q,!items.length));
  };
+ if(technology){scope.addEventListener('change',()=>{techScope=scope.value;draw()});layer.addEventListener('change',()=>{techFilter=layer.value;draw()})}
  search.addEventListener('input',()=>{query[st.key]=search.value;draw()});
  draw();
  return el('form',{onsubmit:e=>{e.preventDefault();advance(i)}},[
   el('div',{class:'card-h'},[el('div',{class:'eyebrow',text:'Step '+(i+1)+' · '+st.title}),el('h1',{text:st.q}),el('p',{text:st.help})]),
-  el('div',{class:'card-b'},[el('div',{class:'tools'},[sw,count]),grid,assist]),footer(i,answered(st))]);
+  el('div',{class:'card-b'},[technology?technologySelections(st):null,el('div',{class:'tools'},[sw,count]),technology?el('div',{class:'tech-filters'},[scope,layer]):null,grid,assist]),footer(i,answered(st))]);
 }
 function advance(i){if(!answered(STEPS[i]))return;cur=Math.min(i+1,firstOpen());render();window.scrollTo({top:0,behavior:'smooth'})}
 function addCustom(st,lbl,hint,src){
@@ -422,8 +2817,9 @@ async function generate(st,q){
  }
 }
 function exportJson(){
- const out={project:S.project};
+ const out={schemaVersion:2,project:S.project};
  for(const st of STEPS.slice(1)){const items=picked(st).map(o=>({id:o[0],label:o[1],source:o[3]||'catalog'}));out[st.key]=st.multi?items:(items[0]||null)}
+ out.technology=out.technology.map(item=>({...item,layer:techLayer(item.id),details:S.technologyDetails[item.id]||''}));
  out.exportedAt=new Date().toISOString();
  const u=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}));const a=el('a',{href:u,download:(S.project.replace(/[^\w-]+/g,'_')||'project')+'.json'});a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
 }
@@ -432,7 +2828,7 @@ function summaryStep(){
  STEPS.forEach((st,i)=>{
   if(st.sec!==sec){sec=st.sec;rows.push(el('tr',{},el('td',{colspan:'2',class:'sumsec',text:sec})))}
   const p=picked(st);
-  rows.push(el('tr',{},[el('th',{text:st.title}),el('td',{},[label(st),el('button',{class:'linkbtn',type:'button',text:'Edit',onclick:()=>go(i)}),!st.multi&&p[0]?el('small',{text:p[0][2]}):null])]));
+  rows.push(el('tr',{},[el('th',{text:st.title}),el('td',{},[st.key==='technology'?p.length+' components':label(st),el('button',{class:'linkbtn',type:'button',text:'Edit',onclick:()=>go(i)}),st.key==='technology'?el('ul',{class:'stack-summary'},p.map(o=>el('li',{text:o[1]+(S.technologyDetails[o[0]]?' — '+S.technologyDetails[o[0]]:'')}))):!st.multi&&p[0]?el('small',{text:p[0][2]}):null])]));
  });
  return el('div',{},[
   el('div',{class:'card-h'},[el('div',{class:'eyebrow',text:'Review'}),el('h1',{text:S.project}),el('p',{text:'Check the intake details before the assessment begins.'})]),
@@ -446,7 +2842,8 @@ function render(){
  document.getElementById('card').replaceChildren(cur===SUMMARY?summaryStep():st.kind==='text'?textStep(st,cur):optionStep(st,cur));
 }
 document.getElementById('exportBtn').onclick=exportJson;
-document.getElementById('newBtn').onclick=()=>{if(S.project&&!confirm('Start a new project? The current one will be cleared.'))return;S=blank();query={};ai={};cur=0;save();render()};
+document.getElementById('newBtn').onclick=()=>{if(S.project&&!confirm('Start a new project? The current one will be cleared.'))return;S=blank();query={};ai={};techScope='recommended';techFilter='';cur=0;save();render()};
 render();
 </script>
 </body></html>
+
