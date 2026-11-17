@@ -1,0 +1,14 @@
+<mxfile host="drawio">
+  <diagram name="Architecture" id="a1">
+    <mxGraphModel><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="p" value="Grower portal" vertex="1" parent="1"/>
+      <mxCell id="s" value="Settlement &lt;br&gt;service" vertex="1" parent="1"/>
+      <mxCell id="o" value="Oracle DB" vertex="1" parent="1"/>
+      <mxCell id="b" value="Partner Bank" vertex="1" parent="1"/>
+      <mxCell id="e1" value="REST" edge="1" source="p" target="s" parent="1"/>
+      <mxCell id="e2" edge="1" source="s" target="o" parent="1"/>
+      <mxCell id="e3" value="SFTP" edge="1" source="s" target="b" parent="1"/>
+    </root></mxGraphModel>
+  </diagram>
+</mxfile>

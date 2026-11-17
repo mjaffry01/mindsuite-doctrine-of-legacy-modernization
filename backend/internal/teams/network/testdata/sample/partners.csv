@@ -1,0 +1,5 @@
+partner,host,port,protocol,direction,owner
+Partner Bank,sftp.partnerbank.example,22,SFTP,out,Treasury (J. Ortiz)
+Grain Co-op,edi.graincoop.example,4080,AS2,both,
+Old Haulier,ftp.haulier.example,21,FTP,in,Logistics
+Regional Office,vpn.region.example,500,VPN,both,IT network team

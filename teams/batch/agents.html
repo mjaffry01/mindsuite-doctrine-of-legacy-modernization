@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite studies your batch</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How batch and scheduling are studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html">Source code</a><a href="../database/agents.html">Database</a><a href="../infrastructure/agents.html">Environment &amp; infrastructure</a><a href="../messaging/agents.html">Messaging &amp; caching</a><a href="../identity/agents.html">Identity &amp; access</a><a href="../telemetry/agents.html">Telemetry</a><a href="../batch/agents.html" class="on">Batch &amp; scheduling</a><a href="../network/agents.html">Network edge &amp; partners</a><a href="../documents/agents.html">Documents &amp; diagrams</a><a href="../incidents/agents.html">Incidents &amp; changes</a></nav></header>
+<main>
+<h1>How MindSuite studies your batch</h1>
+<p class="lead">Much of a legacy system's real work happens at night, in jobs nobody looks at until they fail. A team of 10 agents reads the scheduler's job definitions and run history and finds what the Batch &amp; scheduling card promises: <b>job streams and their order, schedules and batch windows, dependencies between jobs, failures and reruns</b>. Nothing is started or changed.</p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>Definitions and history only</b><span class="muted">The agents read exports of job definitions and past runs. No job is started, held or changed.</span></div>
+ <div><b>Passwords never shown</b><span class="muted">Command lines with passwords are reported as file and line only and never sent to Claude.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each finding points to the job definition or history line, or to the findings it is built on.</span></div>
+ <div><b>People decide</b><span class="muted">Agents propose. Your operations team confirms, corrects or rejects each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>What the agents need from your operations team</h2>
+<table><thead><tr><th>Give</th><th>How (read-only)</th></tr></thead><tbody>
+<tr><td><b>Job definitions</b>, required</td><td>Control-M <code>ctm deploy jobs::get</code> (JSON) · AutoSys <code>autorep -J ALL -q</code> (JIL) · IBM Workload Scheduler <code>composer extract</code> · Windows <code>schtasks /query /fo csv /v</code> · cron <code>crontab -l -u user</code>, one file per host and user named <code>crontab-&lt;host&gt;-&lt;user&gt;.txt</code></td></tr>
+<tr><td><b>Run history</b> (.csv), recommended</td><td>Job, start, end, status for the last months (from the scheduler's reports or its database): needed for failures, reruns and durations</td></tr>
+<tr><td><b>Job scripts</b>, optional</td><td>The scripts the jobs run: each job is linked to its script, and the code team can read the rules in it</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">The same 9 steps as the other teams. Step 3 runs four agents in parallel.</p>
+<div id="steps"></div>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<div class="legend"><span><i class="dot built"></i>Running today</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Batch agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li>The <b>job reader</b> reads the Control-M export: EXTRACT_DELIVERIES at 02:00, then CALC_SETTLEMENT, then SEND_PAYMENTS and PRINT_STATEMENTS.</li>
+ <li><b>Job streams</b> turns the waits into one stream, four jobs, three steps deep; <b>Schedules</b> places it in the 23:00–06:00 window.</li>
+ <li><b>Failures &amp; reruns</b> finds CALC_SETTLEMENT failing one night in six, rerun each time, and growing from about 68 to 108 minutes in a month.</li>
+ <li>The <b>migration assessment</b> moves the stream as one unit with the settlement application, after the failures are fixed.</li>
+ <li>Your <b>operations team</b> confirms the reruns are done by hand at 03:00, which becomes a fact in the inventory.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 10 agents run in the same <b>MindSuite agent backend</b> as the other teams. In MindSuite, open <b>Record evidence → Batch &amp; scheduling → Run the batch &amp; scheduling agent team</b>.</p>
+<p class="note">Eight rule-based agents always run and nothing leaves the backend machine. The business-meaning agent runs only with a Claude API key on the backend <b>and</b> your consent for that run.</p>
+<p class="note">Still to come: CA 7 (mainframe) job lists, and linking job scripts to the code team's business rules.</p>
+</section>
+</main>
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Batch orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Reads the scheduler exports and history, splits the work per scheduler, starts the agents.',reads:'The export files and every agent\'s progress',produces:'Tasks, the step log',safeguard:'Never starts or changes a job.'},
+ {id:'bjr',n:1,name:'Job reader',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'Every job from Control-M, AutoSys, IBM Workload Scheduler, Windows Task Scheduler and cron, with command, host, account, schedule and predecessors; the run history.',reads:'Scheduler exports, run history',produces:'Jobs, schedulers, runs',safeguard:'Windows\' own tasks are left out; password lines are never quoted.'},
+ {id:'flo',n:2,name:'Job streams & dependencies',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Job streams in the order they run, how deep they are, jobs many others wait for, predecessors that are not in the export, circular waits.',reads:'Predecessors and events',produces:'Streams and dependency findings',safeguard:'Missing predecessors are reported, not guessed.'},
+ {id:'win',n:3,name:'Schedules & batch window',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'The nightly batch window, jobs during business hours, jobs every few minutes (integrations in disguise), month-end and year-end jobs.',reads:'Schedules and start times',produces:'Window and schedule findings',safeguard:'Times are as defined in the scheduler.'},
+ {id:'run',n:4,name:'Failures & reruns',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Failure rates and reruns per job, the longest jobs and whether they grow, enabled jobs that never ran.',reads:'Run history',produces:'Reliability findings',safeguard:'Only schedulers whose history was given are judged.'},
+ {id:'bsec',n:5,name:'Accounts & secrets',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Jobs running as root, Administrator or SYSTEM, passwords in command lines, disabled jobs still defined, and the scripts the jobs run.',reads:'Job definitions, scripts',produces:'Security findings, job-to-script links',safeguard:'Passwords are reported as file and line only.'},
+ {id:'bmea',n:6,name:'Business meaning',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'The business process each stream runs (e.g. "Nightly grower settlement"), how critical it looks, and the business calendar.',reads:'Job names, descriptions, schedules and order — never passwords',produces:'Business processes, calendar, questions',safeguard:'Every item cites the jobs it is based on.'},
+ {id:'bass',n:7,name:'Migration assessment',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'A target per scheduler, what to retire, which jobs move together and the order.',reads:'All fact and meaning results',produces:'Targets, order, approach',safeguard:'Rules of thumb, labelled as such.'},
+ {id:'ver',n:8,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced',status:'built',does:'Re-opens every cited line; derived claims need accepted evidence.',reads:'Every finding and the cited lines',produces:'Accepted / rejected / needs an expert',safeguard:'Uses a different model from the agent it checks.'},
+ {id:'rep',n:9,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Batch & scheduling analysis report.',reads:'Verified findings only',produces:'Report (.md)',safeguard:'Cannot add facts that are not in the verified evidence.'},
+ {id:'ppl',n:'',name:'Your operations team',stage:'Validate',type:'Human',tier:'',status:'people',does:'Confirms, corrects or rejects each result and explains manual reruns.',reads:'The report, findings and questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The shared record of every finding, its citation, verification and human decision.',reads:'Findings from every agent',produces:'A traceable history',safeguard:'Append-only.'}];
+const EDGES=[['orch','bjr'],['bjr','flo'],['bjr','win'],['bjr','run'],['bjr','bsec'],['flo','bmea'],['win','bmea'],['flo','bass'],['win','bass'],['run','bass'],['bsec','bass'],['bmea','bass'],['bass','ver'],['bmea','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],bjr:[95,300],flo:[300,180],win:[300,260],run:[300,340],bsec:[300,420],bmea:[510,290],bass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={flo:'Streams & dependencies',win:'Schedules & window',bsec:'Accounts & secrets',bass:'Migration assessment',ppl:'Your operations team'};
+const ORCH_LINKS=['bjr','flo','bmea','bass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the scheduler exports',goal:'Know exactly what is being analysed.',does:'The backend reads the job definitions and history, read-only, in memory.',agents:['bjr'],see:'Step 1 in the run: jobs, schedulers, runs',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover every scheduler.',does:'One work package per scheduler.',agents:['orch'],see:'Work packages in the run log',status:'built'},
+ {n:3,title:'Collect the facts',goal:'Streams, window, dependencies, failures and reruns.',does:'In parallel: streams and dependencies, schedules and window, failures and reruns, accounts and secrets.',agents:['flo','win','run','bsec'],see:'Live findings in the run log',status:'built'},
+ {n:4,title:'Choose what to interpret',goal:'Name what only names reveal.',does:'The orchestrator lists the jobs to interpret.',agents:['orch'],see:'The list in the run',status:'built'},
+ {n:5,title:'Understand the business processes',goal:'What each stream does for the business.',does:'The business-meaning agent names the process behind each stream and the calendar.',agents:['bmea'],see:'Business processes (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Assess for migration',goal:'What moves together, and when.',does:'Targets per scheduler, retire candidates, order and approach.',agents:['bass'],see:'Migration approach and order',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'Re-opens every cited line; derived claims need accepted evidence.',agents:['ver'],see:'Verified / needs-an-expert marks',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The Batch & scheduling analysis report.',agents:['rep'],see:'Downloadable report (.md)',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Add the results to the inventory: jobs become batch components, business processes become events, risks are listed.',agents:['ppl'],see:'"Add results to the inventory"',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

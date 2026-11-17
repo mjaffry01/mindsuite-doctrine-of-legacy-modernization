@@ -1,0 +1,28 @@
+# configuration file /etc/nginx/nginx.conf:
+http {
+    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+    upstream portal_app {
+        server 10.0.1.11:8080;
+        server 10.0.1.12:8080;
+    }
+    upstream reports_app {
+        server 10.0.1.21:8080;
+    }
+    server {
+        listen 80;
+        server_name portal.harvest.example;
+        return 301 https://$host$request_uri;
+    }
+    server {
+        listen 443 ssl;
+        server_name portal.harvest.example;
+        ssl_certificate /etc/nginx/certs/portal.crt;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        location / { proxy_pass http://portal_app; }
+    }
+    server {
+        listen 8081;
+        server_name reports.harvest.local;
+        location / { proxy_pass http://reports_app; }
+    }
+}

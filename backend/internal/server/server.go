@@ -226,7 +226,7 @@ func readMultipart(r *http.Request) (*agents.Codebase, agents.Options, error) {
 			if _, params, err := mime.ParseMediaType(p.Header.Get("Content-Disposition")); err == nil && params["filename"] != "" {
 				name = params["filename"]
 			}
-			b, err := io.ReadAll(io.LimitReader(p, agents.MaxFileBytes+1))
+			b, err := io.ReadAll(io.LimitReader(p, agents.MaxDocBytes+1)) // the loader applies the limit per file type
 			if err != nil {
 				return nil, opts, err
 			}

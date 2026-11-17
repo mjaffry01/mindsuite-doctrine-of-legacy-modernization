@@ -1,0 +1,25 @@
+/* ----------------- HL_REPORTS ----------------- */
+insert_job: HL_REPORTS   job_type: BOX
+owner: hlbatch@app-prod-01
+description: "Daily reports"
+
+insert_job: HL_LOAD   job_type: CMD
+box_name: HL_REPORTS
+command: /opt/hl/bin/load_reports.sh
+machine: app-prod-01
+owner: hlbatch@app-prod-01
+start_times: "05:00"
+
+insert_job: HL_DAILY_REPORT   job_type: CMD
+box_name: HL_REPORTS
+command: /opt/hl/bin/daily_report.sh
+machine: app-prod-01
+owner: hlbatch@app-prod-01
+condition: s(HL_LOAD)
+start_times: "10:00"
+
+insert_job: HL_OLD_EXPORT   job_type: CMD
+command: /opt/hl/bin/old_export.sh
+machine: app-prod-01
+owner: hlbatch@app-prod-01
+status: ON_ICE

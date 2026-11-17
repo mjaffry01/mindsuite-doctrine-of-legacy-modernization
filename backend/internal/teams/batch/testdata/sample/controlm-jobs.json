@@ -1,0 +1,108 @@
+{
+  "HL_NIGHTLY": {
+    "Type": "Folder",
+    "ControlmServer": "ctm-prod",
+    "EXTRACT_DELIVERIES": {
+      "Type": "Job:Command",
+      "Command": "/opt/hl/bin/extract_deliveries.sh",
+      "Host": "batch-prd-01",
+      "RunAs": "hlbatch",
+      "Description": "Extract the day's deliveries",
+      "When": {
+        "Schedule": "Everyday",
+        "FromTime": "0200"
+      },
+      "eventsToAdd": {
+        "Type": "AddEvents",
+        "Events": [
+          {
+            "Event": "EXTRACT-TO-CALC"
+          }
+        ]
+      }
+    },
+    "CALC_SETTLEMENT": {
+      "Type": "Job:Command",
+      "Command": "/opt/hl/bin/calc_settlement.sh",
+      "Host": "batch-prd-01",
+      "RunAs": "hlbatch",
+      "Description": "Calculate grower payments",
+      "When": {
+        "Schedule": "Everyday"
+      },
+      "eventsToWaitFor": {
+        "Type": "WaitForEvents",
+        "Events": [
+          {
+            "Event": "EXTRACT-TO-CALC"
+          }
+        ]
+      },
+      "eventsToAdd": {
+        "Type": "AddEvents",
+        "Events": [
+          {
+            "Event": "CALC-TO-PAY"
+          },
+          {
+            "Event": "CALC-TO-REPORT"
+          }
+        ]
+      }
+    },
+    "SEND_PAYMENTS": {
+      "Type": "Job:FileTransfer",
+      "Command": "sftp -b /opt/hl/sftp/payments.batch bank@sftp.partnerbank.example",
+      "Host": "batch-prd-01",
+      "RunAs": "root",
+      "Description": "Send the payment file to the bank",
+      "When": {
+        "Schedule": "Everyday"
+      },
+      "eventsToWaitFor": {
+        "Type": "WaitForEvents",
+        "Events": [
+          {
+            "Event": "CALC-TO-PAY"
+          }
+        ]
+      }
+    },
+    "PRINT_STATEMENTS": {
+      "Type": "Job:Command",
+      "Command": "/opt/hl/bin/print_statements.sh",
+      "Host": "batch-prd-01",
+      "RunAs": "hlbatch",
+      "When": {
+        "Schedule": "Everyday"
+      },
+      "eventsToWaitFor": {
+        "Type": "WaitForEvents",
+        "Events": [
+          {
+            "Event": "CALC-TO-REPORT"
+          }
+        ]
+      }
+    },
+    "MONTH_END_CLOSE": {
+      "Type": "Job:Command",
+      "Command": "/opt/hl/bin/month_end_close.sh",
+      "Host": "batch-prd-01",
+      "RunAs": "hlbatch",
+      "Description": "Close the month",
+      "When": {
+        "Schedule": "LastDayOfMonth",
+        "FromTime": "0400"
+      },
+      "eventsToWaitFor": {
+        "Type": "WaitForEvents",
+        "Events": [
+          {
+            "Event": "GL_FEED-TO-CLOSE"
+          }
+        ]
+      }
+    }
+  }
+}

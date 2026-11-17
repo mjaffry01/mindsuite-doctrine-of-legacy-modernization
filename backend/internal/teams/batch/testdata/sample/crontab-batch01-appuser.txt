@@ -1,0 +1,6 @@
+# m h dom mon dow command
+MAILTO=ops@harvest.example
+*/5 * * * * /opt/hl/bin/poll_files.sh
+0 1 28-31 * * /opt/hl/bin/month_end.sh
+# 0 3 * * * /opt/hl/bin/old_cleanup.sh
+30 2 * * * sqlplus hl/Tiger123@HLPROD @/opt/hl/sql/purge.sql

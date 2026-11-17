@@ -1,0 +1,3 @@
+"HostName","TaskName","Next Run Time","Status","Logon Mode","Last Run Time","Last Result","Author","Task To Run","Start In","Comment","Scheduled Task State","Run As User","Schedule Type","Start Time","Days"
+"WIN-BATCH-01","\HL\Archive Scans","18/11/2026 23:00:00","Ready","Interactive/Background","17/11/2026 23:00:00","0","HL","C:\HL\archive_scans.ps1","C:\HL","Archive scanned documents","Enabled","SYSTEM","Daily","23:00:00","Every 1 day(s)"
+"WIN-BATCH-01","\Microsoft\Windows\Defrag\ScheduledDefrag","N/A","Ready","Background","N/A","0","Microsoft","defrag.exe","","","Enabled","SYSTEM","Weekly","01:00:00","SUN"

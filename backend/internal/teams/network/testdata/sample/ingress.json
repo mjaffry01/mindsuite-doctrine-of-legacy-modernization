@@ -1,0 +1,15 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "Ingress",
+      "metadata": { "name": "grower-portal", "namespace": "harvest" },
+      "spec": {
+        "tls": [ { "hosts": ["growers.harvest.example"] } ],
+        "rules": [ { "host": "growers.harvest.example", "http": { "paths": [ { "path": "/", "backend": { "service": { "name": "grower-portal-svc" } } } ] } } ]
+      }
+    }
+  ]
+}

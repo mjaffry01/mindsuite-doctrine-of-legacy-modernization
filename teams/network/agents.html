@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite studies your network edge</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How the network edge and partners are studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html">Source code</a><a href="../database/agents.html">Database</a><a href="../infrastructure/agents.html">Environment &amp; infrastructure</a><a href="../messaging/agents.html">Messaging &amp; caching</a><a href="../identity/agents.html">Identity &amp; access</a><a href="../telemetry/agents.html">Telemetry</a><a href="../batch/agents.html">Batch &amp; scheduling</a><a href="../network/agents.html" class="on">Network edge &amp; partners</a><a href="../documents/agents.html">Documents &amp; diagrams</a><a href="../incidents/agents.html">Incidents &amp; changes</a></nav></header>
+<main>
+<h1>How MindSuite studies your network edge</h1>
+<p class="lead">Every way into and out of the system has to keep working on the day of the move. A team of 11 agents reads configuration and inventory exports and finds what the Network edge &amp; partners card promises: <b>load balancers, API gateways, CDN and DNS entries, TLS certificates and expiry, partner connections (SFTP, EDI, VPN) and firewall openings</b>. Nothing is contacted.</p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>Exports only</b><span class="muted">Configuration files, zone files, rule exports and lists. No host is scanned or contacted.</span></div>
+ <div><b>Keys never shown</b><span class="muted">Passwords, VPN pre-shared keys and private keys are reported as file and line only.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each finding points to the configuration line, record or rule it comes from.</span></div>
+ <div><b>People decide</b><span class="muted">Agents propose. Your network team confirms, corrects or rejects each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>What the agents need from your network team</h2>
+<table><thead><tr><th>Give</th><th>How (read-only)</th></tr></thead><tbody>
+<tr><td><b>Load balancers and proxies</b></td><td><code>nginx -T</code>, the HAProxy configuration, <code>kubectl get ingress,services -A -o json</code>, the cloud inventory (load balancers, gateways, CDN)</td></tr>
+<tr><td><b>DNS</b></td><td>The zone file, or a CSV with name, type, value, ttl</td></tr>
+<tr><td><b>TLS certificates</b></td><td><code>openssl s_client -connect host:443 &lt;/dev/null | openssl x509 -noout -subject -issuer -enddate -text</code> per public host</td></tr>
+<tr><td><b>Partner connections</b></td><td>A CSV: partner, host, port, protocol (SFTP, FTP, AS2, VPN, API), direction, owner</td></tr>
+<tr><td><b>Firewall openings</b></td><td>A rule export as CSV: name, source, destination, port, protocol, action, description</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">The same 9 steps as the other teams. Step 3 runs five agents in parallel.</p>
+<div id="steps"></div>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<div class="legend"><span><i class="dot built"></i>Running today</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Network edge agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li>The <b>edge reader</b> reads nginx: portal.harvest.example on port 443, forwarding to two application servers, still allowing TLS 1.0 and 1.1.</li>
+ <li><b>TLS certificates</b> finds its certificate expired in January 2024; <b>DNS</b> finds the record with a one-day TTL.</li>
+ <li><b>Partners</b> lists four partners: one on plain FTP, one without an owner.</li>
+ <li>The <b>cut-over plan</b> puts it in order: renew the certificate now, tell the partners weeks ahead, lower the TTL a day before, switch DNS, then remove the old edge.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 11 agents run in the same <b>MindSuite agent backend</b> as the other teams. In MindSuite, open <b>Record evidence → Network edge &amp; partners → Run the network edge &amp; partners agent team</b>.</p>
+<p class="note">Nine rule-based agents always run and nothing leaves the backend machine. The edge-map agent runs only with a Claude API key on the backend <b>and</b> your consent for that run.</p>
+<p class="note">Still to come: F5 and Azure Application Gateway configuration, API gateway definitions (Kong, Apigee, API Management).</p>
+</section>
+</main>
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Edge orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Reads the exports, splits the work per file, starts the agents.',reads:'The export files and every agent\'s progress',produces:'Tasks, the step log',safeguard:'Never contacts a host.'},
+ {id:'nrd',n:1,name:'Edge reader',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'nginx and HAProxy configuration, Kubernetes ingress, cloud load balancers, gateways and CDNs, DNS zones and records, certificates, partner lists and firewall rules.',reads:'Configuration and inventory exports',produces:'Entry points, DNS, certificates, partners, rules',safeguard:'Lines with passwords or VPN keys are marked and never quoted.'},
+ {id:'ent',n:2,name:'Load balancers & gateways',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Every entry point with its host names, listeners and backends; plain HTTP without redirect, TLS 1.0/1.1 still allowed, a single backend server.',reads:'Proxy, load-balancer and ingress configuration',produces:'Entry-point findings',safeguard:'Backends are resolved from the configuration, not probed.'},
+ {id:'dns',n:3,name:'DNS & CDN',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'DNS records, names served through a CDN, names pointing to configured entry points, long TTLs that slow the cut-over.',reads:'Zone files and record lists',produces:'DNS findings',safeguard:'Only records in the export are judged.'},
+ {id:'tls',n:4,name:'TLS certificates',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Certificates expired or expiring within 90 days, weak keys, SHA-1 signatures, self-signed certificates.',reads:'openssl output',produces:'Certificate findings',safeguard:'Private keys are never read.'},
+ {id:'prt',n:5,name:'Partner connections',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Every SFTP, FTP, EDI/AS2, VPN and API partner, the unencrypted ones, and partners without an owner.',reads:'The partner list',produces:'Partner findings',safeguard:'Partner credentials are never read.'},
+ {id:'fw',n:6,name:'Firewall openings',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Rules open to any source and destination or every port, admin and database ports open to any source, rules without a description; passwords and keys in the exports.',reads:'Firewall rule exports',produces:'Firewall findings',safeguard:'Keys are reported as file and line only.'},
+ {id:'nmea',n:7,name:'Edge map',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Who reaches the system (users, customers, partners) through which entry or connection, and what they exchange.',reads:'Entry-point and partner names, hosts and protocols — no secrets',produces:'Edge flows, questions',safeguard:'Every item cites the facts it is based on.'},
+ {id:'nass',n:8,name:'Cut-over plan',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'The checklist: certificates, partners, firewall openings, TTLs, DNS switch and clean-up, in order.',reads:'All fact results',produces:'Cut-over checklist and approach',safeguard:'A checklist to agree with your network team.'},
+ {id:'ver',n:9,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced',status:'built',does:'Re-opens every cited line; derived claims need accepted evidence.',reads:'Every finding and the cited lines',produces:'Accepted / rejected / needs an expert',safeguard:'Uses a different model from the agent it checks.'},
+ {id:'rep',n:10,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Network edge & partners analysis report.',reads:'Verified findings only',produces:'Report (.md)',safeguard:'Cannot add facts that are not in the verified evidence.'},
+ {id:'ppl',n:'',name:'Your network team',stage:'Validate',type:'Human',tier:'',status:'people',does:'Confirms, corrects or rejects each result and contacts the partners.',reads:'The report, findings and questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The shared record of every finding, its citation, verification and human decision.',reads:'Findings from every agent',produces:'A traceable history',safeguard:'Append-only.'}];
+const EDGES=[['orch','nrd'],['nrd','ent'],['nrd','dns'],['nrd','tls'],['nrd','prt'],['nrd','fw'],['ent','nmea'],['prt','nmea'],['dns','nmea'],['ent','nass'],['dns','nass'],['tls','nass'],['prt','nass'],['fw','nass'],['nmea','nass'],['nass','ver'],['nmea','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],nrd:[95,300],ent:[300,160],dns:[300,230],tls:[300,300],prt:[300,370],fw:[300,440],nmea:[510,290],nass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={ent:'Load balancers & gateways',prt:'Partner connections',fw:'Firewall openings',ppl:'Your network team'};
+const ORCH_LINKS=['nrd','ent','nmea','nass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the edge and partner exports',goal:'Know exactly what is being analysed.',does:'The backend reads the configuration and inventory exports, read-only, in memory.',agents:['nrd'],see:'Step 1 in the run',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover every export.',does:'One work package per file.',agents:['orch'],see:'Work packages in the run log',status:'built'},
+ {n:3,title:'Collect the facts',goal:'Every way in and out, and its weak points.',does:'In parallel: entry points, DNS and CDN, certificates, partners, firewall openings.',agents:['ent','dns','tls','prt','fw'],see:'Live findings in the run log',status:'built'},
+ {n:4,title:'Choose what to interpret',goal:'Name what only names reveal.',does:'The orchestrator lists the entry points and partners.',agents:['orch'],see:'The list in the run',status:'built'},
+ {n:5,title:'Understand who connects',goal:'Who uses which way in.',does:'The edge-map agent describes the users and partners behind each entry and connection.',agents:['nmea'],see:'Edge flows (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Plan the cut-over',goal:'Nothing breaks on the day.',does:'The checklist of what must change, in order.',agents:['nass'],see:'Cut-over plan',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'Re-opens every cited line; derived claims need accepted evidence.',agents:['ver'],see:'Verified / needs-an-expert marks',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The Network edge & partners analysis report.',agents:['rep'],see:'Downloadable report (.md)',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Add the results to the inventory: partners and entry points become interfaces, risks are listed.',agents:['ppl'],see:'"Add results to the inventory"',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

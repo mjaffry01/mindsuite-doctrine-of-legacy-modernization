@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite studies your incidents</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How incidents and changes are studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html">Source code</a><a href="../database/agents.html">Database</a><a href="../infrastructure/agents.html">Environment &amp; infrastructure</a><a href="../messaging/agents.html">Messaging &amp; caching</a><a href="../identity/agents.html">Identity &amp; access</a><a href="../telemetry/agents.html">Telemetry</a><a href="../batch/agents.html">Batch &amp; scheduling</a><a href="../network/agents.html">Network edge &amp; partners</a><a href="../documents/agents.html">Documents &amp; diagrams</a><a href="../incidents/agents.html" class="on">Incidents &amp; changes</a></nav></header>
+<main>
+<h1>How MindSuite studies your incidents</h1>
+<p class="lead">A system's tickets show where it really hurts. A team of 11 agents reads your incident, change and problem exports and finds what the Incidents &amp; changes card promises: <b>where the system breaks most often, recurring problems, change frequency and failed changes</b>. People's names are never kept.</p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>Titles and dates only</b><span class="muted">Number, short description, component, priority, state and dates. Descriptions, comments and work notes are not read.</span></div>
+ <div><b>No names</b><span class="muted">Caller, assignee and reporter columns are only used to remove those names from titles. Tickets are cited by file and line, never quoted.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each finding points to the ticket rows it is counted from.</span></div>
+ <div><b>People decide</b><span class="muted">Agents propose. Your service desk and problem manager confirm, correct or reject each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>What the agents need from your service desk</h2>
+<table><thead><tr><th>Give</th><th>How (read-only)</th></tr></thead><tbody>
+<tr><td><b>Incidents</b></td><td>ServiceNow: incident list filtered by service or configuration item, last 12 months → Export → CSV. Jira: JQL filter → Export → CSV (all fields).</td></tr>
+<tr><td><b>Changes</b></td><td>ServiceNow <code>change_request</code> list for the same period, with type and close code</td></tr>
+<tr><td><b>Problems</b></td><td>ServiceNow <code>problem</code> list (optional), so recurring incidents can be matched to known root causes</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">The same 9 steps as the other teams. Step 3 runs five agents in parallel.</p>
+<div id="steps"></div>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<div class="legend"><span><i class="dot built"></i>Running today</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Incidents and changes agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li>The <b>ticket reader</b> reads 42 incidents, 30 changes and 2 problem records over 12 months, and drops the caller and assignee columns.</li>
+ <li><b>Hotspots</b> finds that 77% of P1/P2 incidents start at month-end; <b>Recurring problems</b> finds "Settlement batch failed at month end" 8 times, with no problem record.</li>
+ <li><b>Failed changes</b> finds 7 of 30 changes failed or were backed out, one of them followed by a grading incident.</li>
+ <li><b>Modernization priorities</b> ranks settlement first: fix or redesign it before moving it, and keep the cut-over away from month-end.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 11 agents run in the same <b>MindSuite agent backend</b> as the other teams. In MindSuite, open <b>Record evidence → Incidents &amp; changes → Run the incidents &amp; changes agent team</b>.</p>
+<p class="note">Nine rule-based agents always run and nothing leaves the backend machine. The failure-story agent runs only with a Claude API key on the backend <b>and</b> your consent for that run.</p>
+<p class="note">Still to come: reading directly from the ServiceNow or Jira API, and linking hotspots to the components the source-code team finds.</p>
+</section>
+</main>
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Incidents orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Reads the exports, splits the work per file, starts the agents, picks the recurring problems to interpret.',reads:'The export files and every agent\'s progress',produces:'Tasks, the step log, the reading list',safeguard:'Never contacts ServiceNow or Jira.'},
+ {id:'ird',n:1,name:'Ticket reader',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'ServiceNow incident, change and problem lists and Jira exports: number, title, component, priority, state, type, close code and dates.',reads:'CSV exports',produces:'Incidents, changes, problems',safeguard:'People columns and descriptions are not kept; names, e-mail addresses and numbers are removed from titles.'},
+ {id:'ihot',n:2,name:'Hotspots',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Incidents per component, the few components behind most incidents, P1/P2 counts, month-end and Monday peaks.',reads:'Incidents',produces:'Hotspot findings',safeguard:'Counts only.'},
+ {id:'irec',n:3,name:'Recurring problems',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Incidents with similar titles that keep coming back, whether a problem record links them, reopened incidents.',reads:'Incidents and problems',produces:'Recurring problems',safeguard:'Groups cleaned titles.'},
+ {id:'imttr',n:4,name:'Restore times',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Time to restore per priority (median and slowest 10%), incidents open for more than 30 days.',reads:'Incident dates',produces:'Restore-time findings',safeguard:'Measured against the export, not today.'},
+ {id:'ichg',n:5,name:'Change frequency',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Changes per month, standard / normal / emergency, weekend changes, the components changed most.',reads:'Changes',produces:'Change findings',safeguard:'Counts only.'},
+ {id:'ifail',n:6,name:'Failed changes',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Changes that failed or were backed out, the change failure rate, incidents caused by a change (caused-by field or same component within 48 hours).',reads:'Changes and incidents',produces:'Failure findings',safeguard:'Links by time are marked as likely, not certain.'},
+ {id:'imea',n:7,name:'Failure story',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Which business functions are fragile, the likely causes and what it means for the move.',reads:'Counts and cleaned titles — no names, no descriptions',produces:'Fragile areas, questions',safeguard:'Every item cites the facts it is based on.'},
+ {id:'iass',n:8,name:'Modernization priorities',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'The delivery profile (change frequency, failure rate, restore time), what to fix or redesign first, the periods to avoid for the cut-over.',reads:'All fact results',produces:'Priorities and freeze periods',safeguard:'A ranking to agree with your service desk.'},
+ {id:'ver',n:9,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced',status:'built',does:'Re-opens every cited ticket row; derived claims need accepted evidence.',reads:'Every finding and the cited rows',produces:'Accepted / rejected / needs an expert',safeguard:'Uses a different model from the agent it checks.'},
+ {id:'rep',n:10,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Incidents & changes analysis report.',reads:'Verified findings only',produces:'Report (.md)',safeguard:'Cannot add facts that are not in the verified evidence.'},
+ {id:'ppl',n:'',name:'Your service desk',stage:'Validate',type:'Human',tier:'',status:'people',does:'Confirms, corrects or rejects each result and names the root causes.',reads:'The report, findings and questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The shared record of every finding, its citation, verification and human decision.',reads:'Findings from every agent',produces:'A traceable history',safeguard:'Append-only.'}];
+const EDGES=[['orch','ird'],['ird','ihot'],['ird','irec'],['ird','imttr'],['ird','ichg'],['ird','ifail'],['ihot','imea'],['irec','imea'],['ifail','imea'],['ihot','iass'],['irec','iass'],['imttr','iass'],['ichg','iass'],['ifail','iass'],['imea','iass'],['iass','ver'],['imea','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],ird:[95,300],ihot:[300,160],irec:[300,230],imttr:[300,300],ichg:[300,370],ifail:[300,440],imea:[510,290],iass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={iass:'Priorities',ichg:'Change frequency',ppl:'Your service desk'};
+const ORCH_LINKS=['ird','ihot','imea','iass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the incident and change exports',goal:'Know exactly what is being analysed.',does:'The backend reads the ticket exports, read-only, in memory; people columns and descriptions are dropped.',agents:['ird'],see:'Step 1 in the run',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover every export.',does:'One work package per file.',agents:['orch'],see:'Work packages in the run log',status:'built'},
+ {n:3,title:'Collect the facts',goal:'Where and how often it breaks and changes.',does:'In parallel: hotspots, recurring problems, restore times, change frequency, failed changes.',agents:['ihot','irec','imttr','ichg','ifail'],see:'Live findings in the run log',status:'built'},
+ {n:4,title:'Choose what to interpret',goal:'Send only what is needed.',does:'The orchestrator lists the recurring problems.',agents:['orch'],see:'The reading list in the run',status:'built'},
+ {n:5,title:'Understand why it breaks',goal:'Fragile business functions in plain words.',does:'The failure-story agent names the fragile areas and likely causes.',agents:['imea'],see:'Fragile areas (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Set the priorities',goal:'Know what to fix first and when not to move.',does:'Delivery profile, ranking per component, periods to avoid.',agents:['iass'],see:'What to fix first',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'Re-opens every cited row; derived claims need accepted evidence.',agents:['ver'],see:'Verified / needs-an-expert marks',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The Incidents & changes analysis report.',agents:['rep'],see:'Downloadable report (.md)',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Add the results to the inventory: recurring problems, failed changes and peak periods become risks.',agents:['ppl'],see:'"Add results to the inventory"',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+$ORIGIN harvest.example.
+$TTL 86400
+@        IN SOA ns1.harvest.example. hostmaster.harvest.example. ( 2026111701 3600 600 604800 300 )
+portal   IN A     203.0.113.20
+growers  300 IN CNAME harvest-fd.azurefd.net.
+static   IN CNAME d111111abcdef8.cloudfront.net.
+api      IN A     203.0.113.21

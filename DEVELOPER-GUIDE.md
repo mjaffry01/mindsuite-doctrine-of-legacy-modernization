@@ -234,7 +234,7 @@ Everything lives in one object `M`, saved by `persist()` to `localStorage`. Call
 | Code scan (folder/zip, build files, languages, versions, tables, risks) | Real, runs locally |
 | "Load reference scenario" (HarvestLink) | Synthetic sample data |
 | Target scoring | Rule-based and explainable (`SCORE_RULES`); not AI |
-| Agent backend (`backend/`, Go): code (15), database (14), infrastructure (13), messaging & caching (12), identity & access (12) and telemetry (11) teams, each in `backend/internal/teams/<team>/`; shared core in `backend/internal/agents/` | Real; rule-based agents tested; Claude-powered agents need an API key and consent (not yet tested with a key) |
+| Agent backend (`backend/`, Go): code (15), database (14), infrastructure (13), messaging & caching (12), identity & access (12), telemetry (11), batch & scheduling (10), network edge & partners (11), documents & diagrams (12) and incidents & changes (11) teams, each in `backend/internal/teams/<team>/`; shared core in `backend/internal/agents/` | Real; rule-based agents tested; Claude-powered agents need an API key and consent (not yet tested with a key) |
 | Reading documents, live databases, logs, interviews | Not built yet |
 
 ---
@@ -263,3 +263,14 @@ Everything lives in one object `M`, saved by `persist()` to `localStorage`. Call
 - **Now built:** the **Security & identity** evidence view (9th view); code-scan detection of login methods, auth frameworks, authorization checks and **hard-coded secrets (file and line only)**; collector-bundle identity findings (MFA, shared, inactive and privileged accounts, database admin accounts).
 - **Still missing:** outdated TLS/crypto settings, a full dependency vulnerability lookup (e.g. against the OSV database), encryption at rest and in transit, audit-logging checks, and the applicable regulations.
 - **Security findings feeding Phase 2:** e.g. "no SSO" → identity work in the foundations, "PCI scope" → cloud and region constraints.
+
+
+## GUI presentation layer (Codex, 2026-11-17)
+
+`assets/workspace.css` loads after the embedded legacy CSS and owns the refreshed appearance. `assets/workspace.js` defines `enhanceWorkspace()`, called after `renderNav()` by the final `render()`. It adds accessible mobile navigation, discovery-step links, source search/filtering and collection-detail disclosures. It does not read or write `M`, localStorage, provider credentials or backend requests. Filter state is ephemeral. Preserve this final render hook. Source-card DOM enrichment moves existing nodes, retaining their handlers. Shared agent explanation styling remains in `teams/shared/team-page.css`.
+
+The current app is a static frontend with an optional Go agent backend. Some older sections above describe the earlier browser-only product. Use the latest HANDOFF entry and actual team registry for current implementation status. Do not use the old Codex mockup builder to regenerate this app.
+
+
+### Contemporary refinement (2026-11-17)
+The final block in `assets/workspace.css` now defines the light sidebar, indigo theme, compact navigation and system-type tiles. `enhanceWorkspace()` calls `enhanceContemporaryUI()`, which adds navigation icons, the header phase switcher and shorter visible source-card action labels (original accessible names and handlers are retained). The phase switcher delegates to existing sidebar buttons. No application-state or localStorage writes. Matching agent explanation-page rules are at the end of `teams/shared/team-page.css`.

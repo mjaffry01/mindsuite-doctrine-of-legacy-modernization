@@ -16,10 +16,10 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 | Permanent backup of the working files | `C:\Users\X1 CARBON\Downloads\Legecy Modernization\` (a copy of `index.html`, the `.md` files; refreshed with each log entry) |
 | Local preview | `python -m http.server 8768` in the working copy → http://localhost:8768/ (also the `legacy-modernization` entry in `.claude/launch.json`) |
 | The app | `index.html`: a single static file, plain JS, no build, state in `localStorage` key `mindsuite-artifact-mockup-v1` |
-| Agent teams | **One folder per team**, backend and web app alike. Backend: shared core `backend/internal/agents/`, teams in `backend/internal/teams/{code,database,infrastructure,messaging,identity,telemetry}`: all six evidence teams built. Web app: `teams/shared/` (backend connection, explanation-page engine), `teams/<team>/panel.js` (the panel in the app) and `teams/<team>/agents.html` (the explanation page). See `backend/README.md`. |
-| Agent backend (Go) | `backend/`: runs the code (15), database (14), infrastructure (13), messaging & caching (12), identity & access (12) and telemetry (11) teams. `cd backend && go run ./cmd/mindsuite-agents serve` → http://127.0.0.1:8090 (also `mindsuite-agents-backend` in `.claude/launch.json`). `go test ./...` must pass. See `backend/README.md`. |
+| Agent teams | **One folder per team**, backend and web app alike. Backend: shared core `backend/internal/agents/`, teams in `backend/internal/teams/{code,database,infrastructure,messaging,identity,telemetry,batch,network,documents,incidents}`: all ten evidence teams implemented. Web app: `teams/shared/` (backend connection, explanation-page engine), `teams/<team>/panel.js` (the panel in the app) and `teams/<team>/agents.html` (the explanation page). See `backend/README.md`. |
+| Agent backend (Go) | `backend/`: runs the code (15), database (14), infrastructure (13), messaging & caching (12), identity & access (12) telemetry (11), batch (10), network (11), documents (12) and incidents (11) teams. `cd backend && go run ./cmd/mindsuite-agents serve` → http://127.0.0.1:8090 (also `mindsuite-agents-backend` in `.claude/launch.json`). `go test ./...` must pass. See `backend/README.md`. |
 
-**Git state at the last update:** local `main` is level with `origin/main` (`e26b51b`). **All work since then is uncommitted:** `index.html` modified; `agents.html`, `backend/`, `AGENT-DESIGN.md`, `DEVELOPER-GUIDE.md`, `COLLECTOR-SPEC.md`, `HANDOFF.md` and `PRODUCT-OUTCOMES.md` new. The live site still shows the older step-by-step questionnaire.
+**Git baseline observed by Codex (2026-11-17):** local HEAD `492bfee` (agent backend and six teams), followed by local batch/network additions and the GUI uplift. Older statements that all backend work is uncommitted are stale. Remote deployment has not been verified or changed by this GUI update.
 
 ---
 
@@ -28,7 +28,7 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 - **Do not push to GitHub until the owner says "push it".** Edit and test locally first.
 - Plain, non-technical wording in the UI. Clear, colour-coded inputs (orange = required and empty, green = filled).
 - Principle of the product: **take the minimum from the user, let the agent (scanner/collector) detect the maximum, then a human validates.**
-- Selling story: **scan the current state → decide the target → plan the modernization.** Be honest in claims: the code scan is real, target ranking is rule-based, and the AI agent is still to be built.
+- Selling story: **scan the current state → decide the target → plan the modernization.** Be honest in claims: the code scan is real, target ranking is rule-based, and the Claude integration is implemented but real-key validation remains pending.
 - When giving "how to extract" advice, use **verified official documentation links**, not guesses.
 - Test every change in the browser (desktop 1440×900 and mobile 375), check the console, and restore the owner's saved browser data afterwards (back up both `localStorage` keys first).
 
@@ -59,7 +59,7 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
   - database export parser (DDL and catalog CSV);
   - collector-bundle import (format defined);
   - all forms, decisions, roadmap and sign-off.
-- **Not built yet:** the Discovery Collector itself, parsers for the other sources' exports (they're only registered), and the AI agent.
+- **Not built yet:** the Discovery Collector itself, Documents & diagrams and Incidents & changes teams; real-key validation of the implemented Claude agents. The other six non-code/database teams now have backend export parsers.
 - **Sample data:** "Load reference scenario" (HarvestLink) and the sample collector bundle.
 
 ---
@@ -88,6 +88,57 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 ---
 
 ## 6. Change log (newest first)
+
+### 2026-11-17 — Incidents & changes team (11 agents): all ten evidence cards now have a team
+- Owner's request: "Build it" (Incidents & changes). Scope = the card's "Agent detects" line: where the system breaks most often, recurring problems, change frequency and failed changes.
+- Backend: `backend/internal/teams/incidents/` (orchestrator, ticket reader, hotspots, recurring problems, restore times, change frequency, failed changes, failure story [Opus], modernization priorities, verifier, report writer). Reads ServiceNow incident/change_request/problem CSV and Jira CSV. Privacy: people columns never kept (only used to scrub names from titles), descriptions/comments not read, ticket rows cited without quotes. Sample by `testdata/make_sample.py` (names, an e-mail and a password planted; the test checks none leak). `go test ./...` passes (12 packages).
+- Web app: `teams/incidents/{panel.js,agents.html}` via `makeTeamPanel`; card Incidents & changes has run / see buttons; all 10 team pages link each other. Import adds risks (recurring problems, failed changes, emergency changes, peak periods, …).
+- Tested in the browser: 42 incidents, 30 changes, 2 problems → 31 of 31 findings accepted → import added 10 risks; no names, e-mail or password in the result. localStorage restored.
+- Nothing committed or pushed (batch, network, documents, incidents and the Codex GUI work are all local).
+
+### 2026-11-17 — Documents & diagrams team (12 agents)
+- Owner's request: "Build Documents". Scope = the card's "Agent detects" line: business rules, processes, glossary and intended architecture, read with citations.
+- Backend core: `backend/internal/agents/documents.go` extracts text from .docx/.pptx/.vsdx/PDF (no new dependencies); `codebase.go` treats them as `Document` (20 MB limit, `MaxDocBytes`), adds .drawio, .htm, .log, .jil, .cfg/.conf, .zone; the server's upload limit follows `MaxDocBytes`. Old .doc/.ppt/.vsd and scanned PDFs are skipped with a reason and asked about.
+- Backend team: `backend/internal/teams/documents/` (orchestrator, document reader, freshness & coverage, rule statements, glossary, processes, intended architecture, business rules [Opus], business story & conflicts [Opus], evidence value, verifier, report writer). Sample made by `testdata/make_sample.py` (Word, PowerPoint, Visio, PDF with and without text, Confluence HTML, Markdown, draw.io plain and compressed, an old .doc, a password in a properties file). `go test ./...` passes (11 packages).
+- Shared wording: the step-5 skip reason is now "the client did not allow sending excerpts to Claude" (was "code excerpts"), since teams also send document passages.
+- Web app: `teams/documents/{panel.js,agents.html}` via `makeTeamPanel`; `teams/shared/team-panel.js` gained `cfg.maxBytes` (default stays 2 MB; documents use 20 MB). Card Documents & diagrams has run / see buttons; all 9 team pages link each other.
+- Tested in the browser: sample upload → 5 documents, 3 diagrams, 2 not readable → 49 of 49 findings accepted, 1 expert question, no password in the result → import added 5 rules, 4 terms, 2 processes (events), 8 intended components, 3 risks. localStorage restored.
+- Nothing committed or pushed. Next: Incidents & changes.
+
+### 2026-11-17 — Claude caught up with the Codex GUI work; batch and network tested end to end
+- Reviewed the Codex changes: `assets/workspace.css` + `assets/workspace.js` (presentation only; `enhanceWorkspace()` / `enhanceContemporaryUI()` after `renderNav()`), header and skip link in `index.html`, refreshed `teams/shared/team-page.css`. No conflicts with the agent code: the agent panels, card buttons (short visible labels, full accessible names) and team pages work unchanged.
+- Checked: `go vet` and `go test ./...` pass (server + 8 teams); all `assets/*.js` and `teams/**/panel.js` parse.
+- **Batch and network now tested end to end in the browser** with the redesigned UI (backend restarted): upload of each team's sample → live run → results → import. Batch: 37 findings, 14 jobs, window 23:00–06:00, 5 of 185 runs failed; import added 14 batch components and 10 risks. Network: 29 findings, 6 entry points; import added 10 interfaces and 10 risks. No page overflow; no console errors except the expected health-check retries while the backend started. localStorage restored.
+- Nothing committed or pushed (working tree: Codex GUI files, batch, network, team-panel builder). Next: Documents & diagrams, then Incidents & changes.
+
+### 2026-11-17 — Contemporary visual redesign — completed and verified (Codex)
+- Owner requested a more contemporary appearance after the first GUI uplift. Switched to a light compact sidebar, indigo accents, restrained lavender surfaces, stronger page titles, icon navigation, tile-style system choices and quieter forms.
+- Added a Discover / Decide / Plan switcher in the desktop header. It calls the existing phase navigation and reflects the active phase. Source-card agent actions have concise visible labels while retaining their original accessible names and click handlers.
+- Files changed: `assets/workspace.css`, `assets/workspace.js`, `teams/shared/team-page.css`. The final theme rules are marked "Contemporary workspace refinement"; the new function `enhanceContemporaryUI()` is called at the end of `enhanceWorkspace()`. No changes to index.html, business state, scanners or backend logic.
+- Verified all 10 workspace screens at 1440×900 and 375×810: no page overflow or console errors. Tested desktop stage switching, active-stage highlighting, mobile menu, source search and network team navigation. Network explanation page checked at both sizes. New JavaScript parses; index.html is byte-for-byte unchanged from this turn’s baseline. No saved answers, consent, backend runs or AI calls changed. No publication.
+- Screenshots: `outputs/mindsuite-contemporary-desktop.jpg` and `outputs/mindsuite-contemporary-mobile.jpg` in the Codex chat folder. Handoff and changed source files synchronized to the existing Downloads backup and `outputs/mindsuite-current/`.
+- Continuation: the original GUI uplift below is superseded visually by this entry. Keep both presentation enhancements; do not run the old mockup generator. Documents/Incidents teams, actual backend-run validation and live-model testing remain pending.
+
+
+### 2026-11-17 — Codex GUI uplift — complete and browser-checked
+- Owner asked: "uplift the GUI and keep updating the handoff" so Claude and Codex can alternate on the project. Work remains local; do not push without the owner's instruction.
+- Added `assets/workspace.css` and `assets/workspace.js`: shared visual tokens, dark phase navigation, responsive mobile menu, readable cards/forms/tables/dialogs, evidence-source search + needs-input filter, clickable discovery steps, accessible focus and reduced-motion behavior. These files are loaded by `index.html`; the final `render()` invokes `enhanceWorkspace()` after `renderNav()`.
+- Source collection details are collapsible; all original buttons/handlers remain. UI-only filter state stays in memory and never writes project data. Verification used read-only navigation and presentation controls; no sample reload, project reset, import, form save or consent changes. Existing browser answers were left intact. No scanners, AI prompts, backend logic, catalog or decision rules changed.
+- Updated `teams/shared/team-page.css` so all eight agent explanation pages use the same visual language.
+- Source of truth is still this working copy, not the old `outputs/index.html` from the earlier Codex mockup. Never run the earlier `work/build-mockup.cjs` against this project: it would replace the newer product.
+- Backups: changed files mirrored to `C:\Users\X1 CARBON\Downloads\Legecy Modernization\`; complete source snapshot (frontend, eight teams, backend and docs; excludes Git and runtime data) at `C:\Users\X1 CARBON\Documents\Codex\2026-11-16\https-mjaffry01-github-io-mindsuite-doctrine\outputs\mindsuite-current\`. The active working copy remains `%TEMP%\lm-repo`.
+- Validation: 21 frontend/inline JavaScript blocks parse successfully. An exact comparison confirms index.html changed only the stylesheet/script links, brand markup, skip link and final render hook; existing business logic is byte-for-byte unchanged. All ten workspace screens were checked at effective CSS viewports 1440×900 and 375×810 with no horizontal page overflow or console errors. Verified source search, no-match result, needs-input/all toggles, discovery-step jumps, collection-detail disclosure, batch-panel navigation, mobile menu open/close and evidence drawer. Eight agent explanation pages checked at desktop; Network page additionally checked at 375px. Backend runs and Claude calls were NOT tested in this GUI task.
+
+
+
+- Next for Claude: continue Documents & diagrams, then Incidents & changes. Batch/network UI rendering was checked here, but their actual export-to-run-to-import workflows still need end-to-end testing. Collector, real-key model validation, repository authorization, licence/vulnerability lookup and full dossier/cost comparison remain separate backlog items.
+
+### 2026-11-17 — Batch & scheduling (10 agents) and Network edge & partners (11 agents); Documents not started
+- Owner's requests: "Batch & scheduling", "Network edge & partners", "Documents & diagrams", "Agent detects:" (read as: each team covers exactly its card's "Agent detects" line).
+- Backend: `backend/internal/teams/batch/` (Control-M JSON, AutoSys JIL, TWS composer, schtasks CSV, crontab, run-history CSV; streams, window, dependencies, failures and reruns) and `backend/internal/teams/network/` (nginx -T, HAProxy, ingress JSON, DNS zone/CSV, openssl, partner and firewall CSVs, cloud inventory; entry points, DNS/CDN, TLS, partners, firewall, cut-over checklist). Each with a test and `testdata/make_sample.py`. Core loader now reads `.log .jil .cfg .conf .zone`.
+- Web app: new shared builder `teams/shared/team-panel.js` (`makeTeamPanel(cfg)`); `teams/batch/` and `teams/network/` (panel.js, agents.html) use it; cards Batch & scheduling and Network edge & partners have run buttons; team switcher has 8 teams.
+- Tested: `go test ./...` passes (10 packages). **Not browser-tested** (usage limit). Not pushed.
+- **Next:** Documents & diagrams team (plan: core text extraction for .docx/.pdf/.pptx/.vsdx in `internal/agents`, then `teams/documents`: document reader, freshness & coverage, glossary, processes, intended architecture from draw.io/Visio, rules with citations via `agents.ReadRules`, assessment). Incidents & changes team still to do. Browser-test batch and network panels.
 
 ### 2026-11-17 — Telemetry agent team (11 agents); all six teams built
 - Owner's request: "Telemetry". Built in its own folders: `backend/internal/teams/telemetry/` (register.go, model.go, team.go, telemetry_test.go, testdata/sample + make_sample.py) and `teams/telemetry/` (panel.js, agents.html).

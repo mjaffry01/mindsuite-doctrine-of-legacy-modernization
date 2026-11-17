@@ -66,7 +66,7 @@ var langByExt = map[string]string{
 	".jsp": "JSP", ".xhtml": "JSF / XHTML", ".aspx": "ASP.NET", ".cshtml": "Razor", ".html": "HTML", ".css": "CSS", ".scss": "CSS",
 	".xml": "XML", ".json": "JSON", ".yml": "YAML", ".yaml": "YAML", ".properties": "Properties", ".config": "Config", ".ini": "Config", ".toml": "TOML",
 	".tf": "Terraform", ".sh": "Shell", ".bat": "Batch", ".cmd": "Batch", ".ps1": "PowerShell", ".gradle": "Gradle", ".csproj": "MSBuild", ".vbproj": "MSBuild", ".sln": "MSBuild",
-	".md": "Markdown", ".txt": "Text", ".log": "Text", ".env": "Config", ".xsl": "XSLT", ".xslt": "XSLT", ".wsdl": "WSDL", ".xsd": "XSD", ".proto": "Protobuf", ".graphql": "GraphQL",
+	".md": "Markdown", ".txt": "Text", ".log": "Text", ".jil": "Text", ".cfg": "Config", ".conf": "Config", ".zone": "Text", ".docx": "Document", ".pptx": "Document", ".vsdx": "Document", ".pdf": "Document", ".drawio": "Diagram", ".htm": "HTML", ".env": "Config", ".xsl": "XSLT", ".xslt": "XSLT", ".wsdl": "WSDL", ".xsd": "XSD", ".proto": "Protobuf", ".graphql": "GraphQL",
 }
 
 func langOf(p string) string {
@@ -109,6 +109,20 @@ func (c *Codebase) add(p string, data []byte) {
 	lang := langOf(p)
 	if lang == "" {
 		c.Skipped = append(c.Skipped, Skip{p, "unrecognised file type"})
+		return
+	}
+	if lang == "Document" { // office documents and PDFs: read their text once, in memory
+		if len(data) > MaxDocBytes {
+			c.Skipped = append(c.Skipped, Skip{p, fmt.Sprintf("larger than %d MB", MaxDocBytes>>20)})
+			return
+		}
+		text, err := ExtractDocument(p, data)
+		if err != nil || strings.TrimSpace(text) == "" {
+			c.Skipped = append(c.Skipped, Skip{p, "no readable text: " + fmt.Sprint(err)})
+			return
+		}
+		c.total += len(text)
+		c.Files = append(c.Files, &File{Path: p, Lang: lang, Lines: strings.Split(text, "\n"), Bytes: len(data)})
 		return
 	}
 	if len(data) > MaxFileBytes {

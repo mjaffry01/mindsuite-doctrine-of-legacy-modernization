@@ -10,6 +10,10 @@ Runs the MindSuite agent teams and serves their results to the web app. Each tea
 | Messaging & caching | `internal/teams/messaging/` | 12 | runmqsc DISPLAY output, kafka-topics / kafka-consumer-groups output, redis-cli INFO, memcached stats, RabbitMQ definitions, collector bundle; optionally the application's code | Record evidence → Messaging & caching → **Run the messaging & caching agent team** |
 | Identity & access | `internal/teams/identity/` | 12 | AD user and group-member CSVs, Entra MFA report and Conditional Access policies, Okta JSON, openssl certificate output, collector bundle | Record evidence → Identity & access → **Run the identity & access agent team** |
 | Telemetry | `internal/teams/telemetry/` | 11 | access logs (NGINX/Apache, IIS), Splunk / Application Insights / Datadog CSV, Prometheus and CloudWatch JSON, collector bundle; optionally the application's code | Record evidence → Telemetry → **Run the telemetry agent team** |
+| Batch & scheduling | `internal/teams/batch/` | 10 | Control-M JSON, AutoSys JIL, TWS composer output, schtasks CSV, crontab, run-history CSV | Record evidence → Batch & scheduling → **Run the batch & scheduling agent team** |
+| Network edge & partners | `internal/teams/network/` | 11 | nginx -T, HAProxy configuration, ingress/service JSON, cloud inventory, DNS zone or CSV, openssl certificate output, partner CSV, firewall rule CSV | Record evidence → Network edge & partners → **Run the network edge & partners agent team** |
+| Documents & diagrams | `internal/teams/documents/` | 12 | Word (.docx), PowerPoint (.pptx), PDF with text, Confluence HTML, Markdown/text, draw.io (.drawio), Visio (.vsdx); up to 20 MB per file | Record evidence → Documents & diagrams → **Run the documents & diagrams agent team** |
+| Incidents & changes | `internal/teams/incidents/` | 11 | ServiceNow incident, change_request and problem list exports (CSV), Jira CSV exports | Record evidence → Incidents & changes → **Run the incidents & changes agent team** |
 
 The explanation pages for clients are in the web app, one per team: `../teams/<team>/agents.html`.
 
@@ -35,6 +39,10 @@ backend/
     messaging/               register.go, team.go, model.go (parser) + messaging_test.go + testdata/sample
     identity/                register.go, team.go, model.go (parser) + identity_test.go + testdata/sample
     telemetry/               register.go, team.go, model.go (parser) + telemetry_test.go + testdata/sample (+ make_sample.py)
+    batch/                   register.go, team.go, model.go (parser), aliases.go + batch_test.go + testdata (make_sample.py)
+    network/                 register.go, team.go, model.go (parser), aliases.go + network_test.go + testdata (make_sample.py)
+    documents/               register.go, team.go, model.go (documents and diagrams), aliases.go + documents_test.go + testdata (make_sample.py)
+    incidents/               register.go, team.go, model.go (tickets), aliases.go + incidents_test.go + testdata (make_sample.py)
   internal/server/           the HTTP API
 ```
 
@@ -122,6 +130,12 @@ Directory reader (AD users and group members, Entra MFA registration and Conditi
 
 ### Telemetry team (`internal/teams/telemetry/`)
 Telemetry reader (one timeline per hour from access logs, monitoring CSV, Prometheus and CloudWatch JSON and the collector bundle; overlapping sources are not added up: each hour uses the highest count), load & peaks (average/peak per second, busiest hours/weekdays/months, quietest 4-hour window), response times (prefers the longest source), errors, usage & unused features (top endpoints, rarely used, endpoints in the uploaded code never called, distinct clients as a count), coverage & gaps (window under a year, monitoring gaps, passwords as file:line); business use (Claude: business functions and calendar from cleaned endpoint names and numbers); capacity & cut-over (peak × 1.5, service-level targets, freeze months, cut-over window); report. **Privacy:** client addresses are hashed and only counted in memory; query strings dropped; ids, e-mail addresses and tokens in paths become `{id}`; access-log lines are cited by file and line only (never quoted).
+
+### Documents & diagrams team (`internal/teams/documents/`)
+Text extraction is in the shared core (`internal/agents/documents.go`: .docx paragraphs, headings and tables; .pptx slides; .vsdx shapes and connectors; PDF text streams; files up to `MaxDocBytes` = 20 MB). Old .doc/.ppt/.vsd and scanned PDFs are listed as not readable and asked about. Document reader (title, date, version, headings; draw.io plain and compressed; Visio), freshness & coverage (documents 3+ years older than the newest, drafts with TBD/TODO, passwords as file:line, which of rules/processes/glossary/architecture are covered), rule statements (must/shall/only/within N days, quoted with their line), glossary (tables and "X means" sentences; terms defined differently in two documents), processes (numbered/listed steps, diagram flows), intended architecture (diagram components and links, named technologies; marked *intended*); business rules (Claude: rewrites only the rule sections the orchestrator picked, password lines removed), business story & conflicts (Claude: purpose, capabilities, contradictions from extracted facts only); evidence value (trust per document, validation plan); report.
+
+### Incidents & changes team (`internal/teams/incidents/`)
+Ticket reader (ServiceNow incident/change/problem lists and Jira CSV; kind from the number prefix, the issue type or the file name; priorities mapped to P1–P4), hotspots (incidents per component, the few components behind 60% of incidents, month-end and Monday peaks), recurring problems (similar cleaned titles, 3+ times; linked problem record or not; reopened; open problem records), restore times (median and slowest 10% per priority; incidents open 30+ days measured against the export's last date), change frequency (per month, standard/normal/emergency, weekend), failed changes (close code unsuccessful/backed out/with issues; change failure rate; incidents caused by a change via caused_by or same component within 48 h); failure story (Claude: fragile business functions from counts and cleaned titles only); modernization priorities (delivery profile, ranking per component, periods to avoid); report. **Privacy:** people columns (caller, assignee, reporter, …) are never kept, their values only remove those names from titles in memory; descriptions, comments and work notes are not read; e-mail addresses, IP addresses, ticket numbers and long numbers become placeholders; a title on a line that may hold a password is hidden; ticket rows are cited by file and line only (never quoted).
 
 ## Safety rules (keep them)
 

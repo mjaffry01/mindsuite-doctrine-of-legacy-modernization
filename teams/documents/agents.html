@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite reads your documents</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How documents and diagrams are studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html">Source code</a><a href="../database/agents.html">Database</a><a href="../infrastructure/agents.html">Environment &amp; infrastructure</a><a href="../messaging/agents.html">Messaging &amp; caching</a><a href="../identity/agents.html">Identity &amp; access</a><a href="../telemetry/agents.html">Telemetry</a><a href="../batch/agents.html">Batch &amp; scheduling</a><a href="../network/agents.html">Network edge &amp; partners</a><a href="../documents/agents.html" class="on">Documents &amp; diagrams</a><a href="../incidents/agents.html">Incidents &amp; changes</a></nav></header>
+<main>
+<h1>How MindSuite reads your documents</h1>
+<p class="lead">Specifications, handbooks and diagrams say what the system was meant to do. A team of 12 agents reads them and finds what the Documents &amp; diagrams card promises: <b>business rules, processes, glossary and intended architecture, each with the exact line it comes from</b>. It also says how current each document is, and where documents contradict each other.</p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>Documents only</b><span class="muted">The files you give, read in memory on the backend. Nothing is fetched from SharePoint or Confluence.</span></div>
+ <div><b>Secrets never shown</b><span class="muted">A password written in a document is reported as file and line only, and that line is never sent to Claude.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each rule, term, step and link points to the document line or diagram shape it comes from.</span></div>
+ <div><b>People decide</b><span class="muted">Documents can be out of date. Your analysts confirm, correct or reject each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>What the agents need from your analysts and architects</h2>
+<table><thead><tr><th>Give</th><th>How</th></tr></thead><tbody>
+<tr><td><b>Specifications and manuals</b></td><td>Word (.docx), PowerPoint (.pptx), PDF with a text layer, Markdown or text. Up to 20 MB per file.</td></tr>
+<tr><td><b>Wiki pages</b></td><td>Confluence or SharePoint pages exported as HTML (Export → HTML, or Save page as)</td></tr>
+<tr><td><b>Diagrams</b></td><td>draw.io / diagrams.net files (.drawio, also compressed) and Visio (.vsdx)</td></tr>
+<tr><td><b>Cannot be read</b></td><td>Old .doc, .vsd and .ppt files and scanned PDFs: save them as .docx, .vsdx or a PDF with text. The agents list them and ask.</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">The same 9 steps as the other teams. Step 3 runs five agents in parallel.</p>
+<div id="steps"></div>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<div class="legend"><span><i class="dot built"></i>Running today</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Documents and diagrams agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li>The <b>document reader</b> reads the settlement specification (Word, version 2.1, March 2018) and the operations handbook (Confluence, 2025).</li>
+ <li><b>Rule statements</b> quotes "A grower must be paid within 14 days of delivery." with its line; <b>Glossary</b> finds that "Lot" means something different in the two documents.</li>
+ <li><b>Freshness &amp; coverage</b> notes the specification is seven years older than the handbook and still has a TBD.</li>
+ <li>The <b>evidence value</b> agent says: use the specification only as a starting point, settle the "Lot" conflict with the business first, then confirm each rule against the code.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 12 agents run in the same <b>MindSuite agent backend</b> as the other teams. In MindSuite, open <b>Record evidence → Documents &amp; diagrams → Run the documents &amp; diagrams agent team</b>.</p>
+<p class="note">Ten rule-based agents always run and nothing leaves the backend machine. The business-rules and business-story agents run only with a Claude API key on the backend <b>and</b> your consent for that run.</p>
+<p class="note">Still to come: reading scanned PDFs (text recognition), and comparing documented rules with the rules the source-code team finds.</p>
+</section>
+</main>
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Documents orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Reads the documents, splits the work per file, starts the agents, picks the passages for the model.',reads:'The document files and every agent\'s progress',produces:'Tasks, the step log, the reading list',safeguard:'Only the picked sections can be sent, never whole documents.'},
+ {id:'drd',n:1,name:'Document reader',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'Text, headings and tables from Word, PowerPoint, PDF, HTML and Markdown; shapes and links from draw.io and Visio; title, date and version of each document.',reads:'The documents and diagrams',produces:'Documents, diagrams, the unreadable list',safeguard:'Lines with passwords are marked and never quoted.'},
+ {id:'dfr',n:2,name:'Freshness & coverage',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Documents much older than the newest one, drafts with TBD or TODO, passwords written in documents, and which topics (rules, processes, glossary, architecture) are covered.',reads:'Dates, versions and text',produces:'Freshness and coverage findings',safeguard:'Passwords are reported as file and line only.'},
+ {id:'drs',n:3,name:'Rule statements',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Sentences that state a rule: must, shall, only, never, within N days, at least.',reads:'Document text',produces:'Rule statements, quoted with their line',safeguard:'Quotes the sentence as written.'},
+ {id:'dgl',n:4,name:'Glossary',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Defined terms from glossary tables and "X means …" sentences, and terms defined differently in two documents.',reads:'Document text and tables',produces:'Terms and conflicts',safeguard:'Both definitions are cited.'},
+ {id:'dpr',n:5,name:'Processes',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Numbered and listed steps under a process heading, and flows drawn in diagrams.',reads:'Document text and diagram links',produces:'Processes and their steps',safeguard:'Steps are kept in the documented order.'},
+ {id:'darc',n:6,name:'Intended architecture',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Components and links from architecture diagrams, and the technologies the documents name.',reads:'Diagrams and architecture sections',produces:'Intended components, links and technologies',safeguard:'Marked as intended: the running system may differ.'},
+ {id:'drul',n:7,name:'Business rules',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Rewrites the picked rule passages as plain business rules.',reads:'The rule sections the orchestrator picked, password lines removed',produces:'Business rules',safeguard:'Every rule cites the lines it comes from.'},
+ {id:'dmea',n:8,name:'Business story & conflicts',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'What the documented system is for, its capabilities, and where documents contradict each other.',reads:'Extracted facts only',produces:'Purpose, capabilities, contradictions',safeguard:'Every item cites the facts it is based on.'},
+ {id:'dass',n:9,name:'Evidence value',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'How far to trust each document, and the order in which to check them with the business.',reads:'All fact results',produces:'Trust per document, validation plan',safeguard:'A plan to agree with your analysts.'},
+ {id:'ver',n:10,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced',status:'built',does:'Re-opens every cited line; derived claims need accepted evidence.',reads:'Every finding and the cited lines',produces:'Accepted / rejected / needs an expert',safeguard:'Uses a different model from the agent it checks.'},
+ {id:'rep',n:11,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Documents & diagrams analysis report.',reads:'Verified findings only',produces:'Report (.md)',safeguard:'Cannot add facts that are not in the verified evidence.'},
+ {id:'ppl',n:'',name:'Your analysts and architects',stage:'Validate',type:'Human',tier:'',status:'people',does:'Confirm, correct or reject each result and settle the conflicts.',reads:'The report, findings and questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The shared record of every finding, its citation, verification and human decision.',reads:'Findings from every agent',produces:'A traceable history',safeguard:'Append-only.'}];
+const EDGES=[['orch','drd'],['drd','dfr'],['drd','drs'],['drd','dgl'],['drd','dpr'],['drd','darc'],['drs','drul'],['dgl','dmea'],['dpr','dmea'],['darc','dmea'],['dfr','dass'],['drs','dass'],['dgl','dass'],['drul','dass'],['dmea','dass'],['dass','ver'],['drul','ver'],['dmea','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],drd:[95,300],dfr:[300,160],drs:[300,230],dgl:[300,300],dpr:[300,370],darc:[300,440],drul:[510,250],dmea:[510,340],dass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={dfr:'Freshness & coverage',darc:'Intended architecture',dmea:'Story & conflicts',ppl:'Your analysts'};
+const ORCH_LINKS=['drd','dfr','drul','dass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the documents and diagrams',goal:'Know exactly what is being analysed.',does:'The backend extracts the text and shapes, read-only, in memory; unreadable files are listed.',agents:['drd'],see:'Step 1 in the run',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover every document.',does:'One work package per file.',agents:['orch'],see:'Work packages in the run log',status:'built'},
+ {n:3,title:'Collect the facts',goal:'Everything the documents state, with its line.',does:'In parallel: freshness and coverage, rule statements, glossary, processes, intended architecture.',agents:['dfr','drs','dgl','dpr','darc'],see:'Live findings in the run log',status:'built'},
+ {n:4,title:'Choose what to interpret',goal:'Send only what is needed.',does:'The orchestrator picks the document sections that hold rules.',agents:['orch'],see:'The reading list in the run',status:'built'},
+ {n:5,title:'Understand the business',goal:'Rules and capabilities in plain words.',does:'The business-rules agent rewrites the rule passages; the story agent describes purpose, capabilities and contradictions.',agents:['drul','dmea'],see:'Business rules (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Judge the evidence',goal:'Know how far to trust each document.',does:'Trust per document and the order to check them.',agents:['dass'],see:'Validation plan',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'Re-opens every cited line; derived claims need accepted evidence.',agents:['ver'],see:'Verified / needs-an-expert marks',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The Documents & diagrams analysis report.',agents:['rep'],see:'Downloadable report (.md)',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Add the results to the inventory: rules, terms, processes and intended components, with conflicts as risks.',agents:['ppl'],see:'"Add results to the inventory"',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

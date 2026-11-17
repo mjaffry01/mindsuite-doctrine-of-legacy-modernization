@@ -146,7 +146,7 @@ func (r *Run) Step(n int, status, note string) {
 // ModelReady reports whether model-based agents may run.
 func (r *Run) ModelReady() (bool, string) {
 	if !r.Options.AllowModel {
-		return false, "the client did not allow sending code excerpts to Claude"
+		return false, "the client did not allow sending excerpts to Claude"
 	}
 	if r.LLM == nil {
 		return false, "no Claude API key is configured on the backend (ANTHROPIC_API_KEY)"

@@ -1,0 +1,3 @@
+name,type,location,resourceGroup
+harvest-fd,microsoft.cdn/profiles,global,rg-harvest
+harvest-vm,microsoft.compute/virtualmachines,westeurope,rg-harvest

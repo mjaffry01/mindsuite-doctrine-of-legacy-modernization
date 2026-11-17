@@ -1,0 +1,3 @@
+number,short_description,cmdb_ci,state,known_error,opened_at,assigned_to
+PRB0001001,Label printer driver loses connection after sleep,Intake Scales,Root Cause Analysis,true,2025-04-16 10:00:00,Tom Okafor
+PRB0001002,Bank payment file format changes yearly,HarvestLink Settlement,Closed,true,2025-02-01 10:00:00,Ana Souza
