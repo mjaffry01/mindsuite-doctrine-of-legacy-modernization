@@ -1,0 +1,5 @@
+userPrincipalName,isMfaRegistered,isAdmin
+jdoe@harvest.example,True,False
+asmith@harvest.example,False,False
+kpatel@harvest.example,False,True
+mlee@harvest.example,True,True

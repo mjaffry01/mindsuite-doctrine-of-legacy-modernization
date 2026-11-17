@@ -1,0 +1,20 @@
+# Server
+redis_version:5.0.7
+redis_mode:standalone
+# Clients
+connected_clients:42
+# Memory
+used_memory:3951820800
+maxmemory:4294967296
+maxmemory_policy:noeviction
+# Persistence
+aof_enabled:1
+rdb_changes_since_last_save:120
+# Stats
+keyspace_hits:7200
+keyspace_misses:2800
+evicted_keys:0
+# Replication
+role:master
+# Keyspace
+db0:keys=184000,expires=1200,avg_ttl=0

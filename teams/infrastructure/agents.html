@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite studies your infrastructure</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How your environment is studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html">Source code</a><a href="../database/agents.html">Database</a><a href="../infrastructure/agents.html" class="on">Environment &amp; infrastructure</a><a href="../messaging/agents.html">Messaging &amp; caching</a><a href="../identity/agents.html">Identity &amp; access</a><a href="../telemetry/agents.html">Telemetry</a></nav></header>
+<main>
+<h1>How MindSuite studies your infrastructure</h1>
+<p class="lead">A third team of 13 agents studies where the system runs, the way an experienced infrastructure architect would: first the facts from your inventories, then the role of each server, then the migration plan. It works from exports your infrastructure team produces with read-only tools; it never logs in to a server. Every claim points to a line in an export and is checked before a person on your side confirms it.</p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>Inventories only</b><span class="muted">Agents read VM lists, Kubernetes and cloud inventories, connection lists and infrastructure-as-code files. No business data.</span></div>
+ <div><b>Never connected to your servers</b><span class="muted">Your team runs the read-only exports; the agents only read the files.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each finding points to the export file and line, or to the findings it is built on.</span></div>
+ <div><b>People decide</b><span class="muted">Agents propose. Your infrastructure team confirms, corrects or rejects each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>The goal of the infrastructure analysis</h2>
+<p>Turn your inventories into a <b>validated picture you can plan the move on</b>: what the system runs on, what is out of support, what talks to what and therefore must move together, where it is fragile, and how and in which waves to migrate. It ends in the <b>Infrastructure analysis report</b>.</p>
+<div class="principles">
+ <div><b>What it runs on</b><span class="muted">Servers, VMs, Kubernetes, cloud, sizes, platforms.</span></div>
+ <div><b>What is out of support</b><span class="muted">Operating systems, hypervisor, software, container images.</span></div>
+ <div><b>What moves together</b><span class="muted">Who talks to whom, outside partners, shared hubs, move groups.</span></div>
+ <div><b>How to migrate</b><span class="muted">Strategy per host, waves, the approach and target sizing.</span></div>
+</div>
+</section>
+
+<section>
+<h2>What the agents need from your infrastructure team</h2>
+<table><thead><tr><th>Give</th><th>What it contains</th><th>How (read-only)</th></tr></thead><tbody>
+<tr><td><b>Server / VM inventory</b> (.csv), required</td><td>Name, OS, vCPU, memory, disk, power state, cluster, IP</td><td>VMware: RVTools → vInfo tab saved as CSV, or PowerCLI <code>Get-VM | Export-Csv</code> · Hyper-V: <code>Get-VM | Export-Csv</code> · or any server list with name and CPU columns</td></tr>
+<tr><td><b>Who connects to whom</b> (.txt / .csv per server), recommended</td><td>Established connections: the basis of move groups and outside dependencies</td><td>Linux <code>ss -tn state established &gt; connections-&lt;server&gt;.txt</code> · Windows <code>Get-NetTCPConnection -State Established | Export-Csv connections-&lt;server&gt;.csv</code>. Name each file after its server.</td></tr>
+<tr><td><b>Kubernetes</b> (.json), if used</td><td>Workloads, images, replicas, limits, services, ingresses, scheduled jobs</td><td><code>kubectl get deployments,statefulsets,services,ingress,cronjobs -A -o json &gt; k8s.json</code></td></tr>
+<tr><td><b>Cloud inventory</b> (.csv / .json), if used</td><td>Resources by type and region</td><td>Azure Resource Graph CSV · AWS Resource Explorer export · <code>gcloud asset export</code></td></tr>
+<tr><td><b>Infrastructure as code</b>, if any</td><td>Terraform, Kubernetes manifests, Helm, Dockerfiles, Compose, CI pipelines</td><td>The repository files as they are</td></tr>
+</tbody></table>
+<p class="muted" style="margin:10px 0 0">The collector bundle (Record evidence → Import collector bundle) is read too. Passwords found in any file are reported as file and line only, never shown or sent.</p>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">The same 9 steps as the other teams. Step 3 runs seven agents in parallel. Click an agent name to see it in the diagram.</p>
+<div id="steps"></div>
+<h3 style="margin:18px 0 6px;font-size:15px">What inventories alone cannot tell, and how it is handled</h3>
+<p class="muted" style="margin:0">How busy each server really is, who owns a server outside the inventory, whether a powered-off VM is a standby, and what people do on servers they log in to. The agents do not guess these: they become <b>questions for your infrastructure team</b>.</p>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<p class="muted">Click an agent to see what it does and who it talks to. Arrows show how results flow; dotted lines go to the shared evidence store.</p>
+<div class="legend"><span><i class="dot built"></i>Running today</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Infrastructure agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li>The <b>estate reader</b> reads the RVTools export: 7 VMs on vSphere 6.7, one powered off. It also reads the connection lists of three servers.</li>
+ <li><b>Dependencies</b> resolves the addresses to server names: app-prod-01 and app-prod-02 talk to db-prod-01 on port 1521 (Oracle), and batch-prd-01 sends files to 203.0.113.10 over SFTP, a server outside the inventory.</li>
+ <li><b>Lifecycle</b> finds that four of the five servers in that group run an unsupported OS, and that vSphere 6.7 itself is out of support. <b>Security &amp; resilience</b> finds Telnet and AJP between servers and a single database server.</li>
+ <li>If you allow it, the <b>roles</b> agent confirms db-prod-01 is the production database and mon-01 is shared monitoring.</li>
+ <li>The <b>migration assessment</b> puts the five connected servers in one wave, marks old-report-01 to retire and mon-01 to exclude, and suggests replatforming the database and application servers.</li>
+ <li>Your <b>infrastructure team</b> confirms, and tells who owns the SFTP partner, which becomes a dependency to keep open during the move.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>Which models are used</h2>
+<table><thead><tr><th>Tier</th><th>Model</th><th>Used by</th><th>Why</th></tr></thead><tbody>
+<tr><td><b>0 · No model</b></td><td>Exact parsers and rules</td><td>Orchestrator, Estate reader, Lifecycle, Capacity, Dependencies, Kubernetes, Cloud, Infrastructure as code, Security &amp; resilience, Migration assessment, and the citation checks of the Verifier</td><td>Facts must be exact and repeatable</td></tr>
+<tr><td><b>2 · Balanced</b></td><td>Claude Sonnet 5.5</td><td>Report writer (written summary)</td><td>Writing within clear limits</td></tr>
+<tr><td><b>3 · Strongest</b></td><td>Claude Opus 5.5</td><td>Roles &amp; environments</td><td>Judging what a server is for from many weak signals</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 13 agents run in the same <b>MindSuite agent backend</b> as the other teams. In MindSuite, open <b>Record evidence → Environment &amp; infrastructure → Run the infrastructure agent team</b>, choose the export files, and watch the 9 steps run.</p>
+<p class="note">12 rule-based agents always run and nothing leaves the backend machine. The roles agent runs only with a Claude API key on the backend <b>and</b> your consent for that run; it sends host names, OS, sizes, software and connection summaries, never credentials.</p>
+<p class="note">Still to come: utilisation data (CPU and memory use) for right-sizing, reading vCenter or cloud APIs directly through the Discovery Collector, and linking servers to the code and database teams' findings.</p>
+</section>
+</main>
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Infrastructure orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Reads the inventory exports, splits the work per platform (vSphere, Hyper-V, Kubernetes, cloud), starts the fact agents, then picks the hosts whose role needs interpreting.',reads:'The export files and every agent\'s progress',produces:'Tasks, the list of hosts to interpret, the step log',safeguard:'Never contacts a server; never edits findings.'},
+ {id:'est',n:1,name:'Estate reader',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'Parses every inventory: servers and VMs (OS, vCPU, memory, disk, power state, cluster, IP), Kubernetes objects, cloud resources, connection lists and the collector bundle.',reads:'RVTools / PowerCLI / Hyper-V CSV, kubectl JSON, cloud inventories, ss / Get-NetTCPConnection output',produces:'The estate, every host, the hypervisor version',safeguard:'Lines that may hold a password are marked and never quoted.'},
+ {id:'lcy',n:2,name:'Lifecycle & support',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds operating systems, the hypervisor, installed software and container base images that are past or near the end of support.',reads:'Host OS and software, hypervisor version, container images',produces:'Support-status findings per version, the OS mix',safeguard:'Rules are dated and listed; a person confirms extended-support contracts.'},
+ {id:'cap',n:3,name:'Capacity & sizing',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Totals vCPU, memory and disk by role, lists the largest hosts and the powered-off VMs (retire candidates).',reads:'Host sizes and power states',produces:'Capacity, retire candidates, the sizing baseline',safeguard:'States that allocated is not used, and asks for utilisation.'},
+ {id:'dep',n:4,name:'Dependencies',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Turns connection lists into who-talks-to-whom on which service, finds servers outside the inventory (partners, shared services), shared hubs and move groups of servers that must move together.',reads:'Connection lists resolved against the inventory',produces:'Connections, outside endpoints, hubs, move groups',safeguard:'Unresolved addresses are reported, not guessed.'},
+ {id:'k8s',n:5,name:'Kubernetes & containers',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Lists workloads per namespace with images and replicas, and flags unpinned images, missing resource limits, single replicas, privileged containers and exposed services.',reads:'kubectl JSON',produces:'Workloads and container findings',safeguard:'Reads definitions only; nothing is applied to the cluster.'},
+ {id:'cld',n:6,name:'Cloud resources',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Counts cloud resources by provider, type and region and lists public entry points.',reads:'Azure, AWS and Google Cloud inventory exports',produces:'Cloud summary and public endpoints',safeguard:'Inventory only; no cloud account is accessed.'},
+ {id:'pla',n:7,name:'Infrastructure as code',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Reads Terraform, Kubernetes manifests, Helm, Dockerfiles, Compose files and CI pipelines in the export (the same agent as in the code team).',reads:'Infrastructure-as-code files',produces:'Resources, containers, environments, schedules',safeguard:'Connection strings are reduced to engine and host.'},
+ {id:'isec',n:8,name:'Security & resilience',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds plain-text protocols between servers (Telnet, FTP, LDAP, AJP…), Remote Desktop between servers, single points of failure per role, and passwords written in the exports.',reads:'Connections, host roles, all files',produces:'Security and resilience findings',safeguard:'Passwords are reported as file and line only.'},
+ {id:'irol',n:9,name:'Roles & environments',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Names the role and environment of each host and whether it belongs to this system or to shared infrastructure, and groups hosts into runtime services.',reads:'Host names, OS, sizes, software and connection summaries — no credentials',produces:'Host roles, runtime services, questions',safeguard:'Every role cites the facts it is based on; unclear hosts become questions.'},
+ {id:'iass',n:10,name:'Migration assessment',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'Suggests a strategy per host (retire, rehost, replatform, exclude), scores each move group into waves, and gives the overall approach and target sizing.',reads:'All fact and role results',produces:'Strategies, waves, approach, sizing baseline',safeguard:'Rules of thumb, labelled as such; your team confirms.'},
+ {id:'ver',n:11,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced',status:'built',does:'Re-opens every cited export line; derived claims (move groups, waves, roles) need accepted evidence.',reads:'Every finding and the cited lines',produces:'Accepted / rejected / needs an expert',safeguard:'Uses a different model from the agent it checks.'},
+ {id:'rep',n:12,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Infrastructure analysis report: approach, waves and sizing, estate, support status, dependencies, security, Kubernetes, cloud, roles.',reads:'Verified findings only',produces:'Infrastructure analysis report (.md)',safeguard:'Cannot add facts that are not in the verified evidence.'},
+ {id:'ppl',n:'',name:'Your infrastructure team',stage:'Validate',type:'Human',tier:'',status:'people',does:'Confirms, corrects or rejects each result in MindSuite and answers the questions. Decisions are recorded with name and date.',reads:'The report, findings and questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The shared record of every finding, its citation, basis, confidence, verification result and human decision.',reads:'Findings from every agent',produces:'A traceable history of how each conclusion was reached',safeguard:'Append-only: nothing is silently changed.'}];
+const EDGES=[['orch','est'],['est','lcy'],['est','cap'],['est','dep'],['est','k8s'],['est','cld'],['est','pla'],['est','isec'],['dep','isec'],['est','irol'],['dep','irol'],['k8s','irol'],['lcy','iass'],['cap','iass'],['dep','iass'],['k8s','iass'],['cld','iass'],['pla','iass'],['isec','iass'],['irol','iass'],['iass','ver'],['irol','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],est:[95,300],lcy:[300,110],cap:[300,170],dep:[300,230],k8s:[300,290],cld:[300,350],pla:[300,410],isec:[300,470],irol:[510,290],iass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={orch:'Infra orchestrator',lcy:'Lifecycle & support',isec:'Security & resilience',irol:'Roles & environments',iass:'Migration assessment',pla:'Infrastructure as code',ppl:'Your infra team'};
+const ORCH_LINKS=['est','dep','irol','iass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the inventory exports',goal:'Know exactly what is being analysed.',does:'The backend reads the export files, read-only, in memory: servers and VMs, Kubernetes, cloud, connection lists, infrastructure as code.',agents:['est'],see:'Step 1 in the run: hosts, connections, Kubernetes objects, cloud resources',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover every platform.',does:'The orchestrator splits the work into packages per platform (vSphere, Hyper-V, Kubernetes, cloud).',agents:['orch'],see:'Work packages in the run log',status:'built'},
+ {n:3,title:'Collect the facts',goal:'What it runs on, what is unsupported, what moves together.',does:'In parallel: support status, capacity, dependencies and move groups, Kubernetes, cloud, infrastructure as code, security and resilience.',agents:['lcy','cap','dep','k8s','cld','pla','isec'],see:'Live findings in the run log',status:'built'},
+ {n:4,title:'Choose what to interpret',goal:'Spend judgement where names are not enough.',does:'The orchestrator lists the hosts whose role is unknown or only guessed from the name.',agents:['orch'],see:'The list of hosts to interpret',status:'built'},
+ {n:5,title:'Understand the roles',goal:'What each server is for.',does:'The roles agent names the role and environment of each host, whether it belongs to this system, and the runtime services they form.',agents:['irol'],see:'Host roles and runtime services (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Assess for migration',goal:'How to move, and in which waves.',does:'A strategy per host, a score and wave per move group, the overall approach and the sizing baseline.',agents:['iass'],see:'Migration approach, waves, strategy per host',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'Re-opens every cited export line; derived claims need accepted evidence. Doubts become questions.',agents:['ver'],see:'Verified / needs-an-expert marks; rejected claims are counted, not shown',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The Infrastructure analysis report, with a written summary when Claude is allowed.',agents:['rep'],see:'Downloadable report (.md)',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Add the results to the inventory: runtime services and Kubernetes workloads become components, outside endpoints become interfaces, support and security findings become risks.',agents:['ppl'],see:'"Add results to the inventory", then 03 System inventory',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

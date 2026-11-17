@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite studies identity and access</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How identity and access are studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html">Source code</a><a href="../database/agents.html">Database</a><a href="../infrastructure/agents.html">Environment &amp; infrastructure</a><a href="../messaging/agents.html">Messaging &amp; caching</a><a href="../identity/agents.html" class="on">Identity &amp; access</a><a href="../telemetry/agents.html">Telemetry</a></nav></header>
+<main>
+<h1>How MindSuite studies identity and access</h1>
+<p class="lead">A team of 12 agents studies who can sign in to the system and with which rights, the way an experienced identity and security engineer would: first the facts from the directory and the identity provider, then the role model, then what to clean up and how to move sign-in. It works from read-only exports; it never reads passwords or password hashes, and person names never leave your machine.</p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>Metadata only</b><span class="muted">Accounts, groups, sign-in dates, MFA registration, policies, certificates. Never passwords or hashes.</span></div>
+ <div><b>Person names stay with you</b><span class="muted">They appear only in your local report where action is needed; the AI agent sees group names and counts only.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each finding points to the export line, or to the findings it is built on.</span></div>
+ <div><b>People decide</b><span class="muted">Agents propose. Your identity team confirms, corrects or rejects each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>The goal of the identity &amp; access analysis</h2>
+<p>Know <b>who can sign in, who holds power, what is unprotected, and how sign-in will work in the target</b>. It ends in the <b>Identity &amp; access analysis report</b> with a clean-up list.</p>
+<div class="principles">
+ <div><b>Who can sign in</b><span class="muted">Accounts, inactive, shared and service accounts.</span></div>
+ <div><b>Who holds power</b><span class="muted">Administrator groups and their members, nested rights.</span></div>
+ <div><b>What is unprotected</b><span class="muted">Missing MFA, policies off, weak or expired certificates.</span></div>
+ <div><b>How sign-in will work</b><span class="muted">Target roles, identity provider, service identities, order.</span></div>
+</div>
+</section>
+
+<section>
+<h2>What the agents need from your identity team</h2>
+<table><thead><tr><th>Give</th><th>What it contains</th><th>How (read-only)</th></tr></thead><tbody>
+<tr><td><b>AD users</b> (.csv)</td><td>Name, enabled, last sign-in, password never expires, description, groups</td><td><code>Get-ADUser -Filter * -Properties LastLogonDate,PasswordNeverExpires,Description,MemberOf | Select SamAccountName,UserPrincipalName,Enabled,LastLogonDate,PasswordNeverExpires,Description,@{n='MemberOf';e={$_.MemberOf -join ';'}} | Export-Csv ad-users.csv</code> (or <code>Search-ADAccount -AccountInactive</code> for inactive accounts only)</td></tr>
+<tr><td><b>Group members</b> (.csv, one per group, named after it)</td><td>Members of the application's and administrator groups, including nested groups</td><td><code>Get-ADGroupMember "App-Admins" | Export-Csv App-Admins-members.csv</code></td></tr>
+<tr><td><b>Microsoft Entra ID</b> (.csv)</td><td>MFA registration per user; sign-in (Conditional Access) policies and their state</td><td>MFA registration report; <code>Get-MgIdentityConditionalAccessPolicy -All | Select DisplayName,State | Export-Csv</code></td></tr>
+<tr><td><b>Okta</b> (.json)</td><td>Users (status, last login), groups, applications</td><td>Read-only API token: <code>/api/v1/users</code>, <code>/api/v1/groups</code>, <code>/api/v1/apps</code></td></tr>
+<tr><td><b>Certificates</b> (.txt)</td><td>Subject, issuer, expiry, key size, signature</td><td><code>openssl s_client -connect host:443 &lt;/dev/null | openssl x509 -noout -subject -issuer -enddate -text</code></td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">The same 9 steps as the other teams. Step 3 runs six agents in parallel. Click an agent name to see it in the diagram.</p>
+<div id="steps"></div>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<p class="muted">Click an agent to see what it does and who it talks to.</p>
+<div class="legend"><span><i class="dot built"></i>Running today</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Identity and access agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li>The <b>directory reader</b> reads the AD export: svc_settlement is enabled, its password never expires, and it is a member of Domain Admins.</li>
+ <li><b>Accounts</b> recognises it as a service account; <b>Privileged access</b> flags a service account with administrator rights.</li>
+ <li>The <b>migration assessment</b> puts it on the clean-up list and plans a managed identity in the target.</li>
+ <li>Your <b>identity team</b> confirms the nightly settlement only needs rights on its own database, and the admin rights are removed before the move.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 12 agents run in the same <b>MindSuite agent backend</b> as the other teams. In MindSuite, open <b>Record evidence → Identity &amp; access → Run the identity &amp; access agent team</b>.</p>
+<p class="note">11 rule-based agents always run and nothing leaves the backend machine. The role-model agent runs only with a Claude API key on the backend <b>and</b> your consent for that run; it sends group and application names with counts, never person names, passwords or hashes.</p>
+<p class="note">Still to come: Entra sign-in logs (which accounts the application really uses), PingFederate and Keycloak exports, and linking the target roles to the authorization checks the code team finds.</p>
+</section>
+</main>
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Identity orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Reads the directory, provider and certificate exports, splits the work per source, starts the agents, lists the groups to interpret.',reads:'The export files and every agent\'s progress',produces:'Tasks, the step log',safeguard:'Never connects to a directory; never edits findings.'},
+ {id:'dir',n:1,name:'Directory reader',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'Parses AD user and group-member CSVs, the Entra MFA report and Conditional Access policies, Okta JSON, openssl certificate output and the collector bundle.',reads:'Read-only exports',produces:'Accounts, groups, policies, apps, certificates',safeguard:'Accounts are not listed one by one; password lines are never quoted.'},
+ {id:'acc',n:2,name:'Accounts',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds enabled accounts unused for 90 days, passwords that never expire, service accounts and shared or generic accounts.',reads:'Accounts and sign-in dates',produces:'Account findings',safeguard:'Inactivity is measured against the latest sign-in in the export, not today.'},
+ {id:'prv',n:3,name:'Privileged access',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Lists administrator groups and members (including nested groups), and flags service accounts with admin rights, inactive admins and admins without MFA.',reads:'Groups, members, MFA',produces:'Privileged-access findings',safeguard:'Names are shown only where someone must act.'},
+ {id:'mfa',n:4,name:'MFA & sign-in policy',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'MFA registration rate, users without MFA, sign-in policies that are off or only reporting, legacy authentication left open.',reads:'MFA report, Conditional Access policies',produces:'MFA and policy findings',safeguard:'Asks when MFA status is not in the exports.'},
+ {id:'grp',n:5,name:'Groups & roles',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Today\'s role model: the groups, their size, empty and very broad groups.',reads:'Groups and members',produces:'Role-model facts',safeguard:'Counts, not judgements, about people.'},
+ {id:'crt',n:6,name:'Certificates',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Expired and expiring certificates, weak keys, SHA-1 signatures, self-signed certificates, and passwords in the exports.',reads:'openssl output, all files',produces:'Certificate findings',safeguard:'Passwords are reported as file and line only.'},
+ {id:'pla',n:7,name:'Provider & protocols',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Identity providers and protocols in use, legacy protocols, and applications registered in the provider.',reads:'Exports and the collector bundle',produces:'Provider findings',safeguard:'The code team shows how the application itself signs people in.'},
+ {id:'irol',n:8,name:'Role model',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Proposes simple business roles for the target and maps today\'s groups to them.',reads:'Group and application names with counts — never person names',produces:'Target roles, questions',safeguard:'Every role cites the groups it is based on.'},
+ {id:'iass',n:9,name:'Migration assessment',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'The clean-up list, service accounts to replace with managed identities, the target sign-in approach and the order.',reads:'All fact and role results',produces:'Clean-up list, approach, order',safeguard:'Rules of thumb, labelled as such.'},
+ {id:'ver',n:10,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced',status:'built',does:'Re-opens every cited line; derived claims need accepted evidence.',reads:'Every finding and the cited lines',produces:'Accepted / rejected / needs an expert',safeguard:'Uses a different model from the agent it checks.'},
+ {id:'rep',n:11,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Identity & access analysis report.',reads:'Verified findings (titles only to the model)',produces:'Report (.md)',safeguard:'Uses counts, not person names, in written text.'},
+ {id:'ppl',n:'',name:'Your identity team',stage:'Validate',type:'Human',tier:'',status:'people',does:'Confirms, corrects or rejects each result and acts on the clean-up list.',reads:'The report, findings and questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The shared record of every finding, its citation, verification and human decision.',reads:'Findings from every agent',produces:'A traceable history',safeguard:'Append-only.'}];
+const EDGES=[['orch','dir'],['dir','acc'],['dir','prv'],['dir','mfa'],['dir','grp'],['dir','crt'],['dir','pla'],['acc','prv'],['grp','irol'],['prv','irol'],['pla','irol'],['acc','iass'],['prv','iass'],['mfa','iass'],['grp','iass'],['crt','iass'],['pla','iass'],['irol','iass'],['iass','ver'],['irol','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],dir:[95,300],acc:[300,140],prv:[300,205],mfa:[300,270],grp:[300,335],crt:[300,400],pla:[300,465],irol:[510,290],iass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={orch:'Identity orchestrator',mfa:'MFA & sign-in policy',iass:'Migration assessment',pla:'Provider & protocols',ppl:'Your identity team'};
+const ORCH_LINKS=['dir','prv','irol','iass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the identity exports',goal:'Know exactly what is being analysed.',does:'The backend reads the exports, read-only, in memory, and dates them by the latest sign-in they contain.',agents:['dir'],see:'Step 1 in the run: accounts, groups, policies, apps, certificates',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover every source.',does:'One work package per identity provider, plus certificates.',agents:['orch'],see:'Work packages in the run log',status:'built'},
+ {n:3,title:'Collect the facts',goal:'Who can sign in, who holds power, what is unprotected.',does:'In parallel: accounts, privileged access, MFA and policies, groups, certificates, provider and protocols.',agents:['acc','prv','mfa','grp','crt','pla'],see:'Live findings in the run log',status:'built'},
+ {n:4,title:'Choose what to interpret',goal:'Name what only names reveal.',does:'The orchestrator lists the groups whose business role is named only by their name.',agents:['orch'],see:'The list in the run',status:'built'},
+ {n:5,title:'Understand the roles',goal:'The role model for the target.',does:'The role-model agent proposes business roles and maps today\'s groups to them, from group names and counts only.',agents:['irol'],see:'Proposed target roles (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Assess for migration',goal:'What to fix first, and how sign-in will work.',does:'The clean-up list, service identities, the target sign-in approach and the order.',agents:['iass'],see:'Migration approach, clean-up list',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'Re-opens every cited line; derived claims need accepted evidence.',agents:['ver'],see:'Verified / needs-an-expert marks',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The Identity & access analysis report.',agents:['rep'],see:'Downloadable report (.md)',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Add the results to the inventory: sign-in applications become interfaces, target roles become rules, risks are listed.',agents:['ppl'],see:'"Add results to the inventory"',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite studies real use</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How real use is studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html">Source code</a><a href="../database/agents.html">Database</a><a href="../infrastructure/agents.html">Environment &amp; infrastructure</a><a href="../messaging/agents.html">Messaging &amp; caching</a><a href="../identity/agents.html">Identity &amp; access</a><a href="../telemetry/agents.html" class="on">Telemetry</a></nav></header>
+<main>
+<h1>How MindSuite studies real use</h1>
+<p class="lead">Code shows what a system <i>can</i> do; telemetry shows what people really <i>do</i> with it. A team of 11 agents reads your logs and monitoring exports the way an experienced operations engineer would: load and peaks, speed and errors, which features are used and which never, and what that means for sizing the new system and planning the cut-over.</p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>No personal data kept</b><span class="muted">Client addresses are only counted, never stored or shown. Query strings are dropped; ids, e-mail addresses and tokens in URLs become {id}.</span></div>
+ <div><b>Read-only</b><span class="muted">Agents read exported logs and metrics. They never connect to your monitoring tools.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each finding points to the export it comes from (log lines by file and line only), or to the findings it is built on.</span></div>
+ <div><b>People decide</b><span class="muted">Agents propose. Your operations team confirms, corrects or rejects each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>The goal of the telemetry analysis</h2>
+<p>Size and plan the new system on <b>measured use, not on today's servers or guesses</b>. It ends in the <b>Telemetry analysis report</b> with capacity, service-level and cut-over targets.</p>
+<div class="principles">
+ <div><b>How busy it is</b><span class="muted">Average and peak load, busiest hours, days and months.</span></div>
+ <div><b>How well it works</b><span class="muted">Response times and errors, per endpoint.</span></div>
+ <div><b>What is really used</b><span class="muted">The endpoints that matter, and those nobody calls.</span></div>
+ <div><b>What to aim for</b><span class="muted">Capacity, service levels, freeze months, the cut-over window.</span></div>
+</div>
+</section>
+
+<section>
+<h2>What the agents need from your operations team</h2>
+<table><thead><tr><th>Give</th><th>What it contains</th><th>How (export only)</th></tr></thead><tbody>
+<tr><td><b>Requests per hour</b> (.csv / .json), required</td><td>Count, errors and 95th-percentile duration per hour (and per endpoint if possible), ideally 12 months</td><td>Splunk <code>timechart span=1h count, perc95(duration)</code> · Application Insights <code>requests | summarize count(), percentile(duration,95) by bin(timestamp,1h), name</code> · Datadog, Dynatrace, Prometheus <code>query_range</code>, CloudWatch <code>get-metric-data</code></td></tr>
+<tr><td><b>Access logs</b> (.log / .txt), optional</td><td>One line per request: time, URL, status, duration</td><td>NGINX / Apache combined format (with <code>$request_time</code> or <code>%D</code>), IIS W3C logs; a few days are enough next to the hourly counts</td></tr>
+<tr><td><b>Application code</b>, recommended</td><td>The endpoints the application offers</td><td>The source: endpoints never called become retire candidates</td></tr>
+</tbody></table>
+<p class="muted" style="margin:10px 0 0">When an access log and a monitoring export cover the same hours, they are not added up: each hour uses the higher count.</p>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">The same 9 steps as the other teams. Step 3 runs five agents in parallel. Click an agent name to see it in the diagram.</p>
+<div id="steps"></div>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<p class="muted">Click an agent to see what it does and who it talks to.</p>
+<div class="legend"><span><i class="dot built"></i>Running today</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Telemetry agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li>The <b>telemetry reader</b> lines up 12 months of hourly Splunk counts and one day of NGINX log on one timeline.</li>
+ <li><b>Load &amp; peaks</b> finds August to October twice as busy as the rest of the year, and the quietest four hours on Sunday night. <b>Coverage</b> notices ten days without data in February.</li>
+ <li><b>Usage</b> finds two endpoints in the code that nobody called all year; <b>Errors</b> finds the payment run failing a third of the time.</li>
+ <li>The <b>capacity &amp; cut-over</b> agent sets the target with 50% headroom over the peak, freezes August to October, and proposes Sunday 01:00–05:00 for the cut-over.</li>
+ <li>Your <b>operations team</b> explains the February gap (a monitoring outage) and confirms the payment-run failures are a known batch problem.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 11 agents run in the same <b>MindSuite agent backend</b> as the other teams. In MindSuite, open <b>Record evidence → Telemetry → Run the telemetry agent team</b>.</p>
+<p class="note">Nine rule-based agents always run and nothing leaves the backend machine. The business-use agent runs only with a Claude API key on the backend <b>and</b> your consent for that run; it sends endpoint names (cleaned) and traffic numbers, never client addresses or log lines.</p>
+<p class="note">Still to come: per-endpoint peaks over the year, user sessions and journeys (with a privacy review), and comparing the new system's telemetry against these targets after each migration wave.</p>
+</section>
+</main>
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Telemetry orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Reads the logs and monitoring exports, lines them up on one timeline, starts the agents, lists the busiest endpoints to interpret.',reads:'The export files and every agent\'s progress',produces:'Tasks, the step log',safeguard:'Never connects to a monitoring tool; never edits findings.'},
+ {id:'ing',n:1,name:'Telemetry reader',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'Parses access logs (NGINX, Apache, IIS), CSV exports (Splunk, Application Insights, Datadog), Prometheus and CloudWatch JSON and the collector bundle into requests, errors and durations per hour and per endpoint.',reads:'Logs and monitoring exports',produces:'One timeline, endpoints, sources',safeguard:'Client addresses only counted (hashed, in memory); query strings and ids removed; overlapping sources not added up.'},
+ {id:'vol',n:2,name:'Load & peaks',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Average and peak requests per second, the busiest hours, weekdays and months, and the quietest four hours of the week.',reads:'The timeline',produces:'Load profile, peaks, quiet window',safeguard:'Times are in UTC and say so.'},
+ {id:'prf',n:3,name:'Response times',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Typical and 95th-percentile response times over the whole period, and endpoints much slower than the rest.',reads:'Durations and percentiles',produces:'Response-time findings',safeguard:'Prefers the longest source; shows the log sample alongside.'},
+ {id:'err',n:4,name:'Errors',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'The overall server-error rate and the endpoints that fail most.',reads:'Status codes and error counts',produces:'Error findings',safeguard:'Only server errors (5xx) count.'},
+ {id:'use',n:5,name:'Usage & unused features',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Which endpoints carry the traffic, which are hardly used, which endpoints in the code are never called, and a rough count of distinct clients.',reads:'Endpoints, the uploaded code',produces:'Usage, retire candidates',safeguard:'Retire candidates are only as good as the period: a full year is needed.'},
+ {id:'cov',n:6,name:'Coverage & gaps',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Checks the data covers a full business cycle, finds gaps in monitoring, and reports passwords found in the upload.',reads:'The timeline, all files',produces:'Coverage findings',safeguard:'Passwords are reported as file and line only.'},
+ {id:'tmea',n:7,name:'Business use',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Names the business functions behind the endpoints with their share of use, and the business calendar behind the peaks.',reads:'Cleaned endpoint names and traffic numbers — no personal data',produces:'Business functions by use, calendar, questions',safeguard:'Every item cites the facts it is based on.'},
+ {id:'tass',n:8,name:'Capacity & cut-over',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'Target capacity with 50% headroom over the measured peak, service-level targets, freeze months and the cut-over window.',reads:'All fact results',produces:'Targets and the cut-over plan',safeguard:'Targets are proposals for the business owner to agree.'},
+ {id:'ver',n:9,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced',status:'built',does:'Re-opens every cited line; derived claims need accepted evidence.',reads:'Every finding and the cited lines',produces:'Accepted / rejected / needs an expert',safeguard:'Uses a different model from the agent it checks.'},
+ {id:'rep',n:10,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Telemetry analysis report.',reads:'Verified findings only',produces:'Report (.md)',safeguard:'Cannot add facts that are not in the verified evidence.'},
+ {id:'ppl',n:'',name:'Your operations team',stage:'Validate',type:'Human',tier:'',status:'people',does:'Confirms, corrects or rejects each result and explains gaps and failures.',reads:'The report, findings and questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The shared record of every finding, its citation, verification and human decision.',reads:'Findings from every agent',produces:'A traceable history',safeguard:'Append-only.'}];
+const EDGES=[['orch','ing'],['ing','vol'],['ing','prf'],['ing','err'],['ing','use'],['ing','cov'],['vol','tmea'],['use','tmea'],['vol','tass'],['prf','tass'],['err','tass'],['use','tass'],['cov','tass'],['tmea','tass'],['tass','ver'],['tmea','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],ing:[95,300],vol:[300,160],prf:[300,230],err:[300,300],use:[300,370],cov:[300,440],tmea:[510,290],tass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={orch:'Telemetry orchestrator',use:'Usage & unused',tass:'Capacity & cut-over',ppl:'Your operations team'};
+const ORCH_LINKS=['ing','vol','tmea','tass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the logs and monitoring exports',goal:'Know exactly what is being analysed.',does:'The backend reads the files, read-only, in memory, and lines them up on one timeline.',agents:['ing'],see:'Step 1 in the run: requests, period, endpoints',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover every source.',does:'One work package per source, with its period.',agents:['orch'],see:'Work packages in the run log',status:'built'},
+ {n:3,title:'Collect the facts',goal:'How busy, how fast, how reliable, what is used.',does:'In parallel: load and peaks, response times, errors, usage, coverage.',agents:['vol','prf','err','use','cov'],see:'Live findings in the run log',status:'built'},
+ {n:4,title:'Choose what to interpret',goal:'Name what only names reveal.',does:'The orchestrator lists the busiest endpoints.',agents:['orch'],see:'The list in the run',status:'built'},
+ {n:5,title:'Understand the business use',goal:'Which business functions carry the load.',does:'The business-use agent names the functions behind the endpoints and the business calendar.',agents:['tmea'],see:'Business functions by use (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Assess capacity and cut-over',goal:'What to build for, and when to switch.',does:'Capacity with headroom, service-level targets, freeze months, the cut-over window.',agents:['tass'],see:'Capacity, service levels and cut-over',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'Re-opens every cited line; derived claims need accepted evidence.',agents:['ver'],see:'Verified / needs-an-expert marks',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The Telemetry analysis report.',agents:['rep'],see:'Downloadable report (.md)',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Add the results to the inventory: the measured capacity profile, business functions and risks.',agents:['ppl'],see:'"Add results to the inventory"',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

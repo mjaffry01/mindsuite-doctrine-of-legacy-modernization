@@ -1,0 +1,15 @@
+{
+  "rabbit_version": "3.8.9",
+  "users": [
+    { "name": "guest", "tags": "administrator" },
+    { "name": "portal", "tags": "" }
+  ],
+  "queues": [
+    { "name": "portal.notifications", "vhost": "/", "durable": false, "arguments": {} },
+    { "name": "portal.uploads", "vhost": "/", "durable": true, "arguments": { "x-dead-letter-exchange": "portal.dlx" } }
+  ],
+  "exchanges": [
+    { "name": "portal.events", "vhost": "/", "type": "topic" }
+  ],
+  "policies": []
+}

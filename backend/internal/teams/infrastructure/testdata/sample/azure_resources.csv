@@ -1,0 +1,4 @@
+name,type,location,resourceGroup
+harvest-pip,microsoft.network/publicipaddresses,westeurope,rg-harvest
+harvestdocs,microsoft.storage/storageaccounts,westeurope,rg-harvest
+harvest-kv,microsoft.keyvault/vaults,westeurope,rg-harvest

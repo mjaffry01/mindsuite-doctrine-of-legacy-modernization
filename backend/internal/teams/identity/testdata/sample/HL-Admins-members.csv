@@ -1,0 +1,4 @@
+"distinguishedName","name","objectClass","objectGUID","SamAccountName","SID"
+"CN=Kiran Patel,OU=Staff,DC=corp,DC=local","Kiran Patel","user","1b2c","kpatel","S-1-5-21-1"
+"CN=Morgan Lee,OU=Staff,DC=corp,DC=local","Morgan Lee","user","2c3d","mlee","S-1-5-21-2"
+"CN=HL-Support,OU=Groups,DC=corp,DC=local","HL-Support","group","3d4e","HL-Support","S-1-5-21-3"

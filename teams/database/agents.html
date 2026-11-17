@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite studies your database</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How your database is studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html">Source code</a><a href="../database/agents.html" class="on">Database</a><a href="../infrastructure/agents.html">Environment & infrastructure</a><a href="../messaging/agents.html">Messaging &amp; caching</a><a href="../identity/agents.html">Identity &amp; access</a><a href="../telemetry/agents.html">Telemetry</a></nav></header>
+<main>
+<h1>How MindSuite studies your database</h1>
+<p class="lead">A second team of 14 agents studies the database the way an experienced DBA and data architect would: first the facts from the catalog, then the meaning, then the migration assessment. It works from the DBA's exports, never from your data. Every claim points to a line in the export and is checked before a person on your side confirms it. <a href="../code/agents.html">The code team is described here.</a></p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>Metadata only</b><span class="muted">Agents read table definitions, stored code, jobs and statistics. Business data rows are never read; if an export contains some, they are counted and ignored.</span></div>
+ <div><b>Never connected to production</b><span class="muted">The agents read export files your DBA produced with read-only tools. They never log in to the database.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each finding points to the export file and line, or to the findings it is built on, with its basis and confidence.</span></div>
+ <div><b>People decide</b><span class="muted">Agents propose. Your DBA and experts confirm, correct or reject each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>The goal of the database analysis</h2>
+<p>Turn the database into a <b>validated picture you can plan a migration on</b>: what data the system holds and how it is connected, where the business logic hides inside the database, what is risky, and how and in which order to move it. It ends in the <b>Database analysis report</b>, with every statement linked to its evidence and confirmed by a named person.</p>
+<div class="principles">
+ <div><b>What data it holds</b><span class="muted">Tables, keys, data clusters, size, personal data.</span></div>
+ <div><b>Where the logic lives</b><span class="muted">Procedures, packages, triggers, jobs, CHECK rules, calls out of the database.</span></div>
+ <div><b>What is risky</b><span class="muted">Support status, admin accounts, links to other databases, engine lock-in, design gaps.</span></div>
+ <div><b>How to migrate</b><span class="muted">Effort per data domain, the order, and the overall approach.</span></div>
+</div>
+</section>
+
+<section>
+<h2>What the agents need from your DBA</h2>
+<table><thead><tr><th>Give</th><th>What it contains</th><th>How (read-only)</th></tr></thead><tbody>
+<tr><td><b>Schema export</b> (.sql / .ddl), required</td><td>Tables, columns, keys, indexes, CHECK constraints, views, procedures, functions, packages, triggers, jobs, database links, grants</td><td>Oracle: Data Pump <code>expdp … CONTENT=METADATA_ONLY</code> then <code>impdp … SQLFILE=</code>, or DBMS_METADATA · SQL Server: SSMS Generate Scripts (schema only) or <code>sqlpackage /a:Extract</code> · PostgreSQL: <code>pg_dump --schema-only</code> · MySQL: <code>mysqldump --no-data --routines --events</code> · Db2: <code>db2look -e</code></td></tr>
+<tr><td><b>Catalog query result</b> (.csv), recommended</td><td>Row counts and sizes per table, line counts of stored code, jobs, links, administrator accounts</td><td>The read-only query in MindSuite → Record evidence → Database → How to extract. Columns: <code>record_type, schema_name, name, row_count, size_mb, line_count, detail</code>. The agents also accept the record types <code>column</code>, <code>pk</code>, <code>fk</code>, <code>index</code>, <code>grant</code> and <code>version</code>.</td></tr>
+</tbody></table>
+<p class="muted" style="margin:10px 0 0">Prefer a schema-only export. If a file contains data (<code>INSERT … VALUES</code>), the agents count those statements, never read or send them, and ask for a schema-only export.</p>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">The same 9 steps as the code team. Step 3 runs six agents in parallel; the jobs agent follows the stored-code agent so each job can point to the program it runs. Click an agent name to see it in the diagram.</p>
+<div id="steps"></div>
+<h3 style="margin:18px 0 6px;font-size:15px">What the export alone cannot tell, and how it is handled</h3>
+<p class="muted" style="margin:0">Who owns each table, whether a rule is still wanted, what generic columns (ATTRIBUTE1…) hold, whether statistics are current, and what is on the other side of a database link. The agents do not guess these: they become <b>questions for your DBA and experts</b>.</p>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<p class="muted">Click an agent to see what it does and who it talks to. Arrows show how results flow; dotted lines go to the shared evidence store, which every agent reads from and writes to.</p>
+<div class="legend"><span><i class="dot built"></i>Running today</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Database agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>How the agents communicate</h2>
+<p class="muted">Exactly like the code team: no free chat. Agents exchange five kinds of messages (task, finding, hand-off, verification, question) through the orchestrator and the shared <b>evidence store</b>, so every step is recorded and can be traced. Later agents build on earlier findings by their id.</p>
+<p class="muted" style="margin-top:12px">Example of a finding as stored (simplified):</p>
+<pre>{
+  "id": "rel-10",
+  "agent": "schema-and-relationships",
+  "kind": "constraint-rule",
+  "claim": "DELIVERIES: STATUS IN ('NEW','TESTED','PAID','REJECTED')",
+  "citation": "schema.sql:32",
+  "basis": "observed in the export",
+  "confidence": "high",
+  "verified": "accepted",
+  "status": "waiting for a person to confirm"
+}</pre>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li>The <b>catalog reader</b> reads the schema export and the catalog result: Oracle 12c, 9 tables, 3 programs and a trigger, a nightly job, 6.3 GB.</li>
+ <li><b>Schema &amp; relationships</b> finds that DELIVERIES, GROWERS, FIELDS, QUALITY_TESTS and PAYMENTS form one data cluster. <b>Stored code</b> finds that SETTLEMENT_PKG writes PAYMENTS and DELIVERIES, and that a second program also writes PAYMENTS.</li>
+ <li>Because it writes key tables, is complex and is run by the nightly job, the orchestrator puts SETTLEMENT_PKG on the reading list.</li>
+ <li>The <b>database business-rules</b> agent reads it and writes: "Grade A deliveries with moisture below 14% get a 10% higher price", citing the exact lines.</li>
+ <li>The <b>verifier</b> re-opens those lines, and a second model confirms they say this. The <b>migration assessment</b> scores the cluster and suggests it as the first domain.</li>
+ <li>Your <b>DBA</b> confirms the rule and adds: "the 10% bonus was reduced to 8% last season" — the conflict goes to the business owner.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>Which models are used</h2>
+<table><thead><tr><th>Tier</th><th>Model</th><th>Used by</th><th>Why</th></tr></thead><tbody>
+<tr><td><b>0 · No model</b></td><td>Exact parsers and rules</td><td>Orchestrator, Catalog reader, Schema &amp; relationships, Size &amp; usage, Stored code, Jobs &amp; links, Security &amp; privacy, Portability, Design quality, Migration assessment, and the citation checks of the Verifier</td><td>Facts must be exact and repeatable</td></tr>
+<tr><td><b>2 · Balanced</b></td><td>Claude Sonnet 5.5</td><td>Verifier (second opinion on every rule), Report writer</td><td>Checks within clear limits</td></tr>
+<tr><td><b>3 · Strongest</b></td><td>Claude Opus 5.5</td><td>Database business rules, Data domains &amp; meaning</td><td>Hard reasoning; mistakes here would mislead the migration plan</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 14 agents run in the same <b>MindSuite agent backend</b> as the code team. In MindSuite, open <b>Record evidence → Database → Run the database agent team</b> (or 02 Code analysis → Run the database agent team), choose the export files, and watch the 9 steps run.</p>
+<p class="note">The 11 rule-based agents always run and nothing leaves the backend machine. The Claude-powered steps run only with a Claude API key on the backend <b>and</b> your consent for that run: then the picked programs (with any password lines removed), table and column names and the findings are sent — never data rows. Every request is listed in the result.</p>
+<p class="note">Still to come: reading a live catalog directly through the Discovery Collector (read-only account), and linking the database findings with the code team's (which code module uses which table and procedure).</p>
+</section>
+</main>
+
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Database orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Reads the export files, splits the work into packages per schema, starts the fact agents, then picks the programs most likely to hold business rules for the AI agents.',reads:'The export files and every agent\'s progress',produces:'Tasks, the reading list, the step log',safeguard:'Caps how many programs go to the AI agents; never edits findings.'},
+ {id:'cat',n:1,name:'Catalog reader',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'Parses the schema export and the catalog result: engine and version, schemas, and every table, view, column, key, index, program, job, link and account.',reads:'.sql / .ddl exports, catalog .csv',produces:'Engine, version and support status, schemas, the parsed catalog',safeguard:'Counts but never reads data rows; lines that may hold a password are marked and never quoted.'},
+ {id:'rel',n:2,name:'Schema & relationships',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Maps primary and foreign keys: central tables, clusters of tables joined by keys (candidate data domains), keys across schemas, and the business rules written as CHECK constraints.',reads:'Table definitions, constraints, ALTER TABLE statements',produces:'Tables, data clusters, central tables, schema rules',safeguard:'Clusters are marked "inferred" until a person confirms the domain.'},
+ {id:'vol',n:3,name:'Size & usage',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Uses catalog statistics for the database size, the largest tables (to plan the data move) and empty tables (candidates to retire).',reads:'Row counts and sizes from the catalog result',produces:'Size, largest tables, empty tables',safeguard:'Says when statistics are missing instead of guessing.'},
+ {id:'prc',n:4,name:'Stored code',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Reads every procedure, function, package and trigger: size, decision points, the tables it reads and writes, the programs it calls, dynamic SQL, writes to other databases. Finds tables written by several programs.',reads:'Stored code in the export',produces:'Program catalogue, hotspots, shared writes, dynamic SQL',safeguard:'Reads code only; nothing is executed.'},
+ {id:'job',n:5,name:'Jobs, links & outside calls',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds scheduled jobs and the program each one runs, database links and remote synonyms, and calls from the database to the outside world (HTTP, e-mail, files, shell commands).',reads:'Scheduler definitions, links, stored code',produces:'Jobs with schedules, links to other databases, hidden interfaces',safeguard:'Link connect strings with credentials are never shown.'},
+ {id:'dsec',n:6,name:'Security & privacy',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds administrator accounts, grants to PUBLIC, columns that hold personal or sensitive data (judged from names), password columns, and passwords written in the export.',reads:'Grants, roles, column names',produces:'Security findings and a personal-data map',safeguard:'Passwords are reported as file and line only; no data is read to judge sensitivity.'},
+ {id:'prt',n:7,name:'Portability',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Lists engine-specific features and data types (e.g. CONNECT BY, autonomous transactions, LONG, NOLOCK, CLR) that a move to another engine must convert, with the effort for each.',reads:'Stored code and column types',produces:'Conversion list with effort',safeguard:'Only flags; the choice of target engine stays with your architects.'},
+ {id:'dq',n:8,name:'Design quality',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds tables without primary keys, foreign keys without indexes, very wide tables, generic columns (ATTRIBUTE1…), name/value tables and tables with no relationships.',reads:'Table definitions and indexes',produces:'Design findings that affect migration and data quality',safeguard:'Rules of thumb, labelled as such.'},
+ {id:'drul',n:9,name:'Database business rules',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Reads the programs the orchestrator picked (those that write key tables, are complex, are triggers or run on a schedule) and writes each business rule in plain language with its exact lines.',reads:'The reading list of programs',produces:'Business rules with citations and confidence',safeguard:'Every rule cites its lines; the verifier re-reads them; password lines are removed before sending.'},
+ {id:'ddom',n:10,name:'Data domains & meaning',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'From table and column names, keys, clusters, programs and jobs: the data domains (candidate bounded contexts), what each main table means, the vocabulary and the data lifecycle.',reads:'Names and extracted facts only — no data, no code',produces:'Data domains, table meanings, glossary, lifecycle, questions',safeguard:'Every item cites the facts it is based on; unclear names become questions.'},
+ {id:'dass',n:11,name:'Migration assessment',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'Scores each data domain (or cluster) for migration: keys to other domains, programs and triggers that touch it, shared writes, dynamic SQL, size. Suggests the order and the overall approach (move first then extract, convert with a tool, or convert directly).',reads:'All fact and meaning results',produces:'Score, effort and order per domain; the migration approach',safeguard:'Scores are rules of thumb and say so; the approach is for your DBA and architects to confirm.'},
+ {id:'ver',n:12,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced (different from producer)',status:'built',does:'Re-opens every cited line of the export; rejects claims whose line does not say what they claim; a second model checks each business rule; derived claims need accepted evidence.',reads:'Every finding and the cited export lines',produces:'Accepted / rejected / needs an expert, and questions',safeguard:'Uses a different model from the agent it checks.'},
+ {id:'rep',n:13,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Database analysis report: migration approach and order, per-domain table, risks, stored code, jobs and links, portability, design, rules and the data story.',reads:'Verified findings only',produces:'Database analysis report (.md)',safeguard:'Cannot add facts that are not in the verified evidence.'},
+ {id:'ppl',n:'',name:'Your DBA and experts',stage:'Validate',type:'Human',tier:'',status:'people',does:'Confirm, correct or reject each result in MindSuite and answer the questions. Their decisions are recorded with name and date.',reads:'The report, findings and questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The shared record of every finding, its citation, basis, confidence, verification result and human decision. Agents communicate through it.',reads:'Findings from every agent',produces:'A traceable history of how each conclusion was reached',safeguard:'Append-only: nothing is silently changed.'}];
+const EDGES=[['orch','cat'],['cat','rel'],['cat','vol'],['cat','prc'],['cat','dsec'],['cat','prt'],['cat','dq'],['prc','job'],['prc','drul'],['job','drul'],['rel','drul'],['rel','ddom'],['prc','ddom'],['job','ddom'],['drul','ddom'],['rel','dass'],['vol','dass'],['prc','dass'],['job','dass'],['dsec','dass'],['prt','dass'],['dq','dass'],['drul','dass'],['ddom','dass'],['dass','ver'],['drul','ver'],['ddom','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],cat:[95,300],rel:[300,110],vol:[300,175],prc:[300,240],job:[300,305],dsec:[300,370],prt:[300,435],dq:[300,500],drul:[510,220],ddom:[510,360],dass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={rel:'Schema & relations',job:'Jobs & links',dsec:'Security & privacy',drul:'DB business rules',ddom:'Data domains',dass:'Migration assessment',orch:'DB orchestrator',ppl:'Your DBA & experts'};
+const ORCH_LINKS=['cat','prc','drul','dass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the database export',goal:'Know exactly what is being analysed.',does:'The backend reads the export files (schema export, catalog result), read-only, in memory. It records the engine and version and counts any data rows without reading them.',agents:['cat'],see:'Step 1 in the run: engine, tables, programs, jobs, files',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover every schema.',does:'The orchestrator splits the work into packages per schema and starts the fact agents.',agents:['orch'],see:'Work packages in the run log',status:'built'},
+ {n:3,title:'Collect the facts',goal:'What data it holds, where the logic lives, what is risky.',does:'In parallel: keys and data clusters, sizes, stored code, security and personal data, portability, design quality. Then jobs, links and outside calls, linked to the programs they run.',agents:['rel','vol','prc','dsec','prt','dq','job'],see:'Live findings in the run log',status:'built'},
+ {n:4,title:'Choose what to read in depth',goal:'Spend effort where the business logic lives.',does:'The orchestrator ranks programs: writes to key tables, decision points, triggers, run by a scheduled job, rule-like conditions. The top ones (12 by default) go on the reading list with the reason.',agents:['orch','prc','job'],see:'The reading list, with why each program was picked',status:'built'},
+ {n:5,title:'Understand the business',goal:'What the data means and which rules the database enforces.',does:'The business-rules agent writes each rule in the picked programs with its exact lines. The data-domains agent names the data domains, explains the main tables and the data lifecycle from names and facts only.',agents:['drul','ddom'],see:'Rules, data domains and table meanings (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Assess for migration',goal:'How to move it, and in which order.',does:'Scores each data domain (or cluster) and suggests the order, then the overall approach from the amount of stored code and engine-specific features.',agents:['dass'],see:'Migration approach, order and per-domain table',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'Re-opens every cited export line; a second model checks each business rule; derived claims need accepted evidence. Doubts become questions for your DBA and experts.',agents:['ver'],see:'Verified / needs-an-expert marks; rejected claims are counted, not shown',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The Database analysis report, with a written summary when Claude is allowed.',agents:['rep'],see:'Downloadable report (.md)',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Add the results to the inventory: tables become data stores (with sensitivity), programs and jobs become components, links and outside calls become interfaces, rules and risks are listed for confirmation.',agents:['ppl'],see:'"Add results to the inventory", then 03 System inventory',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

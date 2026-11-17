@@ -1,0 +1,5 @@
+LocalAddress,LocalPort,RemoteAddress,RemotePort,State,OwningProcess
+10.0.1.31,50111,203.0.113.10,22,Established,4120
+10.0.1.31,50112,10.0.1.21,1521,Established,4120
+10.0.1.31,50113,10.0.1.11,23,Established,880
+10.0.1.31,50200,0.0.0.0,0,Listen,4

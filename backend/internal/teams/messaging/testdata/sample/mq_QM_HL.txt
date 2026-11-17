@@ -1,0 +1,41 @@
+5724-H72 (C) Copyright IBM Corp. 1994, 2019.
+Starting MQSC for queue manager QM_HL.
+
+     1 : DISPLAY QMGR VERSION DEADQ
+AMQ8408I: Display Queue Manager details.
+   QMNAME(QM_HL)                           DEADQ(HL.DLQ)
+   VERSION(09010000)
+     2 : DISPLAY QLOCAL(*) CURDEPTH MAXDEPTH BOQNAME DEFPSIST IPPROCS OPPROCS
+AMQ8409I: Display Queue details.
+   QUEUE(HL.LOT.GRADED)                    TYPE(QLOCAL)
+   BOQNAME( )                              CURDEPTH(0)
+   DEFPSIST(YES)                           IPPROCS(2)
+   MAXDEPTH(5000)                          OPPROCS(1)
+AMQ8409I: Display Queue details.
+   QUEUE(HL.PAYMENT.OUT)                   TYPE(QLOCAL)
+   BOQNAME(HL.PAYMENT.BOQ)                 CURDEPTH(4600)
+   DEFPSIST(NO)                            IPPROCS(0)
+   MAXDEPTH(5000)                          OPPROCS(1)
+AMQ8409I: Display Queue details.
+   QUEUE(HL.DLQ)                           TYPE(QLOCAL)
+   BOQNAME( )                              CURDEPTH(37)
+   DEFPSIST(YES)                           IPPROCS(0)
+   MAXDEPTH(100000)                        OPPROCS(0)
+AMQ8409I: Display Queue details.
+   QUEUE(SYSTEM.ADMIN.COMMAND.QUEUE)       TYPE(QLOCAL)
+   CURDEPTH(0)                             MAXDEPTH(3000)
+AMQ8409I: Display Queue details.
+   QUEUE(BANK.PAYMENTS)                    TYPE(QREMOTE)
+   RNAME(PAY.IN)                           RQMNAME(QM_BANK)
+     3 : DISPLAY CHANNEL(*) CHLTYPE CONNAME XMITQ SSLCIPH MCAUSER
+AMQ8414I: Display Channel details.
+   CHANNEL(HL.TO.BANK)                     CHLTYPE(SDR)
+   CONNAME('mq.partnerbank.example(1414)') XMITQ(QM_BANK)
+   SSLCIPH( )                              MCAUSER( )
+AMQ8414I: Display Channel details.
+   CHANNEL(HL.APP.SVRCONN)                 CHLTYPE(SVRCONN)
+   SSLCIPH(TLS_RSA_WITH_AES_256_GCM_SHA384)
+   MCAUSER(mqm)
+AMQ8414I: Display Channel details.
+   CHANNEL(SYSTEM.DEF.SVRCONN)             CHLTYPE(SVRCONN)
+   SSLCIPH( )

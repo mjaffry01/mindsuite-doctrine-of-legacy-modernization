@@ -1,0 +1,4 @@
+DisplayName,State
+Require MFA for admins,enabled
+Block legacy authentication,enabledForReportingButNotEnforced
+Require compliant device,disabled

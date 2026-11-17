@@ -1,0 +1,132 @@
+# MindSuite agent backend (Go)
+
+Runs the MindSuite agent teams and serves their results to the web app. Each team lives in **its own folder**, so a problem can be traced to one team without reading the others.
+
+| Team | Folder | Agents | Reads | In the app |
+|---|---|---|---|---|
+| Source code | `internal/teams/code/` | 15 | a code folder or zip | Record evidence → Source code → **Run the code agent team** (or 02 Code analysis) |
+| Database | `internal/teams/database/` | 14 | the DBA's schema export (.sql/.ddl) and catalog query result (.csv) | Record evidence → Database → **Run the database agent team** |
+| Environment & infrastructure | `internal/teams/infrastructure/` | 13 | VM inventory CSV (RVTools, PowerCLI, Hyper-V), connection lists (ss, Get-NetTCPConnection), kubectl JSON, cloud inventories, infrastructure as code, collector bundle | Record evidence → Environment & infrastructure → **Run the infrastructure agent team** |
+| Messaging & caching | `internal/teams/messaging/` | 12 | runmqsc DISPLAY output, kafka-topics / kafka-consumer-groups output, redis-cli INFO, memcached stats, RabbitMQ definitions, collector bundle; optionally the application's code | Record evidence → Messaging & caching → **Run the messaging & caching agent team** |
+| Identity & access | `internal/teams/identity/` | 12 | AD user and group-member CSVs, Entra MFA report and Conditional Access policies, Okta JSON, openssl certificate output, collector bundle | Record evidence → Identity & access → **Run the identity & access agent team** |
+| Telemetry | `internal/teams/telemetry/` | 11 | access logs (NGINX/Apache, IIS), Splunk / Application Insights / Datadog CSV, Prometheus and CloudWatch JSON, collector bundle; optionally the application's code | Record evidence → Telemetry → **Run the telemetry agent team** |
+
+The explanation pages for clients are in the web app, one per team: `../teams/<team>/agents.html`.
+
+## Folder layout
+
+```
+backend/
+  cmd/mindsuite-agents/      the program: serve (HTTP API) and run (command line)
+  internal/agents/           SHARED CORE, used by every team
+    run.go                   a run: options, the 9 steps, coverage, result, saving
+    team.go                  the Team interface and the registry
+    store.go                 the evidence store (task, finding, hand-off, verification, question)
+    codebase.go              loads files from a folder, zip or upload (in memory, read-only)
+    verify.go                the verifier (step 7 of every team)
+    rules.go                 the business-rules reader (used by the code and database teams)
+    llm.go                   the Claude client (structured outputs)
+    helpers.go               citations, secret detection, small helpers
+  internal/teams/            ONE FOLDER PER TEAM
+    teams.go                 imports every team so it registers itself
+    code/                    team.go (agents, steps, orchestration) + one file per agent group + code_test.go + testdata/sample
+    database/                register.go, team.go, model.go (parser), agents.go, ai.go, report.go + database_test.go + testdata/sample
+    infrastructure/          register.go, team.go, model.go (parser) + infrastructure_test.go + testdata/sample
+    messaging/               register.go, team.go, model.go (parser) + messaging_test.go + testdata/sample
+    identity/                register.go, team.go, model.go (parser) + identity_test.go + testdata/sample
+    telemetry/               register.go, team.go, model.go (parser) + telemetry_test.go + testdata/sample (+ make_sample.py)
+  internal/server/           the HTTP API
+```
+
+A team never imports another team, with one exception: the infrastructure team reuses the code team's platform & config agent (`code.RunPlatform`) for infrastructure-as-code files.
+
+### Adding a team
+
+1. Create `internal/teams/<team>/` with a `register.go` implementing `agents.Team` (`ID`, `Agents`, `StepTitles`, `WholeKinds`, `NewState`, `Execute`, `Source`) and calling `agents.Register` in `init()`. Copy `database/register.go` as a start.
+2. Keep the team's parser, agents, assessment and report in that folder. Use the core for citations (`agents.Cite`), secrets (`agents.LooksSecret`, `r.MarkSecret`), steps (`r.Step`), what was sent to Claude (`r.AddSent`) and verification (`agents.RunVerifier`).
+3. Add `testdata/sample` with known answers and a test; add the import to `internal/teams/teams.go`.
+4. In the web app: `teams/<team>/panel.js` and `teams/<team>/agents.html`.
+
+## Run it
+
+```bash
+cd backend
+go run ./cmd/mindsuite-agents serve            # http://127.0.0.1:8090
+```
+
+- **Rule-based agents only (default):** nothing leaves the machine.
+- **With Claude:** set `ANTHROPIC_API_KEY` before starting, and tick the consent box in the app for each run.
+
+Flags for `serve`: `-addr` (keep it on 127.0.0.1 unless you put authentication in front), `-runs` (folder for saved results, default `runs/`), `-cors` (allowed web-app origins; default localhost on any port and `https://mjaffry01.github.io`), `-allow-path` (allow runs on a folder path on this machine; loopback only).
+
+Command line, without the app:
+
+```bash
+go run ./cmd/mindsuite-agents run -dir /path/to/code -report code-report.md
+go run ./cmd/mindsuite-agents run -team database -dir /path/to/db-export -report db-report.md
+go run ./cmd/mindsuite-agents run -team infrastructure -dir /path/to/inventory -report infra-report.md
+go run ./cmd/mindsuite-agents run -team messaging -dir /path/to/broker-exports -report messaging-report.md
+go run ./cmd/mindsuite-agents run -team identity -dir /path/to/identity-exports -report identity-report.md
+go run ./cmd/mindsuite-agents run -team telemetry -dir /path/to/telemetry -report telemetry-report.md
+```
+
+Tests (each team has its own sample with known answers):
+
+```bash
+go test ./...
+go test ./internal/teams/infrastructure/   # one team only
+```
+
+## API
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/health` | Version, the registered teams, whether Claude is configured, whether folder paths are allowed |
+| GET | `/api/agents?team=code` | One team: id, name, kind, model |
+| POST | `/api/runs` | Start a run. `multipart/form-data` with `options` (JSON) and many `file` parts (filename = relative path) or one `zip` part; or `application/json` `{"path": "...", "options": {...}}`. Needs header `X-MindSuite: 1`. |
+| GET | `/api/runs` | Runs held in memory |
+| GET | `/api/runs/{id}` | Status, the 9 steps, coverage, findings, questions, reading list, what was sent to Claude, report |
+| GET | `/api/runs/{id}/events?after=N` | Server-Sent Events: every message in the evidence store |
+| GET | `/api/runs/{id}/report.md` | The Markdown report |
+
+`options`: `team` (`code` default, `database`, `infrastructure`, `messaging`, `identity`, `telemetry`), `allowModel` (consent to send excerpts to Claude), `gitHistory` (code team, local folders only), `maxModelFiles` (files or programs read in depth; default 12).
+
+## How a run works
+
+Every team runs the same 9 steps (`Team.Execute`), writes only to the evidence store, and is checked by the shared verifier:
+
+1. **Receive** the input (loaded in memory, read-only).
+2. **Plan** work packages (modules, schemas, platforms).
+3. **Collect the facts**: the team's rule-based agents, in parallel.
+4. **Choose what to read in depth** (files, programs, hosts).
+5. **Understand the meaning**: the team's Claude agents, only with a key and consent; otherwise reported as skipped.
+6. **Assess** for modernization or migration.
+7. **Verify** every claim: cited lines re-opened, model claims second-checked, derived claims need accepted evidence.
+8. **Report** (Markdown).
+9. **People** confirm in the web app.
+
+### Code team (`internal/teams/code/`)
+Inventory, supply chain, structure, data access, interfaces, security, quality, platform & config, legacy specialists; business rules and domain & process (Claude); assessment; report.
+
+### Database team (`internal/teams/database/`)
+Catalog reader, schema & relationships, size & usage, stored code, jobs/links/outside calls, security & privacy, portability, design quality; database business rules and data domains (Claude); migration assessment; report. Data rows in an export are counted, never read. Catalog CSV columns: `record_type, schema_name, name, row_count, size_mb, line_count, detail`; record types `table`, `view`, `code`, `job`, `link`, `admin`, plus `column` (`NAME TYPE [NOT NULL]`), `pk` / `index` (`COL1,COL2`), `fk` (`COL -> REF_TABLE(REF_COL)`), `grant` (`PRIV TO GRANTEE`), `version`.
+
+### Infrastructure team (`internal/teams/infrastructure/`)
+Estate reader, lifecycle & support, capacity & sizing, dependencies (move groups, outside endpoints, hubs), Kubernetes & containers, cloud resources, infrastructure as code, security & resilience; roles & environments (Claude); migration assessment (strategy per host, waves, approach, sizing); report. Connection files are named after their server (`connections-<server>.txt/.csv`); addresses are resolved to host names through the inventory's IP column.
+
+### Messaging & caching team (`internal/teams/messaging/`)
+Broker & cache reader (IBM MQ queue managers, queues, remote queues and channels; Kafka topics and consumer groups; RabbitMQ queues, exchanges and user names; Redis and Memcached statistics), versions & support, flows & usage (who sends to and reads from each queue, from the uploaded code and configuration; partner channels; queues with waiting messages and no reader), health & backlog, delivery & reliability, caching (hit ratio, eviction, memory, keys without expiry, caches used as stores), security (channels without TLS, clients as `mqm`, guest user, passwords as file:line); integration meaning (Claude: business event per queue and the integration map, names only); migration assessment (target per broker and cache, order, approach); report. Name each Redis/Memcached file after its instance (`redis-cache-01-info.txt`). Message contents and cached values are never read.
+
+### Identity & access team (`internal/teams/identity/`)
+Directory reader (AD users and group members, Entra MFA registration and Conditional Access policies, Okta users/groups/apps, openssl certificate output, collector bundle), accounts (inactive for 90+ days measured against the latest sign-in in the export, passwords that never expire, service and shared accounts), privileged access (administrator groups incl. nested, service accounts with admin rights, inactive admins, admins without MFA), MFA & sign-in policy, groups & roles, certificates (expired/expiring, weak keys, SHA-1, self-signed; passwords as file:line), provider & protocols; role model (Claude: target roles from group names and counts, **never person names**); migration assessment (clean-up list, service identities, approach, order); report (the model gets finding titles only). Name group-member files after the group (`App-Admins-members.csv`).
+
+### Telemetry team (`internal/teams/telemetry/`)
+Telemetry reader (one timeline per hour from access logs, monitoring CSV, Prometheus and CloudWatch JSON and the collector bundle; overlapping sources are not added up: each hour uses the highest count), load & peaks (average/peak per second, busiest hours/weekdays/months, quietest 4-hour window), response times (prefers the longest source), errors, usage & unused features (top endpoints, rarely used, endpoints in the uploaded code never called, distinct clients as a count), coverage & gaps (window under a year, monitoring gaps, passwords as file:line); business use (Claude: business functions and calendar from cleaned endpoint names and numbers); capacity & cut-over (peak × 1.5, service-level targets, freeze months, cut-over window); report. **Privacy:** client addresses are hashed and only counted in memory; query strings dropped; ids, e-mail addresses and tokens in paths become `{id}`; access-log lines are cited by file and line only (never quoted).
+
+## Safety rules (keep them)
+
+- Read-only: nothing is executed; nothing connects to a server or database; `git log` is the only command run (code team, local folders).
+- Secrets: lines that may hold a credential are never quoted (`agents.Cite` / `LooksSecret` / `r.MarkSecret`) and are removed before any text goes to Claude.
+- Claude is used only with a key **and** per-run consent; every request is listed in `sentToModel`.
+- POST needs `X-MindSuite` (forces a CORS preflight) and an allowed origin, so other websites cannot start runs on your machine.
+- Not done: licences and vulnerability lookup (would send dependency names outside: needs the owner's OK); Oracle Forms and ABAP specialists; utilisation-based sizing; authentication for non-local deployment.

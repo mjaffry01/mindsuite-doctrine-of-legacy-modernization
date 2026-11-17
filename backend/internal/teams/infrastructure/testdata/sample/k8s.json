@@ -1,0 +1,32 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": { "name": "grower-portal", "namespace": "harvest" },
+      "spec": {
+        "replicas": 1,
+        "template": { "spec": { "containers": [ { "name": "web", "image": "nginx:latest" } ] } }
+      }
+    },
+    {
+      "apiVersion": "batch/v1",
+      "kind": "CronJob",
+      "metadata": { "name": "nightly-export", "namespace": "harvest" },
+      "spec": {
+        "schedule": "0 2 * * *",
+        "jobTemplate": { "spec": { "template": { "spec": { "containers": [
+          { "name": "export", "image": "openjdk:8-jre", "resources": { "limits": { "cpu": "1", "memory": "1Gi" } } }
+        ] } } } }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": { "name": "grower-portal-svc", "namespace": "harvest" },
+      "spec": { "type": "LoadBalancer" }
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite studies your code</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How your code is studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html" class="on">Source code</a><a href="../database/agents.html">Database</a><a href="../infrastructure/agents.html">Environment & infrastructure</a><a href="../messaging/agents.html">Messaging &amp; caching</a><a href="../identity/agents.html">Identity &amp; access</a><a href="../telemetry/agents.html">Telemetry</a></nav></header>
+<main>
+<h1>How MindSuite studies your code</h1>
+<p class="lead">A team of specialised agents reads your code the way an experienced modernization team would: first the facts, then the meaning, then the assessment. Every claim is checked before a person on your side confirms it. This page shows each agent, how they work together, and what is already running today versus planned. The database has its own team: <a href="../database/agents.html">how MindSuite studies your database</a>.</p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>Read-only</b><span class="muted">Agents read a copy of your code. Nothing is executed, changed or connected to production.</span></div>
+ <div><b>Facts before opinions</b><span class="muted">Exact tools (parsers) find facts. Language models only explain and connect them.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each finding points to a file and line, a table or a document, with its basis and confidence.</span></div>
+ <div><b>People decide</b><span class="muted">Agents propose. A named person on your side confirms, corrects or rejects each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>The goal of the code analysis</h2>
+<p>Turn your code into a <b>validated picture you can decide on</b>: what the system is made of, how it works for the business, where it is fragile, and where to start modernizing. It ends in two results, the <b>Code analysis report</b> and the <b>Business story</b>. Every statement points to its evidence, and is confirmed by a named person on your side.</p>
+<div class="principles">
+ <div><b>What it is made of</b><span class="muted">Technology, modules, data, interfaces, platform.</span></div>
+ <div><b>How it works</b><span class="muted">Business rules, journeys, events, vocabulary.</span></div>
+ <div><b>Where it is fragile</b><span class="muted">Coupling, shared tables, missing tests, risks, secrets.</span></div>
+ <div><b>Where to start</b><span class="muted">Extractability, effort, seams and order.</span></div>
+</div>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">Each step builds on the one before. Steps 3 and 5 run many agents in parallel, one work package per module. Click an agent name to see it in the diagram.</p>
+<div id="steps"></div>
+<h3 style="margin:18px 0 6px;font-size:15px">Large codebases and coverage</h3>
+<p class="muted" style="margin:0">The orchestrator splits the code into work packages per module and tracks <b>coverage</b>: which files and modules each agent has analysed. Files no agent can read yet (an unsupported language, generated or binary files) are listed as gaps, never silently skipped. The report states its coverage, e.g. "312 of 340 files analysed; 28 PowerBuilder files waiting for the specialist".</p>
+<h3 style="margin:18px 0 6px;font-size:15px">What code alone cannot tell, and how it is handled</h3>
+<p class="muted" style="margin:0">Why a rule exists, whether it is still wanted, which features are really used, and what people do outside the system. The agents do not guess these. The verifier turns them into <b>questions for your experts</b>, and telemetry (if provided) shows which code paths are actually used.</p>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<p class="muted">Click an agent to see what it does and who it talks to. Arrows show how results flow; dotted lines go to the shared evidence store, which every agent reads from and writes to.</p>
+<div class="legend"><span><i class="dot built"></i>Running today (rule-based)</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>How the agents communicate</h2>
+<p class="muted">Agents do not chat freely with each other. They exchange five kinds of messages through the orchestrator and a shared <b>evidence store</b>, so every step is recorded and can be traced.</p>
+<div class="msgs">
+ <div class="msg"><b>1 · Task</b><small>Orchestrator → agent</small><p>"Analyse module <i>grading</i>: files, tables, rules." Each task has a scope and a deadline.</p></div>
+ <div class="msg"><b>2 · Finding</b><small>Agent → evidence store</small><p>A claim with citation, basis and confidence, e.g. "GRADE_RESULT is written only by grading (GradeCalc.java:41)".</p></div>
+ <div class="msg"><b>3 · Hand-off</b><small>Agent → orchestrator</small><p>"These 40 files are COBOL; send them to the legacy specialist." The orchestrator re-plans.</p></div>
+ <div class="msg"><b>4 · Verification</b><small>Verifier → evidence store</small><p>Accepted, rejected (citation does not support it) or conflict (two agents disagree).</p></div>
+ <div class="msg"><b>5 · Question for an expert</b><small>Verifier → people</small><p>"Is the 2% late-delivery penalty still wanted? It is in SettlementService.java:88 but not in the process document."</p></div>
+</div>
+<p class="muted" style="margin-top:12px">Example of a finding as stored (simplified):</p>
+<pre>{
+  "agent": "business-rules",
+  "claim": "Grade A requires moisture below 14% and defects under 2%",
+  "citation": "src/main/java/com/harvestlink/grading/GradeCalc.java:212-219",
+  "basis": "observed in code",
+  "confidence": 0.86,
+  "context": "Grading",
+  "verified": "accepted",
+  "status": "waiting for a person to confirm"
+}</pre>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li><b>Inventory</b> finds 312 Java files, a Maven build and the commit being analysed.</li>
+ <li>The <b>orchestrator</b> splits the work by module and sends tasks to the fact agents in parallel.</li>
+ <li><b>Structure</b> finds the module <i>grading</i>; <b>Data access</b> finds it writes GRADE_RESULT; <b>Quality</b> flags GradeCalc.java as the most complex file.</li>
+ <li>Because it is complex and business-critical, the orchestrator asks the <b>Business-rules</b> agent to read GradeCalc.java. It writes the rule in plain language with the exact lines.</li>
+ <li>The <b>Verifier</b> re-opens lines 212–219, confirms they say what the claim says, and checks the process document. The document says 15%, so it raises a <b>conflict</b> and a question for the domain expert.</li>
+ <li>The <b>Report writer</b> includes the rule and the open question in the Code analysis report.</li>
+ <li>Your <b>domain expert</b> answers in MindSuite: "14% is correct; the document is outdated." The rule becomes <b>Confirmed</b>, with their name and date in the history.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>Which models are used</h2>
+<p class="muted">Not one model per agent. Models are chosen by the difficulty of the task, and each agent's model is a setting that can be changed after testing on your code.</p>
+<table><thead><tr><th>Tier</th><th>Model</th><th>Used by</th><th>Why</th></tr></thead><tbody>
+<tr><td><b>0 · No model</b></td><td>Exact parsers and rules</td><td>Orchestrator, Inventory, Supply chain, Structure, Data access, Interfaces, Security, Quality, Platform & config, Legacy specialists, Assessment, and the citation checks of the Verifier</td><td>Facts must be exact and repeatable</td></tr>
+<tr><td><b>1 · Fast</b></td><td>Claude Haiku 5.5</td><td>Reserved for bulk summarising of very large codebases (not used yet)</td><td>High volume, simple tasks</td></tr>
+<tr><td><b>2 · Balanced</b></td><td>Claude Sonnet 5.5</td><td>Verifier (second opinion on every model claim), Report writer</td><td>Understanding code relationships within clear limits</td></tr>
+<tr><td><b>3 · Strongest</b></td><td>Claude Opus 5.5</td><td>Business rules, Domain & process</td><td>Hard reasoning; mistakes here would mislead decisions</td></tr>
+<tr><td><b>Verifier</b></td><td>A different model or prompt from the agent it checks</td><td>Verifier</td><td>Avoids repeating the same blind spot; re-reads the cited lines itself</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 15 agents run in the <b>MindSuite agent backend</b>, a small service you run next to your code (on your machine or a server in your network). In MindSuite, open <b>02 Code analysis → Run the full agent team</b>, choose the code folder or zip, and watch the 9 steps run. The code is read, never executed, and is not stored by the backend.</p>
+<p class="note">The 11 rule-based agents always run, and nothing leaves the backend machine. The Claude-powered steps (business rules, the business story, the verifier's second opinion and the written summary) run only if the backend has a Claude API key <b>and</b> you tick the consent box for that run. Even then, only the files the orchestrator picks are sent, lines that may hold a password or key are removed first, and every request is listed in the result.</p>
+<p class="note">Still to come: licences and a vulnerability database lookup for dependencies (needs your OK to send dependency names outside), and specialists for Oracle Forms and ABAP. A quick browser-only scan (no backend) is still available on the Source code card.</p>
+</section>
+</main>
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Plans the analysis, splits the code into work packages per module, sends tasks to the right agents, tracks coverage (which files are done) and re-runs gaps.',reads:'The inventory and every agent\'s progress',produces:'Tasks, the coverage report, the final merged result',safeguard:'Stops when coverage targets are met; never edits findings.'},
+ {id:'inv',n:1,name:'Inventory',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'Lists every file, language and size, finds build files and the exact commit being analysed.',reads:'All files and the Git metadata',produces:'File list, languages, size, build files, dependencies, commit',safeguard:'Skips build outputs and dependency folders; never reads secrets into the report.'},
+ {id:'sup',n:2,name:'Supply chain',stage:'Facts',type:'Tool',tier:'No model',status:'partly',does:'Checks every third-party library: version, end of support, licence and known vulnerabilities.',reads:'Build files and lockfiles',produces:'Dependency list with support status, licences and vulnerabilities (SBOM)',safeguard:'Vulnerability lookups send only library names and versions, and only with your consent.'},
+ {id:'str',n:3,name:'Structure',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds the modules, how they depend on each other, dependency cycles and the architecture style, and proposes business areas (bounded contexts).',reads:'Packages, namespaces, imports, deployables',produces:'Module dependency graph, cycles, proposed bounded contexts',safeguard:'Proposals are marked "inferred" until a person confirms them.'},
+ {id:'dat',n:4,name:'Data access',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Works out which module reads or writes which table, which tables are shared, and what stored procedures do.',reads:'SQL in the code, ORM mappings, stored procedures, the database export',produces:'Code-to-table map, shared tables, data ownership',safeguard:'Reads table definitions and code only, never business data.'},
+ {id:'int',n:5,name:'Interfaces',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Lists every way in and out: API endpoints, calls to other systems, queues and topics, files exchanged.',reads:'Controllers, routes, HTTP clients, messaging and file code, API specifications',produces:'Interface catalogue with direction, protocol and purpose',safeguard:'Partner hosts are reported, credentials never.'},
+ {id:'sec',n:6,name:'Security',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds how users log in, where access is checked, which roles can do what, hard-coded secrets and weak cryptography.',reads:'Authentication configuration, role checks, crypto code, configuration files',produces:'Login methods, role-to-permission matrix, security findings',safeguard:'Secrets are reported as file and line only; the value is never stored.'},
+ {id:'qua',n:7,name:'Quality & change safety',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Measures how safe the code is to change: tests per module, complexity hotspots, duplication, dead code, and from Git history what changes most and who knows it.',reads:'Code, tests, Git history',produces:'Tests coverage proxy, hotspots, dead code, bus factor',safeguard:'People in the Git history are summarised as counts unless you choose to show names.'},
+ {id:'pla',n:8,name:'Platform & config',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Reads configuration and deployment files: environments, database and cache connections, caching strategy, containers, Kubernetes, Terraform and scheduled jobs.',reads:'Config files, Dockerfiles, Kubernetes and Terraform files',produces:'Platform facts and the caching strategy',safeguard:'Connection strings are reduced to engine and host.'},
+ {id:'leg',n:11,name:'Legacy-language specialists',stage:'Facts',type:'Tool',tier:'No model',status:'partly',does:'Specialists for COBOL/JCL/PL/I, RPG, PowerBuilder, Oracle Forms and ABAP: copybooks, program calls, CICS transactions, job streams.',reads:'Legacy source exports and job definitions',produces:'The same facts as the other fact agents, for legacy code',safeguard:'Called only when legacy languages are found.'},
+ {id:'rul',n:9,name:'Business rules',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Reads the rule-heavy code and database code and writes each business rule in plain language: condition, outcome, constants, exceptions.',reads:'Hotspots and modules chosen from the fact agents, stored procedures',produces:'Business rules catalogue with exact citations and confidence',safeguard:'Every rule cites its lines; the verifier re-reads them.'},
+ {id:'dom',n:10,name:'Domain & process',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Builds the business story: who uses the system, its capabilities, end-to-end journeys, business events, vocabulary and the business calendar.',reads:'Screens, entities, status fields, rules, interfaces, documents',produces:'The business story, glossary and naming conflicts',safeguard:'Unclear points become questions for your experts, not guesses.'},
+ {id:'ass',n:12,name:'Modernization assessment',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'Combines everything into what it means for modernization: how easy each module is to extract, effort, where to cut first and in which order, and which approaches are realistic.',reads:'All fact and meaning results, capacity and consistency needs',produces:'Extractability, effort, seams, extraction order',safeguard:'Scores are rules of thumb and say so.'},
+ {id:'ver',n:13,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced (different from producer)',status:'built',does:'Checks every claim before you see it: does the cited line exist and say this? Do two agents disagree? Is evidence missing?',reads:'Every finding in the evidence store and the cited source',produces:'Accepted / rejected / conflict, and questions for experts',safeguard:'Uses a different model or prompt than the agent it checks.'},
+ {id:'rep',n:14,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Code analysis report and the business story in plain language, linking every statement to its evidence.',reads:'Verified findings only',produces:'Code analysis report, business story',safeguard:'Cannot add facts that are not in the verified evidence.'},
+ {id:'ppl',n:'',name:'Your people',stage:'Validate',type:'Human',tier:'',status:'people',does:'Your domain experts, architects and the business owner confirm, correct or reject each result in MindSuite. Their decisions are recorded with name and date.',reads:'The report, findings and expert questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The single shared record of every finding, its citation, basis, confidence, verification result and human decision. Agents communicate through it.',reads:'Findings from every agent',produces:'A traceable history of how each conclusion was reached',safeguard:'Append-only: nothing is silently changed.'}];
+const EDGES=[['orch','inv'],['inv','sup'],['inv','str'],['inv','dat'],['inv','int'],['inv','sec'],['inv','qua'],['inv','pla'],['inv','leg'],['str','rul'],['dat','rul'],['qua','rul'],['leg','rul'],['str','dom'],['int','dom'],['sec','dom'],['rul','dom'],['sup','ass'],['str','ass'],['dat','ass'],['int','ass'],['sec','ass'],['qua','ass'],['pla','ass'],['rul','ass'],['dom','ass'],['ass','ver'],['rul','ver'],['dom','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],inv:[95,290],sup:[300,110],str:[300,170],dat:[300,230],int:[300,290],sec:[300,350],qua:[300,410],pla:[300,470],leg:[300,530],rul:[510,220],dom:[510,360],ass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={ass:'Assessment',leg:'Legacy specialists',qua:'Quality & safety'};
+const ORCH_LINKS=['inv','str','rul','ass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the code',goal:'Know exactly what is being analysed.',does:'The agent backend reads your folder, zip or a folder path on its machine, read-only. Nothing is executed and the code is not stored. The exact commit is recorded so every finding refers to the same version.',agents:['inv'],see:'Step 1 in the agent run: files, lines, branch and commit',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover all of the code, with the right specialist for each part.',does:'The orchestrator splits the code into work packages per module and routes legacy languages (COBOL, RPG, PowerBuilder…) to specialists. It starts a coverage record.',agents:['orch','leg'],see:'Work packages in the run log; coverage in the result (files analysed / not read)',status:'built'},
+ {n:3,title:'Collect the facts',goal:'What the system is made of, and where it is fragile.',does:'In parallel, per module: dependencies and their support status, modules and how they depend on each other, which module touches which table, every way in and out, how users log in and where access is checked, tests and complexity, and the platform and configuration.',agents:['sup','str','dat','int','sec','qua','pla'],see:'Live findings in the run log; modules, tables, endpoints, role checks, risks in the report',status:'built'},
+ {n:4,title:'Choose what to read in depth',goal:'Spend effort where the business logic lives.',does:'Using the facts, the orchestrator selects the files that matter most: complex hotspots, modules that write important tables, stored procedures, and code behind key screens and interfaces.',agents:['orch','qua','dat'],see:'The reading list, with why each file was picked',status:'built'},
+ {n:5,title:'Understand the business',goal:'How the system works for the business.',does:'The business-rules agent writes each rule in plain language with its exact lines. The domain agent connects screens, rules, data and events into end-to-end journeys, the vocabulary and the business calendar.',agents:['rul','dom'],see:'Business rules table and the business story (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Assess for modernization',goal:'Where to start, and how hard each part is.',does:'Combines everything into an extractability score, an effort size and the seams per module, and suggests the order: easiest and least coupled first, core and tangled parts later.',agents:['ass'],see:'Code analysis report: "Where to start", modules table',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'The verifier re-opens every cited line to check it says what the claim says, compares agents and documents, and rejects or flags anything unsupported. Disagreements and unknowns become questions for your experts.',agents:['ver'],see:'Verified / needs-an-expert marks on every finding; rejected claims are counted, not shown',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The report writer turns verified findings into the Code analysis report and the Business story in plain language, each statement linked to its evidence.',agents:['rep'],see:'Downloadable report (.md) with a written summary when Claude is allowed',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Your experts confirm, correct or reject each finding and answer the questions. Their decisions are recorded with name and date and feed the target decisions and the roadmap.',agents:['ppl'],see:'“Add results to the inventory”, then 03 System inventory',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

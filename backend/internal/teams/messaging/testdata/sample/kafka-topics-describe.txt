@@ -1,0 +1,3 @@
+Topic: grading.results	TopicId: 2Lz1	PartitionCount: 3	ReplicationFactor: 1	Configs: retention.ms=604800000
+	Topic: grading.results	Partition: 0	Leader: 1	Replicas: 1	Isr: 1
+Topic: grower.events	TopicId: 7Hq2	PartitionCount: 6	ReplicationFactor: 3	Configs:

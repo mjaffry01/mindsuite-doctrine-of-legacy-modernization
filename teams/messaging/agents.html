@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How MindSuite studies your messaging and caching</title>
+<link rel="stylesheet" href="../shared/team-page.css">
+</head>
+<body>
+<header><span class="mark">M</span><b>MindSuite</b><span>How your messaging and caching are studied</span><nav class="teamnav" aria-label="Agent teams"><a href="../code/agents.html">Source code</a><a href="../database/agents.html">Database</a><a href="../infrastructure/agents.html">Environment &amp; infrastructure</a><a href="../messaging/agents.html" class="on">Messaging &amp; caching</a><a href="../identity/agents.html">Identity &amp; access</a><a href="../telemetry/agents.html">Telemetry</a></nav></header>
+<main>
+<h1>How MindSuite studies your messaging and caching</h1>
+<p class="lead">A team of 12 agents studies the brokers, queues, topics and caches the system depends on, the way an experienced middleware engineer would: first the facts from the broker and cache settings, then what each queue means for the business, then the migration plan. It works from admin-command output that only displays information; it never reads message contents.</p>
+
+<section>
+<h2>Four rules the whole system follows</h2>
+<div class="principles">
+ <div><b>Settings and statistics only</b><span class="muted">Queue and topic definitions, depths, channels, consumer groups, cache statistics. Never message contents or cached values.</span></div>
+ <div><b>Never connected to a broker</b><span class="muted">Your team runs display-only commands; the agents only read the output.</span></div>
+ <div><b>Every claim is cited</b><span class="muted">Each finding points to the export or code line, or to the findings it is built on.</span></div>
+ <div><b>People decide</b><span class="muted">Agents propose. Your middleware team confirms, corrects or rejects each result.</span></div>
+</div>
+</section>
+
+<section>
+<h2>The goal of the messaging &amp; caching analysis</h2>
+<p>Know <b>what flows between programs and partners, what could be lost on the way, and how to move it safely</b>. It ends in the <b>Messaging &amp; caching analysis report</b>.</p>
+<div class="principles">
+ <div><b>What flows where</b><span class="muted">Queues and topics, who sends, who reads, partner queue managers.</span></div>
+ <div><b>What could be lost</b><span class="muted">Waiting and dead-letter messages, queues nobody reads, non-persistent queues.</span></div>
+ <div><b>How caches behave</b><span class="muted">Hit ratio, eviction, memory, caches used as stores.</span></div>
+ <div><b>How to migrate</b><span class="muted">A target per broker and cache, the order, the approach.</span></div>
+</div>
+</section>
+
+<section>
+<h2>What the agents need from your middleware team</h2>
+<table><thead><tr><th>Give</th><th>What it contains</th><th>How (display only)</th></tr></thead><tbody>
+<tr><td><b>IBM MQ</b> (.txt)</td><td>Queue manager, version, queues with depth and settings, channels</td><td><code>runmqsc QMGR</code> with <code>DISPLAY QMGR VERSION DEADQ</code>, <code>DISPLAY QLOCAL(*) CURDEPTH MAXDEPTH BOQNAME DEFPSIST IPPROCS OPPROCS</code>, <code>DISPLAY QREMOTE(*)</code>, <code>DISPLAY CHANNEL(*) CHLTYPE CONNAME XMITQ SSLCIPH MCAUSER</code></td></tr>
+<tr><td><b>Kafka</b> (.txt)</td><td>Topics with partitions and replication; consumer groups with lag</td><td><code>kafka-topics.sh --describe</code> · <code>kafka-consumer-groups.sh --describe --all-groups</code></td></tr>
+<tr><td><b>Redis / Memcached</b> (.txt, one per instance, named after it)</td><td>Version, memory, eviction policy, hits and misses, keys and expiries, persistence</td><td><code>redis-cli INFO</code> (+ <code>CONFIG GET maxmemory-policy</code>) · <code>echo stats | nc host 11211</code></td></tr>
+<tr><td><b>RabbitMQ</b> (.json)</td><td>Queues, exchanges, policies, user names (passwords are ignored)</td><td>Management UI → Export definitions</td></tr>
+<tr><td><b>Application code or configuration</b>, recommended</td><td>Which program sends to and reads from each queue</td><td>The source or the configuration files</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>How the analysis runs, step by step</h2>
+<p class="muted">The same 9 steps as the other teams. Step 3 runs six agents in parallel. Click an agent name to see it in the diagram.</p>
+<div id="steps"></div>
+</section>
+
+<section>
+<h2>The system at a glance</h2>
+<p class="muted">Click an agent to see what it does and who it talks to.</p>
+<div class="legend"><span><i class="dot built"></i>Running today</span><span><i class="dot partly"></i>Partly running</span><span><i class="dot planned"></i>Planned</span></div>
+<div class="diagram-wrap"><svg id="diagram" viewBox="0 0 1160 600" role="img" aria-label="Messaging and caching agent system diagram"></svg></div>
+<div class="panel" id="panel"><h3>Select an agent</h3><p class="muted">Click any box in the diagram or any card below.</p></div>
+</section>
+
+<section>
+<h2>One finding, end to end</h2>
+<ol class="flow">
+ <li>The <b>broker &amp; cache reader</b> reads the runmqsc output: queue manager QM_HL, IBM MQ 9.1, and the queue HL.PAYMENT.OUT with 4,600 of 5,000 messages waiting.</li>
+ <li><b>Flows</b> finds in the code that the settlement module sends to HL.PAYMENT.OUT, and sees that no program has it open for reading. <b>Health</b> flags it as 92% full.</li>
+ <li><b>Reliability</b> notes the queue defaults to non-persistent messages: a restart would lose them.</li>
+ <li>If you allow it, the <b>integration meaning</b> agent names it "Grower payment requested" and links it to the bank channel.</li>
+ <li>The <b>migration assessment</b> keeps IBM MQ for the first move because a partner bank depends on the channel.</li>
+ <li>Your <b>middleware team</b> confirms that the reader is a nightly batch, which becomes a fact in the inventory.</li>
+</ol>
+</section>
+
+<section>
+<h2>Every agent</h2>
+<div class="grid" id="cards"></div>
+</section>
+
+<section>
+<h2>What is running today</h2>
+<p class="note">All 12 agents run in the same <b>MindSuite agent backend</b> as the other teams. In MindSuite, open <b>Record evidence → Messaging &amp; caching → Run the messaging &amp; caching agent team</b>.</p>
+<p class="note">11 rule-based agents always run and nothing leaves the backend machine. The integration-meaning agent runs only with a Claude API key on the backend <b>and</b> your consent for that run; it sends names, flows and partners, never message contents or credentials.</p>
+<p class="note">Still to come: Azure Service Bus and Amazon SQS from the cloud inventory, ActiveMQ, message rates over time from monitoring.</p>
+</section>
+</main>
+<script>
+const AGENTS=[
+ {id:'orch',n:0,name:'Messaging orchestrator',stage:'Control',type:'Coordinator',tier:'No model',status:'built',does:'Reads the broker and cache exports, splits the work per broker and cache, starts the agents, lists the queues and topics to interpret.',reads:'The export files and every agent\'s progress',produces:'Tasks, the step log',safeguard:'Never connects to a broker; never edits findings.'},
+ {id:'brk',n:1,name:'Broker & cache reader',stage:'Intake',type:'Tool',tier:'No model',status:'built',does:'Parses runmqsc DISPLAY output, kafka-topics and kafka-consumer-groups output, redis-cli INFO, memcached stats, RabbitMQ definitions and the collector bundle.',reads:'Admin-command output',produces:'Brokers, queues, topics, exchanges, channels, consumer groups, caches',safeguard:'System queues and channels are counted, not listed; passwords are never quoted.'},
+ {id:'lcy',n:2,name:'Versions & support',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds broker and cache versions past or near the end of support.',reads:'Versions',produces:'Support-status findings',safeguard:'Asks for the version when the export does not show it.'},
+ {id:'flw',n:3,name:'Flows & usage',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds who sends to and reads from each queue and topic in the uploaded code and configuration, partner queue managers, remote queues, consumer groups, and queues with waiting messages that no program reads.',reads:'Code and configuration, channels, consumer groups',produces:'Flows, partners, unread queues',safeguard:'Direction is judged from nearby words and labelled as inferred.'},
+ {id:'hlt',n:4,name:'Health & backlog',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds queues close to full, messages on dead-letter queues, consumer lag, and caches close to their memory limit.',reads:'Depths, lag, memory',produces:'Messages at risk',safeguard:'A snapshot: confirm with monitoring over time.'},
+ {id:'rel',n:5,name:'Delivery & reliability',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds queues without backout or dead-letter handling, non-persistent and non-durable queues, single-replica topics and queue managers without a dead-letter queue.',reads:'Queue and topic settings',produces:'Delivery findings',safeguard:'Only flags; the owners decide what is acceptable.'},
+ {id:'csh',n:6,name:'Caching',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Hit ratio, eviction policy, memory limit, keys without expiry, and caches that write to disk and are probably used as a store.',reads:'Cache statistics',produces:'Caching findings',safeguard:'Never reads cached values.'},
+ {id:'msec',n:7,name:'Security',stage:'Facts',type:'Tool',tier:'No model',status:'built',does:'Finds MQ channels without TLS, client channels running as the MQ administrator, default users, and passwords in the upload.',reads:'Channels, users, all files',produces:'Security findings',safeguard:'Passwords are reported as file and line only.'},
+ {id:'mint',n:8,name:'Integration meaning',stage:'Meaning',type:'Model',tier:'Strongest',status:'built',does:'Names the business event each queue or topic carries and draws the system-to-system integration map.',reads:'Names, flows, partners — never message contents',produces:'Business events, integrations, questions',safeguard:'Every item cites the facts it is based on; unclear names become questions.'},
+ {id:'mass',n:9,name:'Migration assessment',stage:'Assess',type:'Rules',tier:'No model',status:'built',does:'A target per broker and cache (keep, managed equivalent, rebuild), the order of the move and the overall approach.',reads:'All fact and meaning results',produces:'Targets, order, approach',safeguard:'Rules of thumb, labelled as such.'},
+ {id:'ver',n:10,name:'Verifier',stage:'Verify',type:'Tool + model',tier:'Balanced',status:'built',does:'Re-opens every cited line; derived claims need accepted evidence.',reads:'Every finding and the cited lines',produces:'Accepted / rejected / needs an expert',safeguard:'Uses a different model from the agent it checks.'},
+ {id:'rep',n:11,name:'Report writer',stage:'Report',type:'Tool + model',tier:'Balanced',status:'built',does:'Writes the Messaging & caching analysis report.',reads:'Verified findings only',produces:'Report (.md)',safeguard:'Cannot add facts that are not in the verified evidence.'},
+ {id:'ppl',n:'',name:'Your middleware team',stage:'Validate',type:'Human',tier:'',status:'people',does:'Confirms, corrects or rejects each result and answers the questions.',reads:'The report, findings and questions',produces:'Confirmed facts and answers',safeguard:'Agents never overwrite what a person confirmed.'},
+ {id:'store',n:'',name:'Evidence store',stage:'Shared',type:'Shared record',tier:'',status:'store',does:'The shared record of every finding, its citation, verification and human decision.',reads:'Findings from every agent',produces:'A traceable history',safeguard:'Append-only.'}];
+const EDGES=[['orch','brk'],['brk','lcy'],['brk','flw'],['brk','hlt'],['brk','rel'],['brk','csh'],['brk','msec'],['flw','mint'],['brk','mint'],['lcy','mass'],['flw','mass'],['hlt','mass'],['rel','mass'],['csh','mass'],['msec','mass'],['mint','mass'],['mass','ver'],['mint','ver'],['ver','rep'],['rep','ppl'],['ver','ppl']];
+const COLS={Intake:95,Facts:300,Meaning:510,Assess:710,Verify:890,Report:1065};
+const POS={orch:[580,40],brk:[95,300],lcy:[300,140],flw:[300,205],hlt:[300,270],rel:[300,335],csh:[300,400],msec:[300,465],mint:[510,290],mass:[710,290],ver:[890,290],rep:[1065,230],ppl:[1065,370],store:[580,575]};
+const SHORT={orch:'Msg orchestrator',brk:'Broker & cache reader',rel:'Delivery & reliability',mint:'Integration meaning',mass:'Migration assessment',ppl:'Your middleware team'};
+const ORCH_LINKS=['brk','flw','mint','mass','ver','rep'];
+const STEPS=[
+ {n:1,title:'Receive the broker and cache exports',goal:'Know exactly what is being analysed.',does:'The backend reads the export files, read-only, in memory.',agents:['brk'],see:'Step 1 in the run: brokers, queues, topics, channels, caches',status:'built'},
+ {n:2,title:'Plan the work',goal:'Cover every broker and cache.',does:'One work package per queue manager, cluster, node and cache.',agents:['orch'],see:'Work packages in the run log',status:'built'},
+ {n:3,title:'Collect the facts',goal:'What flows, what could be lost, how caches behave.',does:'In parallel: versions, flows, health, reliability, caching, security.',agents:['lcy','flw','hlt','rel','csh','msec'],see:'Live findings in the run log',status:'built'},
+ {n:4,title:'Choose what to interpret',goal:'Name what only names reveal.',does:'The orchestrator lists the queues and topics whose business meaning is only in their name.',agents:['orch'],see:'The list in the run',status:'built'},
+ {n:5,title:'Understand the integrations',goal:'What each message means for the business.',does:'The integration-meaning agent names the business events and the system-to-system map.',agents:['mint'],see:'Business events and integrations (needs your consent and a Claude key)',status:'built'},
+ {n:6,title:'Assess for migration',goal:'How to move, and in which order.',does:'A target per broker and cache, the order and the approach.',agents:['mass'],see:'Migration approach and targets',status:'built'},
+ {n:7,title:'Verify every claim',goal:'Nothing reaches you unproven.',does:'Re-opens every cited line; derived claims need accepted evidence.',agents:['ver'],see:'Verified / needs-an-expert marks',status:'built'},
+ {n:8,title:'Write the report',goal:'A result people can read and act on.',does:'The Messaging & caching analysis report.',agents:['rep'],see:'Downloadable report (.md)',status:'built'},
+ {n:9,title:'Validate with your people',goal:'A picture your organization stands behind.',does:'Add the results to the inventory: queues and caches become data stores, partner channels become interfaces, business events become domain events, risks are listed.',agents:['ppl'],see:'"Add results to the inventory"',status:'built'}];
+</script>
+<script src="../shared/team-page.js"></script>
+</body>
+</html>

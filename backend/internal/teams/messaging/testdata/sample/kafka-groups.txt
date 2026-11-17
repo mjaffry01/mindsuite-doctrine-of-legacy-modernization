@@ -1,0 +1,4 @@
+GROUP           TOPIC            PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG     CONSUMER-ID     HOST         CLIENT-ID
+settlement-svc  grading.results  0          1200            1210            10      consumer-1-ab   /10.0.1.11   settlement
+settlement-svc  grading.results  1          1100            1100            0       consumer-1-ab   /10.0.1.11   settlement
+reporting       grower.events    0          10              25010           25000   -               -            -

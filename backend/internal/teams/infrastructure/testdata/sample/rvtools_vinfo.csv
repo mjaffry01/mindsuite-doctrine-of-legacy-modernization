@@ -1,0 +1,8 @@
+VM,Powerstate,CPUs,Memory,Provisioned MiB,Primary IP Address,OS according to the configuration file,OS according to the VMware Tools,Host,Cluster,VI SDK Server type,VI SDK API Version
+app-prod-01,poweredOn,4,16384,81920,10.0.1.11,Red Hat Enterprise Linux 7 (64-bit),Red Hat Enterprise Linux 7.9,esx01,CL-PROD,VMware vCenter Server,6.7.3
+app-prod-02,poweredOn,4,16384,81920,10.0.1.12,Red Hat Enterprise Linux 7 (64-bit),Red Hat Enterprise Linux 7.9,esx02,CL-PROD,VMware vCenter Server,6.7.3
+db-prod-01,poweredOn,16,131072,1048576,10.0.1.21,Oracle Linux 7 (64-bit),Oracle Linux 7.9,esx03,CL-PROD,VMware vCenter Server,6.7.3
+batch-prd-01,poweredOn,2,8192,61440,10.0.1.31,Microsoft Windows Server 2012 R2 (64-bit),Microsoft Windows Server 2012 R2 Standard,esx01,CL-PROD,VMware vCenter Server,6.7.3
+web-prod-01,poweredOn,2,4096,40960,10.0.1.5,Ubuntu Linux (64-bit),Ubuntu 22.04.4 LTS,esx02,CL-PROD,VMware vCenter Server,6.7.3
+old-report-01,poweredOff,2,4096,40960,10.0.1.40,Microsoft Windows Server 2008 R2 (64-bit),,esx03,CL-PROD,VMware vCenter Server,6.7.3
+mon-01,poweredOn,2,8192,51200,10.0.1.50,Ubuntu Linux (64-bit),Ubuntu 22.04.4 LTS,esx01,CL-PROD,VMware vCenter Server,6.7.3
