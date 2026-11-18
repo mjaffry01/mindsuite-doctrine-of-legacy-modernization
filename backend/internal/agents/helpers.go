@@ -3,6 +3,7 @@ package agents
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 // Shared helpers for every team. Team packages use these instead of their own copies.
@@ -42,20 +43,52 @@ func EachLine(r *Run, agent string, keep func(*File) bool, fn func(f *File, n in
 // Cite points to a line and quotes it, unless the line may contain a secret.
 func Cite(f *File, n int) Citation {
 	l := f.Line(n)
-	if LooksSecret(l) {
+	if LooksSecretIn(f.Lang, l) {
 		return Citation{File: f.Path, Line: n}
 	}
 	return Citation{File: f.Path, Line: n, Quote: short(l, 160)}
 }
 
-// LooksSecret reports whether a line may hold a credential.
-func LooksSecret(l string) bool {
+// LooksSecret reports whether a line may hold a credential. It does not know the file type, so it
+// is strict: use it to keep lines away from the model and out of quotes.
+func LooksSecret(l string) bool { return LooksSecretIn("", l) }
+
+// LooksSecretIn is LooksSecret for a line of a file in language lang.
+func LooksSecretIn(lang, l string) bool {
 	for _, sr := range SecretPatterns {
-		if sr.Re.MatchString(l) && !Placeholder.MatchString(l) {
+		if SecretMatchIn(sr, lang, l) {
 			return true
 		}
 	}
 	return false
+}
+
+// comparisonRe matches "password == x": a comparison, never a stored value.
+var comparisonRe = regexp.MustCompile(`(?i:password|passwd|pwd)\s*==`)
+
+// dataNameValueRe matches a "password = X" whose X is an upper-case COBOL / PL/I data name
+// (IF SEC-USR-PWD = WS-USER-PWD). In other files the same shape can be a real value
+// (db.password=PROD-DB-2024), so it only applies to dataNameLangs.
+var dataNameValueRe = regexp.MustCompile(`(?i:password|passwd|pwd)\s*=\s*[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+(?:\s+OF\s+[A-Z0-9-]+)?(?:\s|\.?$)`)
+
+// dataNameLangs are the languages whose code compares hyphenated data names with "=".
+var dataNameLangs = map[string]bool{"COBOL": true, "COBOL copybook": true, "PL/I": true}
+
+// SecretMatch reports whether pattern sr finds a credential in line l of a file of unknown type.
+func SecretMatch(sr SecretPattern, l string) bool { return SecretMatchIn(sr, "", l) }
+
+// SecretMatchIn reports whether pattern sr finds a credential in line l of a file in language lang
+// (and not a placeholder, a comparison or, in COBOL / PL/I, a data name).
+func SecretMatchIn(sr SecretPattern, lang, l string) bool {
+	if !sr.Re.MatchString(l) || Placeholder.MatchString(l) {
+		return false
+	}
+	if sr.Kind == "password" && !strings.ContainsAny(l, `"'`) {
+		if comparisonRe.MatchString(l) || (dataNameLangs[lang] && dataNameValueRe.MatchString(l)) {
+			return false
+		}
+	}
+	return true
 }
 
 func looksSecret(l string) bool { return LooksSecret(l) }

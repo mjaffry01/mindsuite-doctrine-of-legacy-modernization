@@ -115,6 +115,10 @@ go test ./internal/teams/infrastructure/   # one team only
 
 `options`: `team` (`code` default, `database`, `infrastructure`, `messaging`, `identity`, `telemetry`), `allowModel` (consent to send excerpts to Claude), `gitHistory` (code team, local folders only), `maxModelFiles` (files or programs read in depth; default 12).
 
+## Project workspaces
+
+The web app attaches `?workspace=<workspace-id>` to run creation, listing, snapshots, live events and report downloads. The server sets the workspace from the request URL and scopes every lookup to it. With a runs folder configured, project results, reports and logs live under `workspaces/<workspace-id>/<run-id>/` inside that folder. Completed runs and reports remain available after restart. Requests without a workspace continue to use legacy runs. Workspace IDs are for project organization. The deployment still requires authentication for network access.
+
 ## How a run works
 
 Every team runs the same 9 steps (`Team.Execute`), writes only to the evidence store, and is checked by the shared verifier:

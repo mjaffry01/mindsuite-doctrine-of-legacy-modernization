@@ -2,6 +2,7 @@ package code
 
 import (
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 )
@@ -89,6 +90,7 @@ func runAssessment(r *Run) {
 			}
 		}
 	}
+	legacyCoupling(r, get)
 	var list []*modMetrics
 	for _, name := range sortedKeys(mm) {
 		m := mm[name]
@@ -163,5 +165,54 @@ func runAssessment(r *Run) {
 	if len(order) > 0 {
 		s.Add(Finding{Agent: "ass", Kind: "extraction-order", Title: "Suggested order: " + strings.Join(order, " → "), Detail: "Easiest and least coupled first; core and tangled parts later, once the team has learned from the first moves.",
 			Basis: BasisInferred, Confidence: "medium", Data: map[string]any{"order": order}})
+	}
+}
+
+// legacyCoupling adds the links between modules that COBOL shows: a program using a copybook kept in
+// another module, calling a program of another module (CALL, CICS LINK / XCTL), or reading another
+// module's IMS database. Mainframe code has no imports, so without this every module looks independent.
+func legacyCoupling(r *Run, get func(string) *modMetrics) {
+	owner := map[string]string{} // copybook or program name -> module
+	for _, f := range r.Code.Files {
+		if f.Lang == "COBOL copybook" || f.Lang == "COBOL" || f.Lang == "IMS definition" {
+			name := strings.ToUpper(strings.TrimSuffix(path.Base(f.Path), path.Ext(f.Path)))
+			if _, dup := owner[name]; !dup {
+				owner[name] = f.Module
+			}
+		}
+	}
+	for _, f := range r.Store.Findings("legacy-program") {
+		if p := strings.ToUpper(fmt.Sprint(f.Data["program"])); p != "" && p != "<NIL>" {
+			owner[p] = f.Module
+		}
+	}
+	seen := map[string]bool{}
+	for _, f := range r.Store.Findings("copybook-use", "legacy-call", "cics", "ims-use") {
+		target := ""
+		switch f.Kind {
+		case "copybook-use":
+			target = fmt.Sprint(f.Data["copybook"])
+		case "legacy-call":
+			target = fmt.Sprint(f.Data["target"])
+		case "ims-use":
+			target = fmt.Sprint(f.Data["dbd"])
+		case "cics":
+			if c := strings.ToUpper(fmt.Sprint(f.Data["command"])); c == "LINK" || c == "XCTL" {
+				target = fmt.Sprint(f.Data["target"])
+			}
+		}
+		to := owner[strings.ToUpper(target)]
+		if to == "" || to == f.Module || seen[f.Module+">"+to] {
+			continue
+		}
+		seen[f.Module+">"+to] = true
+		if a := get(f.Module); a != nil {
+			a.fanOut++
+			a.evidence = append(a.evidence, f.ID)
+		}
+		if b := get(to); b != nil {
+			b.fanIn++
+			b.evidence = append(b.evidence, f.ID)
+		}
 	}
 }

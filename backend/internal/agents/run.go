@@ -14,6 +14,7 @@ import (
 
 // Options chosen by the client for one run.
 type Options struct {
+	Workspace string `json:"workspace,omitempty"` // set by the HTTP server
 	// AllowModel is the client's consent to send selected code excerpts to Claude.
 	// Without it, only the rule-based agents run and the model-based steps are reported as gaps.
 	AllowModel bool `json:"allowModel"`

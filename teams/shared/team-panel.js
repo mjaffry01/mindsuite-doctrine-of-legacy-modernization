@@ -17,7 +17,7 @@ function makeTeamPanel(cfg){
   persist();notice(cfg.name+' agent run finished: '+fs.length+' findings, '+M[runKey].questions.length+' questions for '+cfg.people+'.');};
  const refresh=async()=>{const c=agentCfg();if(!c[idKey])return;try{const s=await agentFetch('/api/runs/'+c[idKey]);live.snap=s;if(s.run.status!=='running'){clearInterval(live.poll);if(live.es)live.es.close();keep(s);}renderSoon();}catch(e){clearInterval(live.poll);notice('Lost contact with the agent backend: '+e.message);}};
  const follow=id=>{const c=agentCfg();c[idKey]=id;persist();if(live.es)live.es.close();clearInterval(live.poll);live.log=[];live.snap=null;
-  try{const es=new EventSource(agentBase()+'/api/runs/'+id+'/events');live.es=es;es.addEventListener('message',e=>{try{live.log.push(JSON.parse(e.data));if(live.log.length>300)live.log.shift();renderSoon();}catch(err){}});es.addEventListener('done',()=>{es.close();refresh();});es.onerror=()=>{};}catch(e){}
+  try{const es=new EventSource(agentURL('/api/runs/'+id+'/events'));live.es=es;es.addEventListener('message',e=>{try{live.log.push(JSON.parse(e.data));if(live.log.length>300)live.log.shift();renderSoon();}catch(err){}});es.addEventListener('done',()=>{es.close();refresh();});es.onerror=()=>{};}catch(e){}
   live.poll=setInterval(refresh,2000);refresh();goPanel();};
  const send=async(files,kind)=>{const fd=new FormData();fd.append('options',JSON.stringify(options()));let sent=0,skipped=0;
   if(kind==='zip'){fd.append('zip',files[0],files[0].name);sent=1;}
@@ -35,7 +35,7 @@ function makeTeamPanel(cfg){
   cfg.importTo(A,{R,put,F,by});
   if(cfg.risks)put('risks',A.findings.filter(f=>cfg.risks[f.kind]).slice(0,80).map(f=>R(f.id,by(f),{name:f.title,category:cfg.risks[f.kind][0],severity:(f.data&&f.data.severity)||'medium',context:'',mitigation:cfg.risks[f.kind][1]})));
   A.imported=true;persist();notice(cfg.name+' results added to the inventory for '+cfg.people+' to confirm.');render();};
- const download=()=>{const A=M[runKey];const text=(live.snap&&live.snap.run.id===A?.id&&live.snap.report)||A?.report;if(text)downloadText(cfg.team+'-analysis-'+(A?.id||'run')+'.md',text);else window.open(agentBase()+'/api/runs/'+A.id+'/report.md');};
+ const download=()=>{const A=M[runKey];const text=(live.snap&&live.snap.run.id===A?.id&&live.snap.report)||A?.report;if(text)downloadText(cfg.team+'-analysis-'+(A?.id||'run')+'.md',text);else window.open(agentURL('/api/runs/'+A.id+'/report.md'));};
  const panel=()=>{const c=agentCfg();const H=AGENT_LIVE.health;const lv=live.snap&&live.snap.run.id===c[idKey]?live.snap:null;const A=M[runKey];const running=lv&&lv.run.status==='running';
   const steps=(lv?lv.run.steps:A&&A.steps)||[];
   const conn=h('div',{class:'agent-conn'},[
@@ -63,5 +63,5 @@ function makeTeamPanel(cfg){
    h('p',{class:'muted',text:cfg.intro}),
    h('p',{},[button('How the '+cfg.name.toLowerCase()+' agents work ↗',open,'linkbtn'),' · ',h('span',{class:'muted',text:'Same backend as the other teams: '}),h('code',{text:'go run ./backend/cmd/mindsuite-agents serve'})]),
    conn,stepList,log,result]);};
- return {panel,go:goPanel,open,send,importResults:doImport,keep};
+ return {panel,go:goPanel,open,send,follow,importResults:doImport,keep};
 }

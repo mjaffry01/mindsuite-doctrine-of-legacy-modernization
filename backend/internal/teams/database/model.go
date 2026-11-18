@@ -90,6 +90,9 @@ type DBModel struct {
 	byBase                   map[string][]string
 	codeByBase               map[string]string
 	ColumnsKnown, StatsKnown bool
+	// EmbeddedSQL lists application programs with SQL in their code (COBOL EXEC SQL): the logic that
+	// uses the database lives there, not in stored procedures.
+	EmbeddedSQL []EmbeddedSQL
 }
 
 // Summary is shown with the run.
@@ -277,6 +280,16 @@ func ParseDB(r *Run) *DBModel {
 				r.Cover("cat", f)
 				m.Files = append(m.Files, f.Path)
 				engines[guessDBEngine(text)]++
+			}
+			continue
+		}
+		if f.Lang == "COBOL" || f.Lang == "COBOL copybook" || f.Lang == "JCL" || f.Lang == "Control cards" || f.Lang == "PL/I" {
+			// DB2 for z/OS shows in the programs and jobs around the database, not in plain CREATE TABLE text
+			if db2MarkerRe.MatchString(text) {
+				engines["db2"]++
+			}
+			if f.Lang == "COBOL" || f.Lang == "PL/I" {
+				m.noteEmbeddedSQL(f)
 			}
 			continue
 		}

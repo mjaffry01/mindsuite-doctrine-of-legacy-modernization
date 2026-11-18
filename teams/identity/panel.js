@@ -15,7 +15,7 @@ async function idAgentSend(files,kind){const fd=new FormData();fd.append('option
  notice('Sending '+(kind==='zip'?files[0].name:sent+' file'+(sent===1?'':'s')+(skipped?' ('+skipped+' other files left out)':''))+' to the identity & access agents…');
  try{const j=await agentFetch('/api/runs',{method:'POST',body:fd});idAgentFollow(j.id);}catch(e){notice('Could not start the identity & access agents: '+e.message);}}
 function idAgentFollow(id){const c=agentCfg();c.idRunId=id;persist();if(ID_LIVE.es)ID_LIVE.es.close();clearInterval(ID_LIVE.poll);ID_LIVE.log=[];ID_LIVE.snap=null;
- try{const es=new EventSource(agentBase()+'/api/runs/'+id+'/events');ID_LIVE.es=es;es.addEventListener('message',e=>{try{ID_LIVE.log.push(JSON.parse(e.data));if(ID_LIVE.log.length>300)ID_LIVE.log.shift();idAgentRenderSoon();}catch(err){}});es.addEventListener('done',()=>{es.close();idAgentRefresh();});es.onerror=()=>{};}catch(e){}
+ try{const es=new EventSource(agentURL('/api/runs/'+id+'/events'));ID_LIVE.es=es;es.addEventListener('message',e=>{try{ID_LIVE.log.push(JSON.parse(e.data));if(ID_LIVE.log.length>300)ID_LIVE.log.shift();idAgentRenderSoon();}catch(err){}});es.addEventListener('done',()=>{es.close();idAgentRefresh();});es.onerror=()=>{};}catch(e){}
  ID_LIVE.poll=setInterval(idAgentRefresh,2000);idAgentRefresh();idAgentGo();}
 async function idAgentRefresh(){const c=agentCfg();if(!c.idRunId)return;try{const s=await agentFetch('/api/runs/'+c.idRunId);ID_LIVE.snap=s;if(s.run.status!=='running'){clearInterval(ID_LIVE.poll);if(ID_LIVE.es)ID_LIVE.es.close();idAgentKeep(s);}idAgentRenderSoon();}catch(e){clearInterval(ID_LIVE.poll);notice('Lost contact with the agent backend: '+e.message);}}
 function idAgentRenderSoon(){clearTimeout(ID_LIVE.timer);ID_LIVE.timer=setTimeout(()=>{const a=document.activeElement;if(screen==='analysis'&&!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))render();},350);}
@@ -38,7 +38,7 @@ function idAgentImport(){const A=M.idAgentRun;if(!A)return;ensureDiscovery();con
   'certificate-issue':['security','Renew or replace the certificate'],secret:['security','Remove from shared files and rotate'],'legacy-protocol':['security','Move sign-in to OpenID Connect or SAML'],'broad-groups':['security','Check what broad groups can do']};
  put('risks',A.findings.filter(f=>RISK[f.kind]).slice(0,80).map(f=>R(f.id,by(f),{name:f.title,category:RISK[f.kind][0],severity:(f.data&&f.data.severity)||'medium',context:'',mitigation:RISK[f.kind][1]})));
  A.imported=true;persist();notice('Identity & access results added to the inventory for your identity team to confirm.');render();}
-function idAgentDownloadReport(){const A=M.idAgentRun;const snap=ID_LIVE.snap;const text=(snap&&snap.run.id===A?.id&&snap.report)||A?.report;if(text)downloadText('identity-analysis-'+(A?.id||'run')+'.md',text);else window.open(agentBase()+'/api/runs/'+A.id+'/report.md');}
+function idAgentDownloadReport(){const A=M.idAgentRun;const snap=ID_LIVE.snap;const text=(snap&&snap.run.id===A?.id&&snap.report)||A?.report;if(text)downloadText('identity-analysis-'+(A?.id||'run')+'.md',text);else window.open(agentURL('/api/runs/'+A.id+'/report.md'));}
 function idAgentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=ID_LIVE.snap&&ID_LIVE.snap.run.id===c.idRunId?ID_LIVE.snap:null;const A=M.idAgentRun;const running=live&&live.run.status==='running';
  const steps=(live?live.run.steps:A&&A.steps)||[];
  const conn=h('div',{class:'agent-conn'},[

@@ -51,6 +51,7 @@ type Codebase struct {
 	byPath   map[string]*File
 	total    int
 	pkgRoot  string
+	wrap     string // folder that holds every file (a zip's top folder, e.g. "repo-1a2b3c/"); not a module
 }
 
 var skipDirs = map[string]bool{".git": true, "node_modules": true, "target": true, "bin": true, "obj": true, "build": true, "dist": true,
@@ -61,7 +62,9 @@ var langByExt = map[string]string{
 	".js": "JavaScript", ".jsx": "JavaScript", ".mjs": "JavaScript", ".ts": "TypeScript", ".tsx": "TypeScript",
 	".py": "Python", ".rb": "Ruby", ".php": "PHP", ".go": "Go", ".rs": "Rust", ".c": "C", ".h": "C", ".cpp": "C++", ".hpp": "C++", ".cc": "C++",
 	".sql": "SQL", ".ddl": "SQL", ".trg": "PL/SQL", ".vw": "SQL", ".csv": "CSV", ".tsv": "CSV", ".pks": "PL/SQL", ".pkb": "PL/SQL", ".pls": "PL/SQL", ".plsql": "PL/SQL", ".prc": "PL/SQL", ".fnc": "PL/SQL",
-	".cbl": "COBOL", ".cob": "COBOL", ".cpy": "COBOL copybook", ".jcl": "JCL", ".pli": "PL/I", ".rpg": "RPG", ".rpgle": "RPG", ".sqlrpgle": "RPG", ".clle": "CL",
+	".cbl": "COBOL", ".cob": "COBOL", ".cpy": "COBOL copybook", ".dcl": "COBOL copybook", ".jcl": "JCL", ".proc": "JCL",
+	".bms": "BMS map", ".csd": "CICS definitions", ".dbd": "IMS definition", ".psb": "IMS definition", ".asm": "Assembler", ".mac": "Assembler", ".ctl": "Control cards",
+	".ca7": "Scheduler export", ".controlm": "Scheduler export", ".pli": "PL/I", ".rpg": "RPG", ".rpgle": "RPG", ".sqlrpgle": "RPG", ".clle": "CL",
 	".srw": "PowerBuilder", ".srd": "PowerBuilder", ".sru": "PowerBuilder", ".srf": "PowerBuilder", ".fmb": "Oracle Forms", ".abap": "ABAP",
 	".jsp": "JSP", ".xhtml": "JSF / XHTML", ".aspx": "ASP.NET", ".cshtml": "Razor", ".html": "HTML", ".css": "CSS", ".scss": "CSS",
 	".xml": "XML", ".json": "JSON", ".yml": "YAML", ".yaml": "YAML", ".properties": "Properties", ".config": "Config", ".ini": "Config", ".toml": "TOML",
@@ -87,12 +90,54 @@ func langOf(p string) string {
 	return ""
 }
 
+// jclStartRe matches the first statement of a JCL member ("//NAME JOB", "//NAME PROC", "//* comment").
+var jclStartRe = regexp.MustCompile(`^//([A-Z@#$][A-Z0-9@#$]{0,7}\s+(JOB|PROC|EXEC)\b|\*)`)
+
+// sniffLang corrects the language from the content where an extension is shared: mainframe JCL
+// procedures are often saved as .prc, which is also an Oracle PL/SQL extension.
+func sniffLang(lang string, data []byte) string {
+	if lang != "PL/SQL" && lang != "Text" && lang != "" {
+		return lang
+	}
+	head := data
+	if len(head) > 4000 {
+		head = head[:4000]
+	}
+	for _, l := range strings.Split(strings.ReplaceAll(string(head), "\r\n", "\n"), "\n") {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		if jclStartRe.MatchString(l) {
+			return "JCL"
+		}
+		break
+	}
+	return lang
+}
+
+// mainframeDataRe matches mainframe data set copies (sequential files, VSAM unloads): data, not code.
+var mainframeDataRe = regexp.MustCompile(`(?i)\.(ps|dat|init|vsam|ksds|esds|gdg)$|(^|/)(ebcdic|ascii)/`)
+
+// databaseFileRe matches database files and backups (SQL Server, Access, SQLite, dBase, Firebird, dumps).
+var databaseFileRe = regexp.MustCompile(`(?i)\.(mdf|ldf|ndf|mdb|accdb|sqlite3?|db3?|dbf|fdb|gdb|bak|dmp)$`)
+
+// skipReason says why a file with no recognised type is not read.
+func skipReason(p string) string {
+	switch {
+	case databaseFileRe.MatchString(p):
+		return "database file (business data, not read; ask the DBA for the schema instead)"
+	case mainframeDataRe.MatchString(p):
+		return "mainframe data file (business data, not read)"
+	}
+	return "unrecognised file type"
+}
+
 // CodeLangs are languages the structure, quality and assessment agents read.
 var CodeLangs = map[string]bool{"Java": true, "Kotlin": true, "Scala": true, "Groovy": true, "C#": true, "VB.NET": true, "JavaScript": true, "TypeScript": true,
 	"Python": true, "Ruby": true, "PHP": true, "Go": true, "Rust": true, "C": true, "C++": true}
 
 // LegacyLangs are routed to the legacy-language specialists.
-var LegacyLangs = map[string]bool{"COBOL": true, "COBOL copybook": true, "JCL": true, "PL/I": true, "RPG": true, "CL": true, "PowerBuilder": true, "Oracle Forms": true, "ABAP": true}
+var LegacyLangs = map[string]bool{"COBOL": true, "COBOL copybook": true, "JCL": true, "BMS map": true, "CICS definitions": true, "IMS definition": true, "Assembler": true, "Control cards": true, "PL/I": true, "RPG": true, "CL": true, "PowerBuilder": true, "Oracle Forms": true, "ABAP": true}
 
 var testPathRe = regexp.MustCompile(`(?i)(^|/)(test|tests|__tests__|spec|specs)/|(Test|Tests|IT|Spec)\.(java|kt|cs|scala|groovy)$|[._-](test|spec)\.(js|jsx|ts|tsx|py|rb|go)$|(^|/)test_[^/]+\.py$|_test\.go$`)
 
@@ -106,9 +151,9 @@ func (c *Codebase) add(p string, data []byte) {
 			return
 		}
 	}
-	lang := langOf(p)
+	lang := sniffLang(langOf(p), data)
 	if lang == "" {
-		c.Skipped = append(c.Skipped, Skip{p, "unrecognised file type"})
+		c.Skipped = append(c.Skipped, Skip{p, skipReason(p)})
 		return
 	}
 	if lang == "Document" { // office documents and PDFs: read their text once, in memory
@@ -172,7 +217,7 @@ func LoadDir(root string) (*Codebase, error) {
 			return nil
 		}
 		if langOf(rel) == "" {
-			c.Skipped = append(c.Skipped, Skip{rel, "unrecognised file type"})
+			c.Skipped = append(c.Skipped, Skip{rel, skipReason(rel)})
 			return nil
 		}
 		info, err := d.Info()
@@ -214,7 +259,7 @@ func LoadZip(r io.ReaderAt, size int64, name string) (*Codebase, error) {
 			continue
 		}
 		if langOf(zf.Name) == "" {
-			c.Skipped = append(c.Skipped, Skip{zf.Name, "unrecognised file type"})
+			c.Skipped = append(c.Skipped, Skip{zf.Name, skipReason(zf.Name)})
 			continue
 		}
 		if zf.UncompressedSize64 > MaxFileBytes {
@@ -336,6 +381,7 @@ func (c *Codebase) finish() {
 		}
 	}
 	c.pkgRoot = commonPkgPrefix(pkgs)
+	c.wrap = wrapperDir(c.Files)
 	for _, f := range c.Files {
 		f.Module = c.moduleOf(f)
 	}
@@ -375,7 +421,37 @@ func (c *Codebase) moduleOf(f *File) string {
 			return m
 		}
 	}
-	return ModuleOfPath(f.Path)
+	return ModuleOfPath(strings.TrimPrefix(f.Path, c.wrap))
+}
+
+// wrapperDir returns the folders that every file sits in ("repo-1a2b3c/" for a GitHub zip): they
+// name the download, not a part of the system.
+func wrapperDir(files []*File) string {
+	if len(files) == 0 {
+		return ""
+	}
+	prefix := strings.Split(files[0].Path, "/")
+	prefix = prefix[:len(prefix)-1]
+	for _, f := range files[1:] {
+		parts := strings.Split(f.Path, "/")
+		parts = parts[:len(parts)-1]
+		n := 0
+		for n < len(prefix) && n < len(parts) && prefix[n] == parts[n] {
+			n++
+		}
+		prefix = prefix[:n]
+	}
+	// keep source roots (src/, app/ …) and mainframe type folders: ModuleOfPath reads them
+	for i, seg := range prefix {
+		if s := strings.ToLower(seg); typeFolders[s] || s == "src" || s == "app" || s == "lib" || s == "source" || s == "sources" {
+			prefix = prefix[:i]
+			break
+		}
+	}
+	if len(prefix) == 0 {
+		return ""
+	}
+	return strings.Join(prefix, "/") + "/"
 }
 
 // ModuleOfPath derives a module from a file path.
@@ -394,8 +470,18 @@ func ModuleOfPath(p string) string {
 	if len(parts) <= 1 {
 		return "(root)"
 	}
+	// Mainframe projects group files by type (cbl/, cpy/, jcl/…), not by business area:
+	// those folders are not modules, so the next folder up (or the main application) is.
+	if typeFolders[strings.ToLower(parts[0])] {
+		return "(main)"
+	}
 	return parts[0]
 }
+
+// typeFolders are folder names that hold one kind of mainframe member rather than a business area.
+var typeFolders = map[string]bool{"cbl": true, "cob": true, "cobol": true, "cpy": true, "copy": true, "copybook": true, "copybooks": true, "copylib": true,
+	"cpy-bms": true, "jcl": true, "proc": true, "procs": true, "proclib": true, "bms": true, "maps": true, "asm": true, "maclib": true, "ctl": true, "dcl": true,
+	"csd": true, "ims": true, "ddl": true, "catlg": true, "scheduler": true}
 
 // File returns the file at path p.
 func (c *Codebase) File(p string) *File { return c.byPath[p] }

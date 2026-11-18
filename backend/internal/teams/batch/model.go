@@ -107,6 +107,10 @@ func ParseBatch(r *Run) *BModel {
 		switch {
 		case f.Lang == "JSON":
 			used = m.parseControlM(f)
+		case strings.Contains(head, "<DEFTABLE"):
+			used = m.parseControlMXML(f)
+		case ca7Re.MatchString(head):
+			used = m.parseCA7(f)
 		case jilRe.MatchString(head):
 			used = m.parseJIL(f)
 		case twsRe.MatchString(head):
@@ -135,6 +139,7 @@ func ParseBatch(r *Run) *BModel {
 			}
 		}
 	}
+	m.readJCL(r)
 	for _, j := range m.Jobs {
 		if monthEndRe.MatchString(j.Schedule + " " + j.Name) {
 			j.MonthEnd = true

@@ -3,6 +3,7 @@ package code
 import (
 	"context"
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 	"sync"
@@ -20,7 +21,7 @@ func (team) StepTitles() []string                { return stepTitles }
 func (team) NewState() any                       { return nil }
 func (team) Execute(ctx context.Context, r *Run) { executeCode(ctx, r) }
 func (team) WholeKinds() map[string]bool {
-	return map[string]bool{"language": true, "version": true, "bus-factor": true, "architecture-style": true, "extraction-order": true, "module": true, "module-tests": true}
+	return map[string]bool{"language": true, "version": true, "bus-factor": true, "architecture-style": true, "extraction-order": true, "module": true, "module-tests": true, "document": true}
 }
 func (team) Source(r *Run) map[string]any {
 	return map[string]any{"root": r.Code.Root, "branch": r.Code.Branch, "commit": r.Code.Commit, "files": len(r.Code.Files), "lines": r.Code.TotalLines()}
@@ -53,7 +54,7 @@ func executeCode(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"sup", runSupplyChain}, {"str", runStructure}, {"dat", runDataAccess}, {"int", runInterfaces},
-		{"sec", runSecurity}, {"qua", runQuality}, {"pla", runPlatform}}
+		{"sec", runSecurity}, {"qua", runQuality}, {"pla", runPlatform}, {"pla", runAreas}}
 	if hasLegacy(r) {
 		fact = append(fact, struct {
 			id string
@@ -75,6 +76,8 @@ func executeCode(ctx context.Context, r *Run) {
 		}(a.fn, a.id)
 	}
 	wg.Wait()
+	s.Task("dom", "Identify likely business uses from code links between screens and services.", nil)
+	sourcePurposes := runSourceBusiness(r)
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	// 4 Choose what to read in depth
@@ -89,9 +92,13 @@ func executeCode(ctx context.Context, r *Run) {
 		runBusinessRules(ctx, r)
 		s.Task("dom", "Connect screens, rules, data and events into the business story.", nil)
 		runDomain(ctx, r)
-		r.Step(5, "done", fmt.Sprintf("%d rules", len(s.Findings("business-rule"))))
+		r.Step(5, "done", fmt.Sprintf("%d source-based business purposes and %d rules", sourcePurposes, len(s.Findings("business-rule"))))
 	} else {
-		r.Step(5, "skipped", "needs Claude: "+why)
+		if sourcePurposes == 0 {
+			r.Step(5, "skipped", "Source did not establish a business workflow. Claude skipped: "+why)
+		} else {
+			r.Step(5, "done", fmt.Sprintf("%d business purposes inferred from source. Claude skipped: %s", sourcePurposes, why))
+		}
 	}
 
 	// 6 Assess
@@ -152,11 +159,16 @@ func chooseReading(r *Run) {
 	why := map[string][]string{}
 	add := func(file string, s float64, reason string) {
 		f := r.Code.File(file)
-		if f == nil || f.IsTest {
+		if f == nil || f.IsTest || bundledScript(f) {
 			return
 		}
 		score[file] += s
 		why[file] = appendUnique(why[file], reason)
+	}
+	for _, f := range r.Store.Findings("journey", "business-rule") {
+		for _, c := range f.Citations {
+			add(c.File, 8, "supports a business workflow or rule")
+		}
 	}
 	for _, f := range r.Store.Findings("hotspot") {
 		if len(f.Citations) > 0 {
@@ -219,8 +231,25 @@ var Team = []AgentInfo{
 	{ID: "pla", Name: "Platform & config", Kind: "tool", Model: "", Does: "Containers, Kubernetes, Terraform, CI, environments, connections, caching, scheduled jobs, app servers."},
 	{ID: "leg", Name: "Legacy-language specialists", Kind: "tool", Model: "", Does: "COBOL, JCL, RPG, PowerBuilder: programs, calls, copybooks, SQL, CICS, job steps."},
 	{ID: "rul", Name: "Business rules", Kind: "model", Model: ModelStrong, Does: "Reads the reading list and writes each rule in plain language with its exact lines."},
-	{ID: "dom", Name: "Domain & process", Kind: "model", Model: ModelStrong, Does: "Actors, capabilities, journeys, events, vocabulary and calendar: the business story."},
+	{ID: "dom", Name: "Domain & process", Kind: "tool+model", Model: ModelStrong, Does: "Traces business activities from source and uses Claude, when available, to expand the story."},
 	{ID: "ass", Name: "Modernization assessment", Kind: "tool", Model: "", Does: "Extractability, effort, seams and extraction order per module."},
 	{ID: "ver", Name: "Verifier", Kind: "tool+model", Model: ModelBalanced, Does: "Re-opens every cited line; rejects unsupported claims; turns doubts into expert questions."},
 	{ID: "rep", Name: "Report writer", Kind: "tool+model", Model: ModelBalanced, Does: "Writes the Code analysis report and the Business story from verified findings."},
+}
+
+// Bundled UI libraries are dependencies, not candidates for business rule reading.
+func bundledScript(f *File) bool {
+	if f.Lang != "JavaScript" {
+		return false
+	}
+	name := strings.ToLower(path.Base(f.Path))
+	if strings.HasSuffix(name, ".min.js") || strings.HasSuffix(name, ".intellisense.js") {
+		return true
+	}
+	for _, prefix := range []string{"jquery", "bootstrap", "popper", "modernizr", "respond", "microsoftajax", "webuivalidation"} {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return strings.Contains(strings.ToLower(f.Path), "/scripts/webforms/")
 }

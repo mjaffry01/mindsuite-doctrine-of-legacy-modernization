@@ -36,10 +36,11 @@ type Config struct {
 
 // Server holds runs in memory.
 type Server struct {
-	cfg  Config
-	llm  *agents.LLM
-	mu   sync.Mutex
-	runs map[string]*agents.Run
+	cfg   Config
+	llm   *agents.LLM
+	mu    sync.Mutex
+	dirMu sync.Mutex // serialises creating and renaming project folders
+	runs  map[string]*agents.Run
 }
 
 // New creates a server.
@@ -123,6 +124,7 @@ func (s *Server) cors(next http.Handler) http.Handler {
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"ok": true, "version": s.cfg.Version, "teams": agents.TeamIDs(), "modelAvailable": s.llm != nil, "allowLocalPath": s.cfg.AllowLocalPath,
+		"projectWorkspaces": true, "projectFolders": true,
 		"models": map[string]string{"strong": agents.Resolve(agents.ModelStrong), "balanced": agents.Resolve(agents.ModelBalanced), "fast": agents.Resolve(agents.ModelFast)},
 	})
 }
@@ -132,6 +134,10 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 //     (the part's filename is the file's relative path) or one "zip" part;
 //   - application/json {"path": "C:/code/app", "options": {...}} when AllowLocalPath is on.
 func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
+	workspace, ok := workspaceFrom(w, r)
+	if !ok {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, MaxUpload)
 	var code *agents.Codebase
 	var opts agents.Options
@@ -172,7 +178,8 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "no readable source files were received")
 		return
 	}
-	run, err := agents.NewRun(code, opts, s.llm, s.cfg.RunsDir)
+	opts.Workspace = workspace.id
+	run, err := agents.NewRun(code, opts, s.llm, s.runBase(workspace, opts.Team))
 	if err != nil {
 		httpErr(w, 500, err.Error())
 		return
@@ -241,49 +248,70 @@ func readMultipart(r *http.Request) (*agents.Codebase, agents.Options, error) {
 	return agents.LoadFiles(root, files), opts, nil
 }
 
-func (s *Server) get(w http.ResponseWriter, r *http.Request) *agents.Run {
+func (s *Server) liveRun(workspace, id string) *agents.Run {
 	s.mu.Lock()
-	run := s.runs[r.PathValue("id")]
-	s.mu.Unlock()
-	if run == nil {
-		httpErr(w, 404, "run not found (runs are kept in memory until the backend restarts; saved copies are in the runs folder)")
+	defer s.mu.Unlock()
+	if run := s.runs[id]; run != nil && run.Options.Workspace == workspace {
+		return run
 	}
-	return run
+	return nil
 }
 
 func (s *Server) listRuns(w http.ResponseWriter, r *http.Request) {
-	s.mu.Lock()
-	out := []map[string]any{}
-	for _, run := range s.runs {
-		snap := run.Snapshot()
-		out = append(out, map[string]any{"id": run.ID, "status": snap.Run.Status, "started": snap.Run.Started, "source": snap.Source})
+	workspace, ok := workspaceFrom(w, r)
+	if !ok {
+		return
 	}
-	s.mu.Unlock()
-	sort.Slice(out, func(i, j int) bool { return out[i]["id"].(string) > out[j]["id"].(string) })
+	out := s.resultsFor(workspace)
+	sort.Slice(out, func(i, j int) bool { return out[i].ID > out[j].ID })
 	writeJSON(w, 200, out)
 }
 
+func (s *Server) result(w http.ResponseWriter, r *http.Request) (agents.Result, bool) {
+	workspace, ok := workspaceFrom(w, r)
+	if !ok {
+		return agents.Result{}, false
+	}
+	id := r.PathValue("id")
+	if run := s.liveRun(workspace.id, id); run != nil {
+		return run.Snapshot(), true
+	}
+	if result, ok := s.savedResult(workspace, id); ok {
+		return result, true
+	}
+	httpErr(w, 404, "run not found in this workspace")
+	return agents.Result{}, false
+}
+
 func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
-	if run := s.get(w, r); run != nil {
-		writeJSON(w, 200, run.Snapshot())
+	if result, ok := s.result(w, r); ok {
+		writeJSON(w, 200, result)
 	}
 }
 
 func (s *Server) report(w http.ResponseWriter, r *http.Request) {
-	run := s.get(w, r)
-	if run == nil {
+	result, ok := s.result(w, r)
+	if !ok {
 		return
 	}
-	snap := run.Snapshot()
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="code-analysis-`+run.ID+`.md"`)
-	io.WriteString(w, snap.Report)
+	w.Header().Set("Content-Disposition", `attachment; filename="`+result.Run.Options.Team+"-analysis-"+result.Run.ID+`.md"`)
+	io.WriteString(w, result.Report)
 }
 
 // events streams the evidence store as Server-Sent Events; ?after=N resumes after message N.
 func (s *Server) events(w http.ResponseWriter, r *http.Request) {
-	run := s.get(w, r)
+	workspace, ok := workspaceFrom(w, r)
+	if !ok {
+		return
+	}
+	run := s.liveRun(workspace.id, r.PathValue("id"))
 	if run == nil {
+		if _, ok := s.savedResult(workspace, r.PathValue("id")); ok {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			httpErr(w, 404, "live run not found in this workspace")
+		}
 		return
 	}
 	fl, ok := w.(http.Flusher)

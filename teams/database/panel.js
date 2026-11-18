@@ -15,7 +15,7 @@ async function dbAgentSend(files,kind){const fd=new FormData();fd.append('option
  notice('Sending '+(kind==='zip'?files[0].name:sent+' export file'+(sent===1?'':'s')+(skipped?' ('+skipped+' other files left out)':''))+' to the database agents…');
  try{const j=await agentFetch('/api/runs',{method:'POST',body:fd});dbAgentFollow(j.id);}catch(e){notice('Could not start the database agents: '+e.message);}}
 function dbAgentFollow(id){const c=agentCfg();c.dbRunId=id;persist();if(DB_LIVE.es)DB_LIVE.es.close();clearInterval(DB_LIVE.poll);DB_LIVE.log=[];DB_LIVE.snap=null;
- try{const es=new EventSource(agentBase()+'/api/runs/'+id+'/events');DB_LIVE.es=es;es.addEventListener('message',e=>{try{DB_LIVE.log.push(JSON.parse(e.data));if(DB_LIVE.log.length>300)DB_LIVE.log.shift();dbAgentRenderSoon();}catch(err){}});es.addEventListener('done',()=>{es.close();dbAgentRefresh();});es.onerror=()=>{};}catch(e){}
+ try{const es=new EventSource(agentURL('/api/runs/'+id+'/events'));DB_LIVE.es=es;es.addEventListener('message',e=>{try{DB_LIVE.log.push(JSON.parse(e.data));if(DB_LIVE.log.length>300)DB_LIVE.log.shift();dbAgentRenderSoon();}catch(err){}});es.addEventListener('done',()=>{es.close();dbAgentRefresh();});es.onerror=()=>{};}catch(e){}
  DB_LIVE.poll=setInterval(dbAgentRefresh,2000);dbAgentRefresh();dbAgentGo();}
 async function dbAgentRefresh(){const c=agentCfg();if(!c.dbRunId)return;try{const s=await agentFetch('/api/runs/'+c.dbRunId);DB_LIVE.snap=s;if(s.run.status!=='running'){clearInterval(DB_LIVE.poll);if(DB_LIVE.es)DB_LIVE.es.close();dbAgentKeep(s);}dbAgentRenderSoon();}catch(e){clearInterval(DB_LIVE.poll);notice('Lost contact with the agent backend: '+e.message);}}
 function dbAgentRenderSoon(){clearTimeout(DB_LIVE.timer);DB_LIVE.timer=setTimeout(()=>{const a=document.activeElement;if(screen==='analysis'&&!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))render();},350);}
@@ -46,7 +46,7 @@ function dbAgentImport(){const A=M.dbAgentRun;if(!A)return;ensureDiscovery();con
  put('risks',risks);
  const size=F('db-size')[0];if(size&&size.data&&size.data.sizeGb){const gb=String(size.data.sizeGb);const sys=M.inventory.capacity.filter(x=>!x.context);if(sys.length){for(const x of sys)if(!x.dataGb)x.dataGb=gb;}else put('capacity',[R('cap','database agents: catalog statistics',{name:'Database size from the agents (whole system)',context:'',basis:'measured',dataGb:gb})]);}
  A.imported=true;persist();notice('Database agent results added to the inventory for your DBA and experts to confirm.');render();}
-function dbAgentDownloadReport(){const A=M.dbAgentRun;const snap=DB_LIVE.snap;const text=(snap&&snap.run.id===A?.id&&snap.report)||A?.report;if(text)downloadText('database-analysis-'+(A?.id||'run')+'.md',text);else window.open(agentBase()+'/api/runs/'+A.id+'/report.md');}
+function dbAgentDownloadReport(){const A=M.dbAgentRun;const snap=DB_LIVE.snap;const text=(snap&&snap.run.id===A?.id&&snap.report)||A?.report;if(text)downloadText('database-analysis-'+(A?.id||'run')+'.md',text);else window.open(agentURL('/api/runs/'+A.id+'/report.md'));}
 function dbAgentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=DB_LIVE.snap&&DB_LIVE.snap.run.id===c.dbRunId?DB_LIVE.snap:null;const A=M.dbAgentRun;const running=live&&live.run.status==='running';
  const steps=(live?live.run.steps:A&&A.steps)||[];
  const conn=h('div',{class:'agent-conn'},[

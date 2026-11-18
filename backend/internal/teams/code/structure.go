@@ -167,7 +167,7 @@ func runStructure(r *Run) {
 	}
 	// architecture style from names
 	layerNames := map[string]bool{"controller": true, "controllers": true, "web": true, "api": true, "rest": true, "service": true, "services": true, "repository": true, "repositories": true,
-		"dao": true, "model": true, "models": true, "entity": true, "entities": true, "domain": true, "dto": true, "util": true, "utils": true, "common": true, "config": true}
+		"dao": true, "dal": true, "data": true, "forms": true, "ui": true, "views": true, "helpers": true, "model": true, "models": true, "entity": true, "entities": true, "domain": true, "dto": true, "util": true, "utils": true, "common": true, "config": true}
 	layered := 0
 	for m := range ms {
 		if layerNames[strings.ToLower(m)] {
@@ -180,6 +180,19 @@ func runStructure(r *Run) {
 	}
 	if len(ms) <= 1 {
 		style, detail = "Single module", "All code sits in one module; the internal structure needs a closer look to find business areas."
+		if inner := innerLayers(r); inner != "" {
+			style, detail = "Single module, layered inside", "All code sits in one module, split into technical layers: "+inner+". Business areas (for example one per screen or table) cut across these layers, so they must be found inside them; check with the team."
+		}
+	}
+	legacyLines, allLines := 0, 0
+	for _, f := range r.Code.Files {
+		allLines += len(f.Lines)
+		if LegacyLangs[f.Lang] {
+			legacyLines += len(f.Lines)
+		}
+	}
+	if allLines > 0 && legacyLines*2 >= allLines {
+		style, detail = "Mainframe application folders", "Mainframe members are grouped by type (programs, copybooks, JCL, maps), so the modules here are the application folders, not business areas. Business areas must be found from the transactions, screens and programs; check this with the team."
 	}
 	s.Add(Finding{Agent: "str", Kind: "architecture-style", Title: style, Detail: detail, Basis: BasisInferred, Confidence: "medium", Data: map[string]any{"modules": len(ms), "layerNamed": layered}})
 }
@@ -225,4 +238,46 @@ func tarjan(nodes []string, adj map[string][]string) [][]string {
 		}
 	}
 	return out
+}
+
+// innerLayers describes the technical-layer folders inside a single module ("Forms (7 files), Services (6 files) …"),
+// or returns "" when the folders are not layer names.
+func innerLayers(r *Run) string {
+	layer := map[string]bool{"controller": true, "controllers": true, "web": true, "api": true, "service": true, "services": true, "repository": true, "repositories": true,
+		"dao": true, "dal": true, "data": true, "dataaccess": true, "forms": true, "ui": true, "views": true, "pages": true, "screens": true, "model": true, "models": true,
+		"entity": true, "entities": true, "domain": true, "dto": true, "helpers": true, "util": true, "utils": true, "common": true, "business": true, "bll": true}
+	count := map[string]int{}
+	other := 0
+	for _, f := range r.Code.Files {
+		if !CodeLangs[f.Lang] || f.IsTest {
+			continue
+		}
+		parts := strings.Split(f.Path, "/")
+		i := indexOf(parts, f.Module)
+		if i < 0 || i+2 >= len(parts) {
+			continue
+		}
+		if sub := parts[i+1]; layer[strings.ToLower(sub)] {
+			count[sub]++
+		} else {
+			other++
+		}
+	}
+	if len(count) < 2 || other > len(count)*3 {
+		return ""
+	}
+	var out []string
+	for _, k := range sortedKeys(count) {
+		out = append(out, fmt.Sprintf("%s (%d files)", k, count[k]))
+	}
+	return strings.Join(out, ", ")
+}
+
+func indexOf(xs []string, x string) int {
+	for i, v := range xs {
+		if v == x {
+			return i
+		}
+	}
+	return -1
 }

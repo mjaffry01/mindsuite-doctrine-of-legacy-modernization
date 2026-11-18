@@ -216,7 +216,9 @@ func runReader(r *Run) {
 		x.cacheIDs[c.Kind+"|"+c.Name] = s.Add(Finding{Agent: "brk", Kind: "cache", Module: c.Kind, Title: strings.TrimSpace(c.Kind + " " + c.Name + " " + c.Version), Detail: strings.Join(parts, ", "),
 			Citations: []Citation{xcite(r, c.File, line)}, Confidence: "high", Data: map[string]any{"kind": c.Kind, "name": c.Name, "version": c.Version, "policy": c.Policy}})
 	}
-	if len(m.Brokers) == 0 && len(m.Caches) == 0 {
+	if uses := mqInCode(r); len(m.Brokers) == 0 && len(uses) > 0 {
+		s.Question("brk", "", fmt.Sprintf("The code uses %s in %d program(s), but no broker export was given. Add the queue manager's runmqsc DISPLAY output (Record evidence → Messaging & caching → How to extract) to see the queues, depths and channels.", uses[0].Tech, len(uses)))
+	} else if len(m.Brokers) == 0 && len(m.Caches) == 0 {
 		s.Question("brk", "", "No broker or cache export was recognised. Add runmqsc DISPLAY output, kafka-topics / kafka-consumer-groups output, redis-cli INFO, memcached stats or RabbitMQ definitions (Record evidence → Messaging & caching → How to extract).")
 	}
 }
@@ -296,6 +298,7 @@ var (
 )
 
 func runFlows(r *Run) {
+	addCodeMQ(r)
 	s, m, x := r.Store, st(r).m, st(r)
 	export := map[string]bool{}
 	for _, f := range m.Files {
@@ -856,7 +859,7 @@ func runMsgReport(ctx context.Context, r *Run) string {
 	section("Delivery and reliability", 30, "no-backout-queue", "non-persistent", "non-durable", "no-dead-letter", "single-replica", "no-dlq")
 	section("Caching", 30, "low-hit-ratio", "cache-noeviction", "cache-nothing-evictable", "cache-unbounded", "cache-no-ttl", "cache-as-store")
 	section("Security", 30, "channel-no-tls", "admin-channel", "default-user", "secret")
-	section("Flows: who sends and who reads", 200, "flow", "consumer-group", "partner-channel", "remote-queue", "not-in-code")
+	section("Flows: who sends and who reads", 200, "flow", "consumer-group", "partner-channel", "remote-queue", "not-in-code", "code-messaging")
 	before := b.Len()
 	section("Business events carried", 200, "message-meaning")
 	section("Integration map", 100, "integration")

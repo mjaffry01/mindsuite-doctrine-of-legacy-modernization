@@ -24,7 +24,7 @@ var (
 		{"Redis", regexp.MustCompile(`rediss?://(?:[^@\s/]*@)?([\w.\-]+)`)},
 		{"RabbitMQ / AMQP", regexp.MustCompile(`amqps?://(?:[^@\s/]*@)?([\w.\-]+)`)},
 		{"Kafka", regexp.MustCompile(`bootstrap[._-]servers["']?\s*[:=]\s*["']?([\w.\-]+)`)},
-		{"SQL Server", regexp.MustCompile(`(?i)(?:Data Source|Server)\s*=\s*([\w.\-\\]+)\s*;`)},
+		{"SQL Server", regexp.MustCompile(`(?i)(?:Data Source|Server)\s*=\s*([\w.\-\\()]+)\s*;`)},
 		{"Elasticsearch", regexp.MustCompile(`(?i)elasticsearch[\w.]*(?:uris|host)s?\s*[:=]\s*["']?(?:https?://)?([\w.\-]+)`)},
 	}
 	cacheRes = []struct {
@@ -124,7 +124,14 @@ func runPlatform(r *Run) {
 		}
 		for _, d := range dsnRes {
 			if m := d.re.FindStringSubmatch(l); m != nil && once(seen, "dsn|"+d.tech+"|"+m[1]) {
-				s.Add(Finding{Agent: "pla", Kind: "connection", Module: f.Module, Title: d.tech + " connection: " + m[1], Citations: []Citation{cite(f, n)}, Confidence: "medium", Data: map[string]any{"tech": d.tech, "host": m[1]}})
+				detail := ""
+				if d.tech == "SQL Server" && strings.Contains(strings.ToLower(m[1]), "localdb") {
+					detail = "SQL Server LocalDB: a developer edition of SQL Server that runs on each user's own PC."
+					if strings.Contains(strings.ToLower(l), "attachdbfilename") {
+						detail += " The database is a file shipped with the application (AttachDbFilename), so every installation has its own copy of the data: there is no shared database to migrate, but there may be many copies to merge."
+					}
+				}
+				s.Add(Finding{Agent: "pla", Kind: "connection", Module: f.Module, Title: d.tech + " connection: " + m[1], Detail: detail, Citations: []Citation{cite(f, n)}, Confidence: "medium", Data: map[string]any{"tech": d.tech, "host": m[1]}})
 			}
 		}
 		if CodeLangs[f.Lang] || f.Lang == "XML" || f.Lang == "Properties" || f.Lang == "YAML" || f.Lang == "Config" || f.Lang == "JSON" {
@@ -163,6 +170,14 @@ var (
 	rpgCallRe = regexp.MustCompile(`(?i)\bCALLP?\s*\(?\s*'?([\w]+)|^\s{5}C\s.*\bCALL\s+'(\w+)'`)
 	pbSqlRe   = regexp.MustCompile(`(?i)retrieve\s*=\s*"\s*(?:PBSELECT|SELECT)|SQLCA|DECLARE\s+\w+\s+CURSOR`)
 	pbWinRe   = regexp.MustCompile(`(?i)^\s*(?:global\s+)?type\s+(w_\w+|d_\w+|u_\w+)\s+from\s+(\w+)`)
+	// mainframe definitions: CICS screen maps (BMS), CICS resource definitions (CSD), IMS databases and views (DBD, PSB)
+	bmsMapRe  = regexp.MustCompile(`^([A-Z@#$][\w@#$]{0,7})\s+DFHMDI\b`)
+	bmsSetRe  = regexp.MustCompile(`^([A-Z@#$][\w@#$]{0,7})\s+DFHMSD\b`)
+	csdTranRe = regexp.MustCompile(`(?i)DEFINE\s+TRANSACTION\(\s*([\w@#$]+)\s*\)`)
+	csdProgRe = regexp.MustCompile(`(?i)\bPROGRAM\(\s*([\w@#$]+)\s*\)`)
+	imsDbdRe  = regexp.MustCompile(`(?i)^\s*DBD\s+NAME=([\w@#$]+)(?:,ACCESS=\(?([\w,]+))?`)
+	imsPcbRe  = regexp.MustCompile(`(?i)\bPCB\s+TYPE=DB,DBDNAME=([\w@#$]+)`)
+	imsPsbRe  = regexp.MustCompile(`(?i)\bPSBGEN\b.*\bPSBNAME=([\w@#$]+)`)
 )
 
 func runLegacy(r *Run) {
@@ -182,7 +197,7 @@ func runLegacy(r *Run) {
 				s.Add(Finding{Agent: "leg", Kind: "copybook-use", Module: f.Module, Title: path.Base(f.Path) + " uses copybook " + m[1], Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"copybook": m[1]}})
 			}
 			if m := cicsRe.FindStringSubmatch(l); m != nil && once(seen, f.Path+"|cics|"+m[1]+m[2]) {
-				s.Add(Finding{Agent: "leg", Kind: "cics", Module: f.Module, Title: "CICS " + strings.ToUpper(m[1]) + " " + m[2], Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"command": m[1], "target": m[2]}})
+				s.Add(Finding{Agent: "leg", Kind: "cics", Module: f.Module, Title: strings.TrimSpace("CICS " + strings.ToUpper(m[1]) + " " + m[2]), Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"command": m[1], "target": m[2]}})
 			}
 			if m := cblFileRe.FindStringSubmatch(l); m != nil {
 				s.Add(Finding{Agent: "leg", Kind: "legacy-file", Module: f.Module, Title: "File " + m[1] + " assigned to " + m[2], Citations: []Citation{cite(f, n)}, Confidence: "high"})
@@ -196,6 +211,41 @@ func runLegacy(r *Run) {
 			}
 			if m := jclDsnRe.FindStringSubmatch(l); m != nil && once(seen, f.Path+"|dsn|"+m[1]) {
 				s.Add(Finding{Agent: "leg", Kind: "dataset", Module: f.Module, Title: "Dataset " + m[1], Citations: []Citation{cite(f, n)}, Confidence: "high"})
+			}
+		case "BMS map":
+			if m := bmsSetRe.FindStringSubmatch(l); m != nil {
+				s.Add(Finding{Agent: "leg", Kind: "screen", Module: f.Module, Title: "CICS screen set " + m[1], Detail: "A 3270 screen definition (BMS map set): a user interface to rebuild or replace.",
+					Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"mapset": m[1]}})
+			} else if m := bmsMapRe.FindStringSubmatch(l); m != nil {
+				s.Add(Finding{Agent: "leg", Kind: "screen", Module: f.Module, Title: "CICS screen " + m[1] + " (in " + path.Base(f.Path) + ")", Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"map": m[1]}})
+			}
+		case "CICS definitions":
+			if m := csdTranRe.FindStringSubmatch(l); m != nil {
+				prog := ""
+				for j := n; j <= min(len(f.Lines), n+3) && prog == ""; j++ {
+					if pm := csdProgRe.FindStringSubmatch(f.Lines[j-1]); pm != nil {
+						prog = pm[1]
+					}
+				}
+				title := "CICS transaction " + m[1]
+				if prog != "" {
+					title += " starts program " + prog
+				}
+				s.Add(Finding{Agent: "leg", Kind: "cics-transaction", Module: f.Module, Title: title, Detail: "An online entry point: users start it by its transaction code.",
+					Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"transaction": m[1], "program": prog}})
+			}
+		case "IMS definition":
+			if m := imsDbdRe.FindStringSubmatch(l); m != nil {
+				title := "IMS database " + m[1]
+				if m[2] != "" {
+					title += " (" + strings.Trim(m[2], ",") + ")"
+				}
+				s.Add(Finding{Agent: "leg", Kind: "ims-database", Module: f.Module, Title: title, Detail: "A hierarchical IMS database: its segments must be mapped to tables or documents when it moves.",
+					Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"dbd": m[1]}})
+			} else if m := imsPsbRe.FindStringSubmatch(l); m != nil {
+				s.Add(Finding{Agent: "leg", Kind: "ims-view", Module: f.Module, Title: "IMS program view " + m[1], Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"psb": m[1]}})
+			} else if m := imsPcbRe.FindStringSubmatch(l); m != nil && once(seen, f.Path+"|pcb|"+m[1]) {
+				s.Add(Finding{Agent: "leg", Kind: "ims-use", Module: f.Module, Title: path.Base(f.Path) + " reads IMS database " + m[1], Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"dbd": m[1]}})
 			}
 		case "RPG", "CL":
 			if m := rpgFileRe.FindStringSubmatch(l); m != nil {
@@ -216,5 +266,5 @@ func runLegacy(r *Run) {
 			}
 		}
 	})
-	s.Log("leg", fmt.Sprintf("%d legacy findings. Oracle Forms (.fmb) and ABAP need a specialist export; they are listed as gaps if present.", len(s.Findings("legacy-program", "legacy-call", "copybook-use", "cics", "batch-job", "job-step"))))
+	s.Log("leg", fmt.Sprintf("%d legacy findings. Oracle Forms (.fmb) and ABAP need a specialist export; they are listed as gaps if present.", len(s.Findings("legacy-program", "legacy-call", "copybook-use", "cics", "batch-job", "job-step", "screen", "cics-transaction", "ims-database", "ims-view", "ims-use"))))
 }

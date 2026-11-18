@@ -116,14 +116,18 @@ func runReport(ctx context.Context, r *Run) string {
 	}
 	section("Structure", "architecture-style", "module", "cycle")
 	section("Module dependencies", "module-edge")
-	section("Data", "shared-table", "table-access", "stored-procedure", "procedure-call", "db-object")
-	section("Interfaces", "endpoint", "outbound-call", "messaging", "messaging-tech", "soap-service", "file-exchange")
-	section("Security", "auth-method", "role-check", "secret", "weak-crypto", "injection-risk", "csrf-disabled", "cors-any")
-	section("Quality and change safety", "module-tests", "hotspot", "churn-hotspot", "bus-factor", "duplication", "dead-code-candidate")
-	section("Platform and configuration", "app-server", "container", "k8s-object", "iac-resource", "ci-pipeline", "environment", "connection", "cache", "schedule")
-	section("Legacy programs", "legacy-program", "legacy-call", "copybook-use", "cics", "batch-job", "job-step", "dataset", "legacy-file", "legacy-sql")
+	section("Quality and change safety", "module-tests", "hotspot", "duplication", "dead-code-candidate")
+	section("Online entry points and screens", "endpoint", "cics-transaction", "screen")
+	section("Legacy programs", "legacy-program", "legacy-call", "copybook-use", "cics")
+	writeAreas(&b, accepted)
 
 	w("# Business story\n\n")
+	for _, f := range accepted("purpose") {
+		if f.Basis == BasisInferred {
+			w("Source-based inferences describe likely business use. A domain owner should confirm them.\n\n")
+			break
+		}
+	}
 	if story != "" {
 		w("%s\n\n", story)
 	}
@@ -137,9 +141,7 @@ func runReport(ctx context.Context, r *Run) string {
 	section("Vocabulary", "term")
 	section("Business calendar", "calendar")
 	if b.Len() == before && story == "" {
-		if ok, why := r.ModelReady(); !ok {
-			w("Not written in this run: %s. The business story needs the business-rules and domain agents, which use Claude.\n\n", why)
-		}
+		w("The available source did not establish a business story. Ask the domain owner for a representative workflow.\n\n")
 	}
 	qs := s.Messages(MsgQuestion)
 	if len(qs) > 0 {

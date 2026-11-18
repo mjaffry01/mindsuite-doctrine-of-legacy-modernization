@@ -4,6 +4,8 @@
 
 Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must deliver) → `AGENT-DESIGN.md` (the agents behind code analysis) → `DEVELOPER-GUIDE.md` (how the code works) → `COLLECTOR-SPEC.md` (collector to build) → `README.md` (the doctrine).**
 
+**Before working on any .NET or ASP.NET discovery, target decision or migration plan:** Read the [Legacy .NET modernization notes](DOTNET-MODERNIZATION-NOTES.md). Use the evidence checklist before proposing changes. Confirm the deployed framework and hosting separately from the project file targets. Keep cited findings, human decisions, task acceptance tests and rollback criteria in the active project workspace. Verify current Microsoft tooling and lifecycle guidance when making a recommendation.
+
 ---
 
 ## 1. Where things are
@@ -15,11 +17,11 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 | Working copy (temporary!) | `%TEMP%\lm-repo` (= `C:\Users\X1CARB~1\AppData\Local\Temp\lm-repo`) |
 | Permanent backup of the working files | `C:\Users\X1 CARBON\Downloads\Legecy Modernization\` (a copy of `index.html`, the `.md` files; refreshed with each log entry) |
 | Local preview | `python -m http.server 8768` in the working copy → http://localhost:8768/ (also the `legacy-modernization` entry in `.claude/launch.json`) |
-| The app | `index.html`: a single static file, plain JS, no build, state in `localStorage` key `mindsuite-artifact-mockup-v1` |
+| The app | `index.html`: a single static file, plain JS, no build, project state in `localStorage` keys `mindsuite-workspace-v1:<id>` (previous draft migrated on first open) |
 | Agent teams | **One folder per team**, backend and web app alike. Backend: shared core `backend/internal/agents/`, teams in `backend/internal/teams/{code,database,infrastructure,messaging,identity,telemetry,batch,network,documents,incidents}`: all ten evidence teams implemented. Web app: `teams/shared/` (backend connection, explanation-page engine), `teams/<team>/panel.js` (the panel in the app) and `teams/<team>/agents.html` (the explanation page). See `backend/README.md`. |
 | Agent backend (Go) | `backend/`: runs the code (15), database (14), infrastructure (13), messaging & caching (12), identity & access (12) telemetry (11), batch (10), network (11), documents (12) and incidents (11) teams. `cd backend && go run ./cmd/mindsuite-agents serve` → http://127.0.0.1:8090 (also `mindsuite-agents-backend` in `.claude/launch.json`). `go test ./...` must pass. See `backend/README.md`. |
 
-**Git baseline (2026-11-17):** `main` = `origin/main` at `2b0b40d` (all ten evidence teams, workspace UI refresh). The HANDOFF.md edit recording this push is the only uncommitted change.
+**Git baseline (2026-11-17):** `main` = `origin/main` at `926eec4` (all ten evidence teams, workspace UI refresh). See the latest change log and working tree for changes after that baseline.
 
 ---
 
@@ -89,11 +91,104 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 
 ## 6. Change log (newest first)
 
+### 2026-11-18 — Results saved per project and agent team; code report covers every evidence area (Claude)
+- **Runs folder:** the local backend saves results in `C:\Users\X1 CARBON\Downloads\Legecy Modernization\runs` (`-runs` in `.claude/launch.json` "mindsuite-agents-backend", which runs `go run` from this repo).
+- **Layout** (`backend/internal/server/workspaces.go`): `runs/workspaces/<project name> (<first 8 of workspace id>)/` holds `workspace.json` (id and name) and ten team folders: `01 Source code`, `02 Database`, `03 Environment and infrastructure`, `04 Messaging and caching`, `05 Identity and access`, `06 Telemetry`, `07 Batch and scheduling`, `08 Network and edge`, `09 Documents and diagrams`, `10 Incidents and changes`. Each run is `<team folder>/<run id>/` with `result.json` and `report.md`.
+  - The web app sends `project=<name>` with `workspace=<id>` (`teams/shared/agent-backend.js`, cache key `project-folders-1`). The folder is found by its id suffix and checked against `workspace.json`. When the project is renamed, the folder follows, unless a run is still writing.
+  - Folders in the earlier layout (`workspaces/<id>/<run>/`) are renamed and their runs sorted into team folders on first use. Health reports `projectFolders: true`.
+- **Code team** (`teams/code/areas.go`, wired in `team.go`): new findings from code:
+  - `telemetry`: logging, APM and metrics libraries, health checks, CICS WRITE OPERATOR / journal, WTO;
+  - `network-target` (addresses in config files; schema hosts ignored), `tls-config`, `edge-config` (rewrite and proxy rules, CICS TCPIPSERVICE / URIMAP, IIS bindings);
+  - `document` (Markdown, documents and diagrams, with Mermaid / PlantUML counted);
+  - `change-record` (change logs), `incident-ref` (ticket and defect references in comments), `known-issue` (TODO / FIXME per module);
+  - `messaging` for IBM MQ calls and CICS transient data queues in COBOL / PL/I, and `cache` for CICS temporary storage;
+  - `schedule` for scheduler exports (Control-M, CA-7) kept with the code.
+- **Code report** (`report.go`): new part "What the code shows for each evidence area", one section per team in the order above, each listing its findings with the most telling kinds first. An empty area says which team to run, and with what evidence. The former Data / Interfaces / Security / Platform sections moved into it; endpoints are under "Online entry points and screens".
+- Tests: `teams/code/areas_test.go`, plus `TestProjectFoldersByNameAndTeam` (name, team folders, legacy migration, rename). `go vet` and `go test -count=1 ./...` pass.
+  - CardDemo without Claude: 1,184 findings, 249/249 files. It shows Database (IMS, DB2, data sets), Messaging (3 MQ programs, 1 CICS TD queue), Identity (sign-on), Batch (2 scheduler exports and the JCL jobs) and Documents (6 READMEs and the data-model diagram). Infrastructure, telemetry, network and incidents are reported as not found in the code.
+- Backend restarted from this source on 127.0.0.1:8090. A test run with a throwaway workspace created the expected folders; the test folder was removed.
+- The earlier saved runs (93 files) were moved to the Windows Recycle Bin at 22:05 by someone other than Claude, so the runs folder started empty. They can be restored from the Recycle Bin if wanted.
+
+### 2026-11-18 — Infer business use from code without Claude (Codex)
+
+- The code team now traces C# and VB.NET screen or controller calls to matching service or repository methods, scoped to the enclosing project. It reports likely purpose and observable workflows with file citations and medium confidence. Sparse evidence stays an open question in the report. Claude can still enrich the story when it is enabled and available.
+- The eShop configuration explanation requires both catalog service registrations, the UseMockData setting and startup code, plus persistence evidence. Deep reading prioritizes files cited by business findings and skips common bundled UI libraries.
+- Verified with go test ./... and a fresh full eShop run (116 files) without Claude. Run 20261118-160603-5d5847f761dc produced an inferred product-catalog purpose, four workflow findings and the mock-versus-SQL storage rule. The report is in the existing eShop workspace and under outputs/eshop-experiment in the Codex workspace.
+- The local backend is running the updated build and retains the earlier report directory.
+
+
+### 2026-11-18 — Local runs folder moved (Claude, local setup only)
+- The backend's results folder (`-runs`) is now `C:\Users\X1 CARBON\Downloads\Legecy Modernization\runs`. It was in a temporary Claude scratchpad, which can be cleaned up. All 93 files were copied and checked identical, and the old folder was removed.
+- Restarted the running backend (`work\project-workspaces\mindsuite-agents.exe serve` on 127.0.0.1:8090) with the new path, and updated the "mindsuite-agents-backend" entry in `.claude/launch.json`. Old runs and workspace runs (`runs/workspaces/<id>/`) open from the new folder.
+- No code change. The runs folder holds project results, so it stays out of git.
+
+### 2026-11-18 — Code team: VB.NET desktop sample (Claude)
+- Sample: github.com/rabbitDLaLune/vbnet-inventory-management-system (VB.NET Windows Forms, SQL Server LocalDB), run in Chrome as project "Inventory Management System (VB.NET sample)". Before: 22 findings, which missed most of the app. After: 37 findings, all accepted, no expert question.
+- Fixes in `backend/internal`:
+  - `teams/code/data.go`: SQL in strings that span lines is read (`multiString`: VB.NET, C# `@"…"` / `"""…"""`, Java / Kotlin / Python `"""`, JS / TS / Go backticks), including `UPDATE x` with `SET` on the next line. The sample now shows writes to 4 tables and reads of `Users`.
+  - `teams/code/data.go`: Windows Forms screens (VB `Inherits …Form`, C# `class X : Form`) are listed as `screen` findings.
+  - `teams/code/security.go`: the login method "Database-stored passwords" also matches `PasswordHash` / `HashPassword(`. New `weakPasswordHashes`: a code file that hashes passwords with MD5 / SHA-1 / SHA-2 and has no salt or KDF gets a `weak-crypto` finding, "Weak password storage" (severity high).
+  - `teams/code/platform.go`: SQL Server `Data Source=(LocalDB)\…` is recognised, with a note when the database file ships with the app (`AttachDbFilename`).
+  - `agents/codebase.go`: the folder that holds every file (a GitHub zip's `repo-<sha>/`) is not a module; it stops at `src/`, `app/`, `lib/` and mainframe type folders. Database files (`.mdf`, `.ldf`, `.mdb`, `.accdb`, `.sqlite`, `.bak`, `.dmp` …) are skipped as "database file (business data, not read)".
+  - `teams/code/structure.go`: a single module with layer folders reads "Single module, layered inside: Data (7 files), Forms (14 files) …".
+- Tests: `teams/code/desktop_test.go` (a small VB.NET app in a zip folder), `teams/code/multistring_test.go`. `gofmt`, `go vet` and `go test -count=1 ./...` pass (12 packages).
+- **Claude key rejected:** in this run the code team's "send code excerpts to Claude" box was ticked (not by Claude; it was off in the first run). 12 code excerpts, the facts summary and the report request went to api.anthropic.com, and all returned **401 Unauthorized**. The key in `~/.mindsuite/claude-key.xml` does not work: make a new key and store it again. Codex saw the same 401 (entry below). The UI shows "14 requests sent to Claude, 0 business rules" with no error; the 401 is only in the run log.
+- Backend: Codex's backend on :8090 was left running (old build). The new build runs on **127.0.0.1:8091** (runs folder in Claude's scratchpad), and this project's backend address is set to it.
+
+### 2026-11-18 — Read agent reports inside MindSuite (Codex)
+
+- Code analysis now loads the workspace report list automatically. View report opens the written report, searchable findings with citations and verdicts, and agent/file coverage. The code panel also opens its latest report and can use a browser copy when offline. Saved MindSuite result JSON can be opened for review without importing it.
+- Script versions keep old browser connection code from loading alongside the new app. This stale script had omitted the workspace ID and made saved reports appear missing.
+- Verified three saved reports in the eShop workspace, the .NET Framework finding and its exact citation, and the agent coverage view. The other workspace checked had no stored runs.
+- eShop experiment results are under outputs/eshop-experiment in the Codex workspace, including a source walkthrough. The baseline ran against 116 files. The Claude pass received HTTP 401 from Anthropic and produced no model findings. Bundled JavaScript occupied all 12 deep-reading slots and generated 64 false stored-procedure findings. A focused source-only run excluding Scripts reduced those false matches to zero. Fix file selection and misleading predicates before repeating the live Claude comparison.
+
+
+### 2026-11-18 — Fixed the missed-password bug; tests for the mainframe readers (Claude)
+- `internal/agents/helpers.go`: new `SecretMatchIn(pattern, lang, line)` and `LooksSecretIn(lang, line)`. The `password = <DATA-NAME>` exception now applies only to COBOL, COBOL copybook and PL/I files; `pwd ==` comparisons are still skipped everywhere. `db.password=PROD-DB-2024` in a config file is reported again.
+  - `LooksSecret(line)` (no file type) is strict again: it is used to keep lines away from the model, so it does not apply the COBOL exception. `Cite` and the code team's secret agent (`teams/code/security.go`) pass the file's language.
+- `teams/messaging/code.go`: MQ calls were only found in COBOL's `CALL 'MQGET'` form; PL/I (`CALL MQPUT(...)`) and C (`MQGET(...)`) were missed although the code said it read them. Both forms are now found; C headers (`.h`, `.hpp`) are skipped because they only declare the API.
+- New tests: `agents/helpers_test.go` (secret rule, including the regression), `teams/batch/mainframe_test.go` (Control-M XML with folder, conditions and a missing event; CA-7 triggered jobs; JCL members, JCL-only jobs, PROCs ignored), `teams/database/embedded_test.go` (EXEC SQL programs and tables, comments ignored), `teams/messaging/code_test.go` (COBOL, PL/I, C; headers and non-MQ programs ignored).
+- Checked: `gofmt`, `go vet` clean; `go test -count=1 ./...` passes (12 packages).
+- This closes the open issue and the test gap in the entry below.
+
+### 2026-11-18 — Claude caught up with the Codex changes (review only, no code change)
+- Codex work in the working tree since `926eec4`: **project workspaces** (entry below) and **mainframe support**, which had no log entry:
+  - loader (`internal/agents/codebase.go`): BMS maps, CICS CSD, IMS DBD/PSB, Assembler, control cards, CA-7/Control-M exports, `.proc`/`.dcl`; JCL recognised from content (`.prc` is shared with PL/SQL); mainframe data set copies (`.ps`, `.dat`, VSAM/GDG, `ebcdic/`) skipped as business data; type folders (`cbl/`, `cpy/`, `jcl/` …) are not treated as modules;
+  - batch: Control-M XML (DEFTABLE), CA-7 LJOB listings and JCL members linking jobs to programs (`teams/batch/mainframe.go`);
+  - database: programs with embedded `EXEC SQL` and the tables they name (`teams/database/embedded.go`);
+  - messaging: MQ API calls in COBOL, PL/I and C programs (`teams/messaging/code.go`);
+  - code team: assess, data, platform, quality, report, security and structure updated for mainframe code;
+  - secrets: new `agents.SecretMatch` ignores `password = <COBOL data name>` and `pwd ==` comparisons.
+- Checked: `gofmt`, `go vet` clean, `go test -count=1 ./...` passes. Workspace and run IDs are strictly validated before any path is built (no path traversal).
+- **Open issue:** `SecretMatch` also skips real unquoted passwords that look like data names, e.g. `db.password=PROD-DB-2024` in a `.properties` file (tested: not reported; `db.password=Prod2024x` is). Fix: apply the data-name exception only to COBOL / PL/I / copybook files.
+- **Gap:** no tests yet for the Control-M XML, CA-7, JCL, embedded-SQL and MQ-in-code readers.
+- Agent counts: infrastructure, messaging and identity have 12 agents each (120 in total); an earlier Claude answer said 11 (117) by mistake.
+
+### 2026-11-18 — Legacy .NET modernization research (Codex)
+
+- Read the C# Corner Copilot walkthrough and checked it against Microsoft guidance. See [Legacy .NET modernization notes](DOTNET-MODERNIZATION-NOTES.md) for an evidence checklist, .NET discovery gaps, a proposed migration task format and a first pilot.
+- For future discovery work, build on the existing Code team. Keep the assessment, owner-approved decisions, tasks and validation evidence in the client workspace. Evaluate deployed Windows/IIS and runtime evidence separately from what the repository targets.
+- The article's Upgrade Assistant CLI is deprecated. Recheck current Copilot capabilities and .NET support dates before choosing a migration path. Research only.
+- Added the .NET notes to the read-first instructions for Codex, Claude and future maintainers.
+
+
+
+### Project workspaces (Codex)
+- New project opens a named workspace and Projects switches between saved workspaces. The old browser draft is copied into the first workspace. The reference scenario opens separately.
+- The workspace ID stays fixed for each page instance. The full browser state, including evidence, review history, decisions and sign-off, is stored under that ID. Optional evidence folders use the project name and ID suffix. Existing folder links stay intact.
+- All ten agent panels send the workspace ID on runs, polling, live events and downloads. The backend saves workspace results under `runs/workspaces/<workspace-id>/<run-id>/` (relative to the configured runs folder). Code analysis → Project analysis history lists the active workspace's runs and opens pending results or downloads completed reports. The original draft can still retrieve referenced legacy run IDs. Restart the local backend after updating the source.
+- Browser saves are local to the current browser and origin. Workspace IDs organize projects and do not provide user authentication. Keep existing deployment authentication guidance for any network server.
+- Verified desktop project creation and switching, separate sample workspace, 375 px dialog with no overflow, no console errors, JavaScript syntax and Go tests for project scoping, persistence and restart recovery. The updated local backend is running on port 8090 with the existing runs folder. All 10 prior results were found on disk and an older report result was retrieved after restart. Existing mainframe work was preserved. No publication.
+
+
+### 2026-11-18 — Pushed: commit 926eec4 on main
+- Owner said "Push it". Commit `926eec4` (config file `backend/mindsuite.json`, encrypted local key via DPAPI, configurable tier models, `backend/DEPLOY.md`, `server.example.json`, `.gitignore`) pushed to `origin/main`; tests passed first and no key-like strings were in the files. GitHub Pages run 44273887806 succeeded; `backend/DEPLOY.md` is on GitHub. Only this HANDOFF note is uncommitted.
+
 ### 2026-11-18 — DEPLOY.md for DevOps
 - Owner wants DevOps to put the Anthropic key in the server environment. That already works (`ANTHROPIC_API_KEY` wins over `apiKeyFile`); no code change.
 - New `backend/DEPLOY.md`: key in the platform secret store exposed as `ANTHROPIC_API_KEY`, key-handling rules, build, `server.json` fields, required login + HTTPS in front (no built-in auth), reverse-proxy settings (512 MB uploads, SSE without buffering, `X-MindSuite` header), health check, privacy decision (per-customer backend vs shared server), updating. New `backend/server.example.json`. README links to it.
 - Tested: backend started with `server.example.json` and a fake `ANTHROPIC_API_KEY` → log "key from ANTHROPIC_API_KEY", `/api/health` modelAvailable true, allowLocalPath false.
-- Hosting not decided yet. Not committed or pushed.
+- Hosting not decided yet. Pushed to GitHub on 2026-11-18.
 
 ### 2026-11-18 — Config file `backend/mindsuite.json`; Claude key from an encrypted file
 - Owner asked for a config file and where to put the key. The plain-text `anthropic.key` option made earlier the same day was removed (owner: "not a good option").
@@ -102,7 +197,7 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 - Models: `agents.SetModels`/`agents.Resolve` (`internal/agents/models.go`) map the built-in tier models to the configured ones in the Claude client, `sentToModel`, the run's agent list and `/api/agents`, `/api/health`. Warning if strong = balanced.
 - `.gitignore` now ignores `backend/runs/` (saved results).
 - Tested: fake encrypted key + model override (`/api/health` and `/api/agents` show the override, start line "available"), key-in-config refused, default config found and decrypted the owner's own key file (key not printed). `go vet` clean, `go test ./...` passes.
-- Not committed or pushed.
+- Pushed to GitHub on 2026-11-18.
 
 ### 2026-11-17 — Pushed: commit 2b0b40d on main
 - Owner said "Push it". Commit `2b0b40d` (batch, network, documents and incidents teams, shared document extraction, team-panel builder, Codex workspace UI refresh) pushed to `origin/main`; GitHub Pages deployed successfully and the new pages and scripts load on the live site. Working tree clean.

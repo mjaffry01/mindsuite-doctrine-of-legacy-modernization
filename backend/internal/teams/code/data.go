@@ -14,15 +14,18 @@ var (
 	sqlWriteRe  = regexp.MustCompile(`(?i)\b(?:insert\s+into|delete\s+from|merge\s+into|truncate\s+table)\s+([A-Za-z_][\w$#]*(?:\.[A-Za-z_][\w$#]*)?)`)
 	sqlUpdateRe = regexp.MustCompile(`(?i)\bupdate\s+([A-Za-z_][\w$#]*(?:\.[A-Za-z_][\w$#]*)?)\s+set\b`)
 	sqlHintRe   = regexp.MustCompile(`(?i)\b(select|insert|update|delete|merge)\b`)
-	jpaTableRe  = regexp.MustCompile(`@Table\s*\(\s*(?:name\s*=\s*)?"([^"]+)"`)
-	jpaEntityRe = regexp.MustCompile(`@Entity\b`)
-	classNameRe = regexp.MustCompile(`\b(?:class|interface|enum|record)\s+([A-Z]\w*)`)
-	efDbSetRe   = regexp.MustCompile(`DbSet<(\w+)>\s+(\w+)`)
-	djangoRe    = regexp.MustCompile(`^\s*class\s+(\w+)\s*\(\s*(?:models\.)?Model\s*\)`)
-	mongoCollRe = regexp.MustCompile(`(?:getCollection|collection)\s*\(\s*["']([\w.\-]+)["']|@Document\s*\(\s*(?:collection\s*=\s*)?"([^"]+)"`)
-	procCallRe  = regexp.MustCompile(`(?i)(?:\{\s*\??=?\s*call\s+([\w.$#]+)|withProcedureName\s*\(\s*"([\w.$#]+)"|\bexec(?:ute)?\s+([A-Za-z_][\w.$#]+)|StoredProcedureQuery\s*\(\s*"([\w.$#]+)"|CommandType\.StoredProcedure)`)
-	ddlObjRe    = regexp.MustCompile(`(?i)^\s*create\s+(?:or\s+replace\s+)?(?:editionable\s+)?(table|view|procedure|function|package\s+body|package|trigger|sequence|materialized\s+view)\s+(?:if\s+not\s+exists\s+)?([\w.$#"\[\]]+)`)
-	notTables   = map[string]bool{"dual": true, "select": true, "where": true, "set": true, "values": true, "the": true, "a": true, "an": true, "this": true, "that": true, "table": true,
+	// in a multi-line SQL string the SET often starts the next line: "UPDATE Products" / "SET Quantity = ..."
+	sqlUpdateEndRe = regexp.MustCompile(`(?i)\bupdate\s+([A-Za-z_][\w$#]*(?:\.[A-Za-z_][\w$#]*)?)\s*$`)
+	sqlSetStartRe  = regexp.MustCompile(`(?i)^\s*set\b`)
+	jpaTableRe     = regexp.MustCompile(`@Table\s*\(\s*(?:name\s*=\s*)?"([^"]+)"`)
+	jpaEntityRe    = regexp.MustCompile(`@Entity\b`)
+	classNameRe    = regexp.MustCompile(`\b(?:class|interface|enum|record)\s+([A-Z]\w*)`)
+	efDbSetRe      = regexp.MustCompile(`DbSet<(\w+)>\s+(\w+)`)
+	djangoRe       = regexp.MustCompile(`^\s*class\s+(\w+)\s*\(\s*(?:models\.)?Model\s*\)`)
+	mongoCollRe    = regexp.MustCompile(`(?:getCollection|collection)\s*\(\s*["']([\w.\-]+)["']|@Document\s*\(\s*(?:collection\s*=\s*)?"([^"]+)"`)
+	procCallRe     = regexp.MustCompile(`(?i)(?:\{\s*\??=?\s*call\s+([\w.$#]+)|withProcedureName\s*\(\s*"([\w.$#]+)"|\bexec(?:ute)?\s+([A-Za-z_][\w.$#]+)|StoredProcedureQuery\s*\(\s*"([\w.$#]+)"|CommandType\.StoredProcedure)`)
+	ddlObjRe       = regexp.MustCompile(`(?i)^\s*create\s+(?:or\s+replace\s+)?(?:editionable\s+)?(table|view|procedure|function|package\s+body|package|trigger|sequence|materialized\s+view)\s+(?:if\s+not\s+exists\s+)?([\w.$#"\[\]]+)`)
+	notTables      = map[string]bool{"dual": true, "select": true, "where": true, "set": true, "values": true, "the": true, "a": true, "an": true, "this": true, "that": true, "table": true,
 		"each": true, "it": true, "here": true, "there": true, "them": true, "which": true, "what": true, "your": true, "our": true, "my": true, "to": true, "and": true, "or": true, "in": true, "on": true,
 		"as": true, "is": true, "by": true, "for": true, "of": true, "with": true, "user_tables": false, "lateral": true, "unnest": true, "now": true, "being": true, "all": true, "any": true, "file": true,
 		"disk": true, "memory": true, "cache": true, "server": true, "client": true, "list": true, "map": true, "string": true, "null": true, "true": true, "false": true, "import": true, "java": true, "org": true, "com": true}
@@ -67,20 +70,31 @@ func runDataAccess(r *Run) {
 	keep := func(f *File) bool {
 		return CodeLangs[f.Lang] || f.Lang == "SQL" || f.Lang == "PL/SQL" || f.Lang == "XML" || LegacyLangs[f.Lang] || f.Lang == "JSP"
 	}
+	strs := map[*File]*multiString{}
 	eachLine(r, "dat", keep, func(f *File, n int, l string) {
 		isSQL := f.Lang == "SQL" || f.Lang == "PL/SQL"
 		inString := strings.ContainsAny(l, `"'`) && sqlHintRe.MatchString(l)
 		if f.Lang == "XML" {
 			inString = sqlHintRe.MatchString(l) // MyBatis / iBatis mappers
 		}
-		if isSQL || inString || (LegacyLangs[f.Lang] && strings.Contains(strings.ToUpper(l), "EXEC SQL")) || strings.Contains(l, "@Query") {
+		// SQL in a string that spans lines (VB.NET, C# @"…" / """…""", Java / Python """…""", JS / Go `…`)
+		ms := strs[f]
+		if ms == nil {
+			ms = &multiString{}
+			strs[f] = ms
+		}
+		inSQLBlock := ms.line(f.Lang, l)
+		if isSQL || inString || inSQLBlock || (LegacyLangs[f.Lang] && strings.Contains(strings.ToUpper(l), "EXEC SQL")) || strings.Contains(l, "@Query") {
 			for _, m := range sqlWriteRe.FindAllStringSubmatch(l, -1) {
 				add(f, n, m[1], "write")
 			}
 			for _, m := range sqlUpdateRe.FindAllStringSubmatch(l, -1) {
 				add(f, n, m[1], "write")
 			}
-			if sqlHintRe.MatchString(l) || isSQL {
+			if m := sqlUpdateEndRe.FindStringSubmatch(l); m != nil && n < len(f.Lines) && sqlSetStartRe.MatchString(f.Lines[n]) {
+				add(f, n, m[1], "write")
+			}
+			if sqlHintRe.MatchString(l) || isSQL || inSQLBlock {
 				for _, m := range sqlReadRe.FindAllStringSubmatch(l, -1) {
 					add(f, n, m[1], "read")
 				}
@@ -110,7 +124,7 @@ func runDataAccess(r *Run) {
 				s.Add(Finding{Agent: "dat", Kind: kind, Module: f.Module, Title: fmt.Sprintf("%s %s defined", strings.Title(typ), name), Citations: []Citation{cite(f, n)}, Confidence: "high",
 					Data: map[string]any{"type": typ, "name": name}})
 			}
-		} else if m := procCallRe.FindStringSubmatch(l); m != nil && (strings.ContainsAny(l, `"'`) || strings.Contains(l, "CommandType")) {
+		} else if m := procCallRe.FindStringSubmatch(l); m != nil && (strings.ContainsAny(l, `"'`) || strings.Contains(l, "CommandType")) && !jclExec(f, l, m) {
 			name := strings.ToUpper(m[1] + m[2] + m[3] + m[4])
 			if name == "" {
 				name = "(name set elsewhere)"
@@ -198,6 +212,31 @@ var (
 	ignoreHosts    = regexp.MustCompile(`(?i)(^|\.)(w3\.org|apache\.org|xmlsoap\.org|java\.sun\.com|sun\.com|oracle\.com/xml|springframework\.org|maven\.apache\.org|schemas\.microsoft\.com|json-schema\.org|example\.(com|org)|localhost|127\.0\.0\.1|xml\.org|jcp\.org|hibernate\.org|github\.com|openxmlformats\.org|purl\.org|w3c\.org|eclipse\.org|jboss\.org|mozilla\.org|ietf\.org|opensource\.org|gnu\.org|swagger\.io|googleapis\.com/auth)$`)
 )
 
+var (
+	vbFormRe  = regexp.MustCompile(`(?i)^\s*Inherits\s+(?:System\.Windows\.Forms\.)?Form\s*$`)
+	vbClassRe = regexp.MustCompile(`(?i)^\s*(?:(?:Public|Friend|Partial|Private)\s+)*Class\s+(\w+)`)
+	csFormRe  = regexp.MustCompile(`\bclass\s+(\w+)\s*:\s*(?:System\.Windows\.Forms\.)?Form\b`)
+)
+
+// desktopScreen returns the name of the Windows Forms screen declared at line n, or "".
+func desktopScreen(f *File, n int, l string) string {
+	switch f.Lang {
+	case "VB.NET":
+		if vbFormRe.MatchString(l) {
+			for j := n - 1; j >= max(1, n-3); j-- {
+				if m := vbClassRe.FindStringSubmatch(f.Lines[j-1]); m != nil {
+					return m[1]
+				}
+			}
+		}
+	case "C#":
+		if m := csFormRe.FindStringSubmatch(l); m != nil {
+			return m[1]
+		}
+	}
+	return ""
+}
+
 func runInterfaces(r *Run) {
 	s := r.Store
 	hosts := map[string]Citation{}
@@ -220,6 +259,10 @@ func runInterfaces(r *Run) {
 				Data: map[string]any{"method": strings.ToUpper(method), "path": p}})
 		}
 		trim := strings.TrimSpace(l)
+		if name := desktopScreen(f, n, l); name != "" && once(seen, "screen|"+f.Module+"|"+name) {
+			s.Add(Finding{Agent: "int", Kind: "screen", Module: f.Module, Title: "Desktop screen " + name, Detail: "A Windows Forms screen: a user interface to rebuild or replace, and an entry point for the logic behind it.",
+				Citations: []Citation{cite(f, n)}, Confidence: "high", Data: map[string]any{"screen": name, "tech": "Windows Forms"}})
+		}
 		if m := springMapRe.FindStringSubmatch(l); m != nil {
 			// class-level @RequestMapping sets a prefix
 			isClassLevel := false
@@ -365,4 +408,128 @@ func once(seen map[string]bool, key string) bool {
 	}
 	seen[key] = true
 	return true
+}
+
+// jclExecRe matches a JCL step ("//STEP EXEC PGM=X", "EXEC PROC=X"), also when a COBOL program writes JCL in a literal.
+var jclExecRe = regexp.MustCompile(`(?i)\bEXEC\s+(PGM|PROC)\s*=|^//\S*\s+EXEC\s`)
+
+// jclExec reports whether a procedure-call match is really a JCL job step (which runs a program, not a stored procedure).
+func jclExec(f *File, l string, m []string) bool {
+	return f.Lang == "JCL" || jclExecRe.MatchString(l) || strings.Contains(l, `"//`) || strings.Contains(l, `'//`)
+}
+
+// multiString follows string literals that span lines, so that SQL written over several lines
+// ("SELECT …" / "FROM Products" / "WHERE …") is read like SQL on one line.
+type multiString struct {
+	delim string // the open string's delimiter, "" when no string is open
+	sql   bool   // the open string holds SQL
+}
+
+// line reads the next line of the file and reports whether it is part of a multi-line SQL string.
+func (s *multiString) line(lang, l string) bool {
+	wasOpen := s.delim != ""
+	s.scan(lang, l)
+	open := s.delim != ""
+	if !wasOpen && !open {
+		s.sql = false
+		return false
+	}
+	if sqlHintRe.MatchString(l) {
+		s.sql = true
+	}
+	inSQL := s.sql
+	if !open {
+		s.sql = false
+	}
+	return inSQL
+}
+
+func (s *multiString) scan(lang, l string) {
+	switch lang {
+	case "VB.NET": // strings may span lines; "" is a quote inside a string; ' starts a comment
+		for i := 0; i < len(l); i++ {
+			if s.delim != "" {
+				if l[i] == '"' {
+					if i+1 < len(l) && l[i+1] == '"' {
+						i++
+						continue
+					}
+					s.delim = ""
+				}
+				continue
+			}
+			if l[i] == '\'' {
+				return
+			}
+			if l[i] == '"' {
+				s.delim = `"`
+			}
+		}
+	case "C#":
+		s.scanCSharp(l)
+	case "Java", "Kotlin", "Scala", "Groovy", "Python":
+		for _, d := range []string{`"""`, `'''`} {
+			for c := strings.Count(l, d); c > 0; c-- {
+				if s.delim == "" {
+					s.delim = d
+				} else if s.delim == d {
+					s.delim = ""
+				}
+			}
+		}
+	case "JavaScript", "TypeScript", "Go":
+		if strings.Count(l, "`")%2 == 1 {
+			if s.delim == "" {
+				s.delim = "`"
+			} else {
+				s.delim = ""
+			}
+		}
+	}
+}
+
+// scanCSharp follows C# verbatim (@"…") and raw ("""…""") strings; regular strings end on their line.
+func (s *multiString) scanCSharp(l string) {
+	for i := 0; i < len(l); {
+		switch s.delim {
+		case `"""`:
+			j := strings.Index(l[i:], `"""`)
+			if j < 0 {
+				return
+			}
+			s.delim, i = "", i+j+3
+			continue
+		case `@"`:
+			if l[i] == '"' {
+				if i+1 < len(l) && l[i+1] == '"' {
+					i += 2
+					continue
+				}
+				s.delim = ""
+			}
+			i++
+			continue
+		}
+		rest := l[i:]
+		switch {
+		case strings.HasPrefix(rest, "//"):
+			return
+		case strings.HasPrefix(rest, `"""`):
+			s.delim, i = `"""`, i+3
+		case strings.HasPrefix(rest, `@"`), strings.HasPrefix(rest, `@$"`), strings.HasPrefix(rest, `$@"`):
+			s.delim, i = `@"`, i+strings.Index(rest, `"`)+1
+		case l[i] == '"' || l[i] == '\'': // a regular string or character: skip to its end
+			q := l[i]
+			i++
+			for i < len(l) && l[i] != q {
+				if l[i] == '\\' {
+					i++
+				}
+				i++
+			}
+			i++
+		default:
+			i++
+		}
+	}
 }

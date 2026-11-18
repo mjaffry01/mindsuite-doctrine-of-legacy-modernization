@@ -216,6 +216,12 @@ func deadCode(r *Run) {
 func gitHistory(r *Run, scores []fileScore) {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
+	// a shallow clone (git clone --depth N) has only the last commits: churn and bus factor would be wrong
+	if sh, err := exec.CommandContext(ctx, "git", "-C", r.Code.LocalDir, "rev-parse", "--is-shallow-repository").Output(); err == nil && strings.TrimSpace(string(sh)) == "true" {
+		r.Store.Log("qua", "Git history not used: this is a shallow copy (git clone --depth), so it holds only the latest commits. Churn hotspots and bus factor are a gap.")
+		r.Store.Question("qua", "", "The code was given as a shallow Git copy, so change history is missing. Can you give the full repository (git clone without --depth) to find the often-changed code and knowledge risks?")
+		return
+	}
 	cmd := exec.CommandContext(ctx, "git", "-C", r.Code.LocalDir, "log", "--since=24.months", "--no-merges", "--numstat", "--format=@@%an")
 	out, err := cmd.Output()
 	if err != nil {
@@ -255,10 +261,13 @@ func gitHistory(r *Run, scores []fileScore) {
 	sort.Slice(files, func(i, j int) bool {
 		return commits[files[i]]*(cx[files[i]]+1) > commits[files[j]]*(cx[files[j]]+1)
 	})
-	for i, p := range files {
-		if i >= 10 {
-			break
+	shown := 0
+	for _, p := range files {
+		// "changed often" needs a few changes: one or two commits is not churn
+		if shown >= 10 || commits[p] < minChurnCommits {
+			continue
 		}
+		shown++
 		f := r.Code.File(p)
 		r.Store.Add(Finding{Agent: "qua", Kind: "churn-hotspot", Module: f.Module, Title: fmt.Sprintf("Changed often and complex: %s (%d commits in 24 months)", p, commits[p]),
 			Citations: []Citation{{File: p, Line: 1}}, Basis: BasisHistory, Confidence: "high", Data: map[string]any{"commits": commits[p], "complexity": cx[p]}})
@@ -287,3 +296,6 @@ func gitHistory(r *Run, scores []fileScore) {
 			Data: map[string]any{"busFactor": bus, "people": len(names)}})
 	}
 }
+
+// minChurnCommits is the fewest commits in 24 months for a file to count as "changed often".
+const minChurnCommits = 3
