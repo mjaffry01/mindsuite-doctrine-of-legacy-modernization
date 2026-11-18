@@ -28,7 +28,7 @@ func NewLLM(apiKey string) *LLM {
 // It streams the response (long outputs) and accumulates the final message.
 func (l *LLM) JSON(ctx context.Context, model, system, user string, schema map[string]any, maxTokens int64, out any) error {
 	params := anthropic.MessageNewParams{
-		Model:     model,
+		Model:     Resolve(model),
 		MaxTokens: maxTokens,
 		System:    []anthropic.TextBlockParam{{Text: system}},
 		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(user))},

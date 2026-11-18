@@ -19,7 +19,7 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 | Agent teams | **One folder per team**, backend and web app alike. Backend: shared core `backend/internal/agents/`, teams in `backend/internal/teams/{code,database,infrastructure,messaging,identity,telemetry,batch,network,documents,incidents}`: all ten evidence teams implemented. Web app: `teams/shared/` (backend connection, explanation-page engine), `teams/<team>/panel.js` (the panel in the app) and `teams/<team>/agents.html` (the explanation page). See `backend/README.md`. |
 | Agent backend (Go) | `backend/`: runs the code (15), database (14), infrastructure (13), messaging & caching (12), identity & access (12) telemetry (11), batch (10), network (11), documents (12) and incidents (11) teams. `cd backend && go run ./cmd/mindsuite-agents serve` → http://127.0.0.1:8090 (also `mindsuite-agents-backend` in `.claude/launch.json`). `go test ./...` must pass. See `backend/README.md`. |
 
-**Git baseline observed by Codex (2026-11-17):** local HEAD `492bfee` (agent backend and six teams), followed by local batch/network additions and the GUI uplift. Older statements that all backend work is uncommitted are stale. Remote deployment has not been verified or changed by this GUI update.
+**Git baseline (2026-11-17):** `main` = `origin/main` at `2b0b40d` (all ten evidence teams, workspace UI refresh). The HANDOFF.md edit recording this push is the only uncommitted change.
 
 ---
 
@@ -89,12 +89,30 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 
 ## 6. Change log (newest first)
 
+### 2026-11-18 — DEPLOY.md for DevOps
+- Owner wants DevOps to put the Anthropic key in the server environment. That already works (`ANTHROPIC_API_KEY` wins over `apiKeyFile`); no code change.
+- New `backend/DEPLOY.md`: key in the platform secret store exposed as `ANTHROPIC_API_KEY`, key-handling rules, build, `server.json` fields, required login + HTTPS in front (no built-in auth), reverse-proxy settings (512 MB uploads, SSE without buffering, `X-MindSuite` header), health check, privacy decision (per-customer backend vs shared server), updating. New `backend/server.example.json`. README links to it.
+- Tested: backend started with `server.example.json` and a fake `ANTHROPIC_API_KEY` → log "key from ANTHROPIC_API_KEY", `/api/health` modelAvailable true, allowLocalPath false.
+- Hosting not decided yet. Not committed or pushed.
+
+### 2026-11-18 — Config file `backend/mindsuite.json`; Claude key from an encrypted file
+- Owner asked for a config file and where to put the key. The plain-text `anthropic.key` option made earlier the same day was removed (owner: "not a good option").
+- `backend/mindsuite.json` (committed): `addr`, `runs`, `cors`, `allowPath`, `models` (strong/balanced/fast), `apiKeyFile` (default `~/.mindsuite/claude-key.xml`). Read from the start folder or next to the program, or `-config <file>`; flags override it. The backend refuses a config that contains something like a key.
+- Key: `ANTHROPIC_API_KEY` first, else `apiKeyFile`, a PowerShell `Export-Clixml` SecureString file decrypted with Windows DPAPI (`cmd/mindsuite-agents/config.go`, `dpapi_windows.go`; `dpapi_other.go` says to use the env var elsewhere). The key is never logged; the start line names only its source.
+- Models: `agents.SetModels`/`agents.Resolve` (`internal/agents/models.go`) map the built-in tier models to the configured ones in the Claude client, `sentToModel`, the run's agent list and `/api/agents`, `/api/health`. Warning if strong = balanced.
+- `.gitignore` now ignores `backend/runs/` (saved results).
+- Tested: fake encrypted key + model override (`/api/health` and `/api/agents` show the override, start line "available"), key-in-config refused, default config found and decrypted the owner's own key file (key not printed). `go vet` clean, `go test ./...` passes.
+- Not committed or pushed.
+
+### 2026-11-17 — Pushed: commit 2b0b40d on main
+- Owner said "Push it". Commit `2b0b40d` (batch, network, documents and incidents teams, shared document extraction, team-panel builder, Codex workspace UI refresh) pushed to `origin/main`; GitHub Pages deployed successfully and the new pages and scripts load on the live site. Working tree clean.
+
 ### 2026-11-17 — Incidents & changes team (11 agents): all ten evidence cards now have a team
 - Owner's request: "Build it" (Incidents & changes). Scope = the card's "Agent detects" line: where the system breaks most often, recurring problems, change frequency and failed changes.
 - Backend: `backend/internal/teams/incidents/` (orchestrator, ticket reader, hotspots, recurring problems, restore times, change frequency, failed changes, failure story [Opus], modernization priorities, verifier, report writer). Reads ServiceNow incident/change_request/problem CSV and Jira CSV. Privacy: people columns never kept (only used to scrub names from titles), descriptions/comments not read, ticket rows cited without quotes. Sample by `testdata/make_sample.py` (names, an e-mail and a password planted; the test checks none leak). `go test ./...` passes (12 packages).
 - Web app: `teams/incidents/{panel.js,agents.html}` via `makeTeamPanel`; card Incidents & changes has run / see buttons; all 10 team pages link each other. Import adds risks (recurring problems, failed changes, emergency changes, peak periods, …).
 - Tested in the browser: 42 incidents, 30 changes, 2 problems → 31 of 31 findings accepted → import added 10 risks; no names, e-mail or password in the result. localStorage restored.
-- Nothing committed or pushed (batch, network, documents, incidents and the Codex GUI work are all local).
+- Pushed later the same day in commit `2b0b40d`.
 
 ### 2026-11-17 — Documents & diagrams team (12 agents)
 - Owner's request: "Build Documents". Scope = the card's "Agent detects" line: business rules, processes, glossary and intended architecture, read with citations.

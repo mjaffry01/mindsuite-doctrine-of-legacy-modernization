@@ -61,7 +61,7 @@ func (s *Server) Handler() http.Handler {
 			httpErr(w, 404, "unknown team; known: "+strings.Join(agents.TeamIDs(), ", "))
 			return
 		}
-		writeJSON(w, 200, t.Agents())
+		writeJSON(w, 200, agents.ResolvedAgents(t.Agents()))
 	})
 	mux.HandleFunc("POST /api/runs", s.createRun)
 	mux.HandleFunc("GET /api/runs", s.listRuns)
@@ -123,7 +123,7 @@ func (s *Server) cors(next http.Handler) http.Handler {
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"ok": true, "version": s.cfg.Version, "teams": agents.TeamIDs(), "modelAvailable": s.llm != nil, "allowLocalPath": s.cfg.AllowLocalPath,
-		"models": map[string]string{"strong": agents.ModelStrong, "balanced": agents.ModelBalanced, "fast": agents.ModelFast},
+		"models": map[string]string{"strong": agents.Resolve(agents.ModelStrong), "balanced": agents.Resolve(agents.ModelBalanced), "fast": agents.Resolve(agents.ModelFast)},
 	})
 }
 

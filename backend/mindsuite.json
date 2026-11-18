@@ -1,0 +1,13 @@
+{
+  "_about": "MindSuite agent backend settings. Command-line flags override them. NEVER put the Claude API key here: this file is committed. apiKeyFile is the key file encrypted for your Windows account (see README.md -> Claude API key); ANTHROPIC_API_KEY, if set, wins.",
+  "addr": "127.0.0.1:8090",
+  "runs": "runs",
+  "cors": ["http://localhost:*", "http://127.0.0.1:*", "https://mjaffry01.github.io"],
+  "allowPath": true,
+  "models": {
+    "strong": "claude-opus-5-5",
+    "balanced": "claude-sonnet-5-5",
+    "fast": "claude-haiku-5-5"
+  },
+  "apiKeyFile": "~/.mindsuite/claude-key.xml"
+}

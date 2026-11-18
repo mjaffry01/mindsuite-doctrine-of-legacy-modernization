@@ -63,7 +63,23 @@ go run ./cmd/mindsuite-agents serve            # http://127.0.0.1:8090
 ```
 
 - **Rule-based agents only (default):** nothing leaves the machine.
-- **With Claude:** set `ANTHROPIC_API_KEY` before starting, and tick the consent box in the app for each run.
+- **With Claude:** give the backend your Claude API key (see *Claude API key* below), then tick the consent box in the app for each run.
+
+**Running it on a server:** see [DEPLOY.md](DEPLOY.md) (for DevOps: the key as `ANTHROPIC_API_KEY` from a secret store, `server.example.json`, HTTPS and login in front).
+
+### Settings: `backend/mindsuite.json`
+The backend reads `mindsuite.json` from the folder it starts in (`backend/` with `go -C backend run …`), or next to the program; `-config <file>` picks another one. Command-line flags override it. Fields: `addr`, `runs`, `cors`, `allowPath`, `models` (`strong`, `balanced`, `fast`: the Claude model of each tier; keep `strong` and `balanced` different so the verifier never checks a model with itself) and `apiKeyFile`.
+
+**Never put the Claude API key in `mindsuite.json`**: it is committed and published. The backend refuses to start if the file contains something that looks like a key.
+
+### Claude API key
+The backend takes the key from `ANTHROPIC_API_KEY` if it is set, else from the file named by `apiKeyFile` (default `~/.mindsuite/claude-key.xml`). That file is encrypted with Windows DPAPI: only the Windows user who saved it, on the same machine, can decrypt it, and it lives in your user folder, outside the repo. Save it once in PowerShell (paste the key at the prompt):
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME\.mindsuite" | Out-Null; Read-Host "Paste Claude key" -AsSecureString | Export-Clixml "$HOME\.mindsuite\claude-key.xml"
+```
+
+Then start the backend as usual; the start line says `Claude: available (…; key from encrypted key file …)`. To change the key, run the same line again. The key itself is never logged, saved in results or sent to the web app. Outside Windows, use `ANTHROPIC_API_KEY`.
 
 Flags for `serve`: `-addr` (keep it on 127.0.0.1 unless you put authentication in front), `-runs` (folder for saved results, default `runs/`), `-cors` (allowed web-app origins; default localhost on any port and `https://mjaffry01.github.io`), `-allow-path` (allow runs on a folder path on this machine; loopback only).
 

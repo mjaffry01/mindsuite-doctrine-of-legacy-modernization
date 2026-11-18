@@ -1,0 +1,13 @@
+{
+  "_about": "Example server settings for DevOps (copy to server.json and adjust). The Claude API key is NOT set here: provide it as the environment variable ANTHROPIC_API_KEY from your secret store. See DEPLOY.md.",
+  "addr": "0.0.0.0:8090",
+  "runs": "/var/lib/mindsuite/runs",
+  "cors": ["https://mjaffry01.github.io"],
+  "allowPath": false,
+  "models": {
+    "strong": "claude-opus-5-5",
+    "balanced": "claude-sonnet-5-5",
+    "fast": "claude-haiku-5-5"
+  },
+  "apiKeyFile": ""
+}

@@ -180,6 +180,7 @@ func (r *Run) Execute(ctx context.Context) {
 // AddSent records what was sent to a model, for transparency.
 func (r *Run) AddSent(x Sent) {
 	r.mu.Lock()
+	x.Model = Resolve(x.Model)
 	r.SentToModel = append(r.SentToModel, x)
 	r.mu.Unlock()
 }
@@ -273,7 +274,7 @@ func (r *Run) Snapshot() Result {
 		Sent:      sent,
 		Counts:    r.Store.CountByAgent(),
 		Report:    report,
-		Agents:    r.team.Agents(),
+		Agents:    ResolvedAgents(r.team.Agents()),
 	}
 }
 
