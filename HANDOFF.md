@@ -89,6 +89,10 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 
 ## 6. Change log (newest first)
 
+### 2026-11-19 — Claude key replaced (Claude)
+- Every Claude call had failed with 401 because the saved key file didn't hold an Anthropic key. The owner saved a new Console key (named "L2M") in `~/.mindsuite/claude-key.xml`. Checked: the models endpoint returns 200, and one tiny Haiku request succeeded, so billing is active. The key itself is never logged or stored in the repo.
+- A backend reads the key only at start. The backend on 8091 was restarted and reports "Claude: available". **Restart the Codex backend on 8090** so it picks up the new key.
+
 ### 2026-11-19 — Pushed: commit e5d8e1a on main
 - The 2026-11-19 Codex entries below (interview workflow, evidence intake, batching and resume, telemetry, guard, business operations in the reports). Before the push: `gofmt`, `go vet`, `go test ./...` (12 packages) and `node --check` on every changed script all passed; a secret scan found nothing; the app loaded with no console errors. GitHub Pages run 44474542191 succeeded.
 - The Claude VB.NET fixes were already pushed in Codex's commit `f61ae9e`.
