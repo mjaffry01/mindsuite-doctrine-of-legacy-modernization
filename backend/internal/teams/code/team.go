@@ -6,7 +6,6 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
 )
@@ -23,6 +22,61 @@ func (team) Execute(ctx context.Context, r *Run) { executeCode(ctx, r) }
 func (team) WholeKinds() map[string]bool {
 	return map[string]bool{"language": true, "version": true, "bus-factor": true, "architecture-style": true, "extraction-order": true, "module": true, "module-tests": true, "document": true}
 }
+
+// ReconcileBatches builds an import index across the repository after the detailed reviews.
+func (team) ReconcileBatches(r *Run, batchOf func(Citation) int) {
+	known := map[[2]string]bool{}
+	for _, finding := range r.Store.Findings("module-edge") {
+		if finding.Status == StatusRejected {
+			continue
+		}
+		known[[2]string{fmt.Sprint(finding.Data["from"]), fmt.Sprint(finding.Data["to"])}] = true
+	}
+	edges := buildModuleGraph(r, false)
+	keys := make([][2]string, 0, len(edges))
+	for key := range edges {
+		if !known[key] {
+			keys = append(keys, key)
+		}
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i][0]+"\x00"+keys[i][1] < keys[j][0]+"\x00"+keys[j][1] })
+	for _, key := range keys {
+		edge := edges[key]
+		r.Store.Add(Finding{
+			Agent: "str", Kind: "cross-batch-link", Title: edge.from + " imports " + edge.to,
+			Detail:    "The repository-wide import index links these modules.",
+			Citations: []Citation{cite(edge.file, edge.line)}, Status: StatusAccepted,
+		})
+	}
+	traceSourceBusiness(r, func(citations []Citation) bool {
+		first := batchOf(citations[0])
+		for _, c := range citations[1:] {
+			if next := batchOf(c); next > 0 && first > 0 && next != first {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+func (team) BatchPriority(r *Run, context []string) int {
+	return reviewPriority(r).score(Finding{Title: strings.Join(context, " ")})
+}
+
+func (team) BatchReviewContext(r *Run) string {
+	var b strings.Builder
+	var findings []Finding
+	for _, finding := range r.Store.Findings("workflow-trace", "business-rule", "journey") {
+		if finding.Status != StatusRejected {
+			findings = append(findings, finding)
+		}
+	}
+	priority := reviewPriority(r)
+	writeInterviewFocus(&b, r, priority, findings)
+	writeOperatingModel(&b, r, priority)
+	return b.String()
+}
+
 func (team) Source(r *Run) map[string]any {
 	return map[string]any{"root": r.Code.Root, "branch": r.Code.Branch, "commit": r.Code.Commit, "files": len(r.Code.Files), "lines": r.Code.TotalLines()}
 }
@@ -40,7 +94,7 @@ func executeCode(ctx context.Context, r *Run) {
 	// 1 Receive the code
 	r.Step(1, "running", "")
 	s.Task("inv", "Record what is being analysed: languages, size, build files, version.", nil)
-	runInventory(r)
+	r.MeasureAgent("inv", func() { runInventory(r) })
 	r.Step(1, "done", fmt.Sprintf("%d files, %d lines", len(r.Code.Files), r.Code.TotalLines()))
 
 	// 2 Plan the work
@@ -50,34 +104,20 @@ func executeCode(ctx context.Context, r *Run) {
 
 	// 3 Collect the facts: tool agents in parallel
 	r.Step(3, "running", "")
-	fact := []struct {
-		id string
-		fn func(*Run)
-	}{{"sup", runSupplyChain}, {"str", runStructure}, {"dat", runDataAccess}, {"int", runInterfaces},
-		{"sec", runSecurity}, {"qua", runQuality}, {"pla", runPlatform}, {"pla", runAreas}}
+	// The platform agent does two parts; the second (evidence areas) has its own key so it can fail and re-run alone.
+	fact := []agents.Part{{ID: "sup", Fn: runSupplyChain}, {ID: "str", Fn: runStructure}, {ID: "dat", Fn: runDataAccess},
+		{ID: "int", Fn: runInterfaces}, {ID: "sec", Fn: runSecurity}, {ID: "qua", Fn: runQuality},
+		{ID: "pla", Fn: runPlatform}, {ID: "pla", Key: "areas", Name: "Evidence areas (part of Platform & config)", Fn: runAreas}}
 	if hasLegacy(r) {
-		fact = append(fact, struct {
-			id string
-			fn func(*Run)
-		}{"leg", runLegacy})
+		fact = append(fact, agents.Part{ID: "leg", Fn: runLegacy})
 	}
-	var wg sync.WaitGroup
 	for _, a := range fact {
-		s.Task(a.id, "Collect facts for all work packages.", map[string]any{"modules": packages})
-		wg.Add(1)
-		go func(fn func(*Run), id string) {
-			defer wg.Done()
-			defer func() {
-				if p := recover(); p != nil {
-					s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-				}
-			}()
-			fn(r)
-		}(a.fn, a.id)
+		s.Task(a.ID, "Collect facts for all work packages.", map[string]any{"modules": packages})
 	}
-	wg.Wait()
+	r.RunParts(ctx, fact)
 	s.Task("dom", "Identify likely business uses from code links between screens and services.", nil)
-	sourcePurposes := runSourceBusiness(r)
+	sourcePurposes := 0
+	r.RunPart(ctx, agents.Part{ID: "dom", Key: "source-business", Name: "Business uses from source", Fn: func(r *Run) { sourcePurposes = runSourceBusiness(r) }})
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	// 4 Choose what to read in depth
@@ -89,9 +129,9 @@ func executeCode(ctx context.Context, r *Run) {
 	if ok, why := r.ModelReady(); ok {
 		r.Step(5, "running", "")
 		s.Task("rul", "Write the business rules in the reading list in plain language, with exact lines.", map[string]any{"files": r.Reading})
-		runBusinessRules(ctx, r)
+		r.MeasureAgent("rul", func() { runBusinessRules(ctx, r) })
 		s.Task("dom", "Connect screens, rules, data and events into the business story.", nil)
-		runDomain(ctx, r)
+		r.MeasureAgent("dom", func() { runDomain(ctx, r) })
 		r.Step(5, "done", fmt.Sprintf("%d source-based business purposes and %d rules", sourcePurposes, len(s.Findings("business-rule"))))
 	} else {
 		if sourcePurposes == 0 {
@@ -104,7 +144,7 @@ func executeCode(ctx context.Context, r *Run) {
 	// 6 Assess
 	r.Step(6, "running", "")
 	s.Task("ass", "Score each module for extraction and suggest the order.", nil)
-	runAssessment(r)
+	r.MeasureAgent("ass", func() { runAssessment(r) })
 	r.Step(6, "done", "")
 
 	// 7 Verify
@@ -122,7 +162,7 @@ func executeCode(ctx context.Context, r *Run) {
 	// 8 Report
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Code analysis report and the Business story from verified findings.", nil)
-	r.Report = runReport(ctx, r)
+	r.WriteReport(ctx, runReport)
 	r.Step(8, "done", "")
 
 	// 9 People
@@ -165,9 +205,13 @@ func chooseReading(r *Run) {
 		score[file] += s
 		why[file] = appendUnique(why[file], reason)
 	}
-	for _, f := range r.Store.Findings("journey", "business-rule") {
+	priority := reviewPriority(r)
+	for _, f := range r.Store.Findings("journey", "business-rule", "workflow-trace") {
 		for _, c := range f.Citations {
 			add(c.File, 8, "supports a business workflow or rule")
+			if focusScore := priority.score(f); focusScore > 0 {
+				add(c.File, float64(min(focusScore, 20)), "matches the project interview")
+			}
 		}
 	}
 	for _, f := range r.Store.Findings("hotspot") {

@@ -1,6 +1,6 @@
 /* Presentation enhancements only. No business state or localStorage writes.
    Called by the existing final render(), after renderNav(). */
-const workspaceUI={query:'',filter:'all',observer:null};
+const workspaceUI={query:'',filter:'all'};
 function workspaceIcon(paths){
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');
  for(const [k,v] of Object.entries({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.7','stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true'}))svg.setAttribute(k,v);
@@ -22,15 +22,6 @@ function enhanceWorkspace(){
   document.getElementById('phaseNav').addEventListener('click',e=>{if(e.target.closest('.phase')){workspaceMenu(false);if(matchMedia('(max-width:760px)').matches)document.getElementById('main').focus({preventScroll:true});}});
  }
  for(const item of document.querySelectorAll('#phaseNav .phase')){if(item.classList.contains('active'))item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');}
- const stepIds=['rec-start','rec-sources','rec-found','rec-validate'];
- document.querySelectorAll('.rec-steps>li').forEach((li,i)=>{
-  const target=document.getElementById(stepIds[i]);if(!target)return;
-  const jump=document.createElement('button');jump.type='button';jump.className='step-jump';jump.setAttribute('aria-label','Go to '+li.querySelector('b').textContent);jump.append(...li.childNodes);li.append(jump);
-  jump.onclick=()=>{target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'start'});};
- });
- workspaceUI.observer?.disconnect();
- const jumps=[...document.querySelectorAll('.step-jump')];
- if(jumps.length){jumps[0].setAttribute('aria-current','step');workspaceUI.observer=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){jumps.forEach(b=>b.removeAttribute('aria-current'));jumps[stepIds.indexOf(entry.target.id)]?.setAttribute('aria-current','step');}},{rootMargin:'-95px 0px -65% 0px',threshold:0});stepIds.forEach(id=>{const el=document.getElementById(id);if(el)workspaceUI.observer.observe(el);});}
  const icons={
   'Source code':['M8 5 2 12l6 7M16 5l6 7-6 7M14 3l-4 18'],
   'Database':['M4 6c0-4 16-4 16 0s-16 4-16 0v12c0 4 16 4 16 0V6M4 12c0 4 16 4 16 0'],
@@ -45,13 +36,12 @@ function enhanceWorkspace(){
  };
  for(const card of document.querySelectorAll('.source-card')){
   const name=card.querySelector('h3')?.textContent,icon=card.querySelector('.category-icon');if(icon&&icons[name])icon.replaceChildren(workspaceIcon(icons[name]));
-  const guide=card.querySelector(':scope>dl.input-guide');if(guide){const details=document.createElement('details');details.className='collection-detail';const summary=document.createElement('summary');summary.textContent='Collection details';details.append(summary);guide.before(details);details.append(guide);}
  }
  const section=document.getElementById('rec-sources'),grid=section?.querySelector(':scope>.source-grid');
  if(grid){
   const tools=document.createElement('div');tools.className='source-tools';
   const search=document.createElement('label');search.className='source-search';search.append(workspaceIcon(['M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14M15 15l6 6']));
-  const input=document.createElement('input');input.type='search';input.className='field';input.placeholder='Find an evidence source…';input.setAttribute('aria-label','Find an evidence source');input.value=workspaceUI.query;search.append(input);
+  const input=document.createElement('input');input.type='search';input.className='field';input.placeholder='Search sources';input.setAttribute('aria-label','Find an evidence source');input.value=workspaceUI.query;search.append(input);
   const filters=document.createElement('div');filters.className='source-filter';filters.setAttribute('role','group');filters.setAttribute('aria-label','Filter evidence sources');
   const count=document.createElement('span');count.className='source-results';count.setAttribute('role','status');
   const empty=document.createElement('div');empty.className='source-empty';empty.hidden=true;empty.textContent='No sources match. Try another search or show all sources.';
@@ -72,5 +62,4 @@ function enhanceContemporaryUI(){
  if(!stages){stages=document.createElement('nav');stages.className='workspace-stages';stages.setAttribute('aria-label','Modernization stages');for(const [n,title,index] of [['01','Discover',0],['02','Decide',6],['03','Plan',8]]){const b=document.createElement('button');b.type='button';const num=document.createElement('span');num.textContent=n;b.append(num,document.createTextNode(title));b.dataset.index=index;b.onclick=()=>document.querySelectorAll('#phaseNav .phase')[index]?.click();stages.append(b);}document.querySelector('.top-right').before(stages);}
  const active=nav.findIndex(b=>b.classList.contains('active')),stage=active<6?0:active<8?1:2;
  [...stages.children].forEach((b,i)=>{if(i===stage)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');b.disabled=nav[Number(b.dataset.index)]?.disabled||false;});
- for(const b of document.querySelectorAll('.source-card>.apply-row>.btn')){const original=b.textContent;b.setAttribute('aria-label',original);b.title=original;b.textContent=b.classList.contains('agent-team-btn')?'Meet the agents ↗':'Run agent team';}
 }

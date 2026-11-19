@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"strings"
 
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
 )
@@ -29,6 +30,16 @@ func (team) Execute(ctx context.Context, r *Run) { executeDB(ctx, r) }
 func (team) WholeKinds() map[string]bool {
 	return map[string]bool{"db-engine": true, "db-size": true, "schema": true, "migration-order": true, "migration-approach": true}
 }
+func (team) BatchReviewContext(r *Run) string {
+	var out strings.Builder
+	writeDatabaseOperations(&out, r)
+	return out.String()
+}
+
+func (team) BatchPriority(r *Run, context []string) int {
+	return databaseInterviewScore(r, strings.Join(context, " "))
+}
+
 func (team) Source(r *Run) map[string]any {
 	if s, ok := r.State.(*state); ok && s.db != nil {
 		return s.db.Summary()

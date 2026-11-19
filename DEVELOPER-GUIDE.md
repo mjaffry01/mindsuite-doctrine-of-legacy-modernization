@@ -40,7 +40,7 @@ A guided tool that takes a legacy system through three phases:
 
 | Where | What | Stored in | Used by |
 |---|---|---|---|
-| 01 Start → Client brief | **Why now, hard deadline (+ what happens), success criteria** (required); previous attempts and access approvals (optional) | `M.scope.brief` | Start completeness (`briefDone()`), roadmap deadline warnings, sign-off "What the plan must achieve", readiness |
+| 01 Start → Modernization goal | Optional multiple reasons, deadline, success criteria and goal details | `M.scope.brief` | `modernizationReasons()` reads legacy strings and current arrays. Sign-off lists every selected reason. Readiness checks deadline and success criteria. |
 | Source cards → "Facts only you know" | Code: tests, release process, environments · Database: years of history, archiving, data quality · Telemetry: user groups, unused features · Network/Messaging: connected systems and owners, partner notice · Documents: audit reports, written decisions | `M.sourceInfo[id].facts` (`CARD_FACTS`) | Roadmap foundations (`briefPrereqs()`) |
 | 01 Validate | **Regulation and compliance** (GDPR, PCI DSS, HIPAA, SOX, local law, sector regulator); per context: who maintains it, key-person risk | `M.scope.regulation`; `context.maintainer`, `context.keyPerson` | Cloud scoring note (`regulationCloud`), compliance and knowledge-transfer foundations |
 | 06 Rules → Budget, risk and standards | Budget, funding model, risk appetite, cut-over downtime, growth %, standards, procurement, operating model | `M.decide.rules.constraints` (`CONSTRAINT_FIELDS`) | Architecture scoring (`constraintArch`: low risk appetite favours gradual change), year-3 hosting size (`growthFactor()`) |

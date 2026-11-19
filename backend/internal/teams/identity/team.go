@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
@@ -49,9 +48,10 @@ func executeID(ctx context.Context, r *Run) {
 	s := r.Store
 	r.Step(1, "running", "")
 	s.Task("dir", "Read the directory, provider and certificate exports.", nil)
-	m := ParseIdentity(r)
-	st(r).m = m
-	runDirectory(r)
+	m := agents.MeasureInput(r, "dir", ParseIdentity, func(m *IDModel) {
+		st(r).m = m
+		runDirectory(r)
+	})
 	sum := m.Summary()
 	r.Step(1, "done", fmt.Sprintf("%v accounts, %v groups, %v policies, %v apps, %v certificates from %d file(s)", sum["accounts"], sum["groups"], sum["policies"], sum["apps"], sum["certificates"], len(m.Files)))
 
@@ -69,21 +69,12 @@ func executeID(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"acc", runAccounts}, {"prv", runPrivileged}, {"mfa", runMFA}, {"grp", runGroups}, {"crt", runCerts}, {"pla", runProvider}}
-	var wg sync.WaitGroup
+	parts := make([]agents.Part, 0, len(facts))
 	for _, a := range facts {
 		s.Task(a.id, "Collect facts for all sources.", nil)
-		wg.Add(1)
-		go func(id string, fn func(*Run)) {
-			defer wg.Done()
-			defer func() {
-				if p := recover(); p != nil {
-					s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-				}
-			}()
-			fn(r)
-		}(a.id, a.fn)
+		parts = append(parts, agents.Part{ID: a.id, Fn: a.fn})
 	}
-	wg.Wait()
+	r.RunParts(ctx, parts)
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	r.Step(4, "running", "")
@@ -98,7 +89,7 @@ func executeID(ctx context.Context, r *Run) {
 	if ok, why := r.ModelReady(); ok && len(m.Groups) > 0 {
 		r.Step(5, "running", "")
 		s.Task("irol", "Propose business roles for the target and map today's groups to them (group names and counts only).", nil)
-		runRoleModel(ctx, r)
+		r.MeasureAgent("irol", func() { runRoleModel(ctx, r) })
 		r.Step(5, "done", fmt.Sprintf("%d roles proposed", len(s.Findings("target-role"))))
 	} else if !ok {
 		r.Step(5, "skipped", "needs Claude: "+why)
@@ -108,7 +99,7 @@ func executeID(ctx context.Context, r *Run) {
 
 	r.Step(6, "running", "")
 	s.Task("iass", "Clean-up list, target sign-in approach, service accounts to replace, order.", nil)
-	runIDAssessment(r)
+	r.MeasureAgent("iass", func() { runIDAssessment(r) })
 	r.Step(6, "done", "")
 
 	r.Step(7, "running", "")
@@ -124,7 +115,7 @@ func executeID(ctx context.Context, r *Run) {
 
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Identity & access analysis report from verified findings.", nil)
-	r.Report = runIDReport(ctx, r)
+	r.WriteReport(ctx, runIDReport)
 	r.Step(8, "done", "")
 	r.Step(9, "people", "Open the results in MindSuite: your identity team confirms, corrects or rejects each finding.")
 }
@@ -485,7 +476,7 @@ func runRoleModel(ctx context.Context, r *Run) {
 	r.AddSent(Sent{Agent: "irol", Model: ModelStrong, Files: []string{"(group and application names with counts; no person names, no credentials)"}, Chars: len(payload)})
 	var out roleModelOut
 	if err := r.LLM.JSON(ctx, ModelStrong, roleModelSystem, string(payload), roleModelSchema, 16000, &out); err != nil {
-		s.Log("irol", "Role model not written: "+err.Error())
+		r.AgentProblem("irol", "Role model not written: "+err.Error())
 		return
 	}
 	for _, x := range out.Roles {
@@ -579,7 +570,7 @@ func runIDReport(ctx context.Context, r *Run) string {
 				w("## How people and programs sign in\n\n%s\n\n", out.Story)
 			}
 		} else {
-			s.Log("rep", "Written summary not available: "+err.Error())
+			r.AgentProblem("rep", "Written summary not available: "+err.Error())
 		}
 	}
 	section := func(title string, limit int, kinds ...string) {

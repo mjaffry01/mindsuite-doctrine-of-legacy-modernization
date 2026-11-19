@@ -8,7 +8,6 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
@@ -50,9 +49,10 @@ func executeBatch(ctx context.Context, r *Run) {
 	s := r.Store
 	r.Step(1, "running", "")
 	s.Task("bjr", "Read the scheduler exports and the run history.", nil)
-	m := ParseBatch(r)
-	st(r).m = m
-	runJobReader(r)
+	m := agents.MeasureInput(r, "bjr", ParseBatch, func(m *BModel) {
+		st(r).m = m
+		runJobReader(r)
+	})
 	sum := m.Summary()
 	r.Step(1, "done", fmt.Sprintf("%v jobs (%v disabled) in %s, %v runs in the history, from %d file(s)", sum["jobs"], sum["disabled"], strings.Join(m.Schedulers, ", "), sum["runs"], len(m.Files)))
 
@@ -73,21 +73,12 @@ func executeBatch(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"flo", runStreams}, {"win", runWindow}, {"run", runFailures}, {"bsec", runAccounts}}
-	var wg sync.WaitGroup
+	parts := make([]agents.Part, 0, len(facts))
 	for _, a := range facts {
 		s.Task(a.id, "Collect facts for all jobs.", nil)
-		wg.Add(1)
-		go func(id string, fn func(*Run)) {
-			defer wg.Done()
-			defer func() {
-				if p := recover(); p != nil {
-					s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-				}
-			}()
-			fn(r)
-		}(a.id, a.fn)
+		parts = append(parts, agents.Part{ID: a.id, Fn: a.fn})
 	}
-	wg.Wait()
+	r.RunParts(ctx, parts)
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	r.Step(4, "running", "")
@@ -102,7 +93,7 @@ func executeBatch(ctx context.Context, r *Run) {
 	if ok, why := r.ModelReady(); ok && len(m.Jobs) > 0 {
 		r.Step(5, "running", "")
 		s.Task("bmea", "Name the business process behind each job stream and the business calendar.", nil)
-		runMeaning(ctx, r)
+		r.MeasureAgent("bmea", func() { runMeaning(ctx, r) })
 		r.Step(5, "done", fmt.Sprintf("%d business processes", len(s.Findings("batch-process"))))
 	} else if !ok {
 		r.Step(5, "skipped", "needs Claude: "+why)
@@ -112,7 +103,7 @@ func executeBatch(ctx context.Context, r *Run) {
 
 	r.Step(6, "running", "")
 	s.Task("bass", "Which jobs move together, targets, retire candidates, order.", nil)
-	runBatchAssessment(r)
+	r.MeasureAgent("bass", func() { runBatchAssessment(r) })
 	r.Step(6, "done", "")
 
 	r.Step(7, "running", "")
@@ -128,7 +119,7 @@ func executeBatch(ctx context.Context, r *Run) {
 
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Batch & scheduling analysis report from verified findings.", nil)
-	r.Report = runBatchReport(ctx, r)
+	r.WriteReport(ctx, runBatchReport)
 	r.Step(8, "done", "")
 	r.Step(9, "people", "Open the results in MindSuite: your operations team confirms, corrects or rejects each finding.")
 }
@@ -683,7 +674,7 @@ func runMeaning(ctx context.Context, r *Run) {
 	r.AddSent(Sent{Agent: "bmea", Model: ModelStrong, Files: []string{"(job names, descriptions, schedules and order; commands with passwords removed)"}, Chars: len(payload)})
 	var out meaningOut
 	if err := r.LLM.JSON(ctx, ModelStrong, meaningSystem, string(payload), meaningSchema, 16000, &out); err != nil {
-		s.Log("bmea", "Business meaning not written: "+err.Error())
+		r.AgentProblem("bmea", "Business meaning not written: "+err.Error())
 		return
 	}
 	for _, p := range out.Processes {
@@ -778,7 +769,7 @@ func runBatchReport(ctx context.Context, r *Run) string {
 				w("## What the batch does\n\n%s\n\n", out.Story)
 			}
 		} else {
-			s.Log("rep", "Written summary not available: "+err.Error())
+			r.AgentProblem("rep", "Written summary not available: "+err.Error())
 		}
 	}
 	section := func(title string, limit int, kinds ...string) {

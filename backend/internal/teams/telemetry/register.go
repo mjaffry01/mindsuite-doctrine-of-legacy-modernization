@@ -25,6 +25,9 @@ type state struct {
 
 func st(r *Run) *state { return r.State.(*state) }
 
+// FinalizeBatches preserves all-window metrics and checks routes against the full timeline.
+func (team) FinalizeBatches(ctx context.Context, r *Run) { executeTel(ctx, r) }
+
 func (team) ID() string                          { return "telemetry" }
 func (team) Agents() []AgentInfo                 { return TelTeam }
 func (team) StepTitles() []string                { return telStepTitles }

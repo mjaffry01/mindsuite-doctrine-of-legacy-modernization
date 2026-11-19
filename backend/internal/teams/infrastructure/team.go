@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 )
 
 // InfraTeam is the environment & infrastructure team (ids match infra-agents.html in the web app).
@@ -57,9 +56,10 @@ func executeInfra(ctx context.Context, r *Run) {
 
 	r.Step(1, "running", "")
 	s.Task("est", "Read the inventory exports: servers and VMs, Kubernetes, cloud, connections.", nil)
-	m := ParseInfra(r)
-	st(r).m = m
-	runEstate(r)
+	m := agents.MeasureInput(r, "est", ParseInfra, func(m *InfraModel) {
+		st(r).m = m
+		runEstate(r)
+	})
 	sum := m.Summary()
 	r.Step(1, "done", fmt.Sprintf("%v hosts (%v running), %v connections, %v Kubernetes objects, %v cloud resources from %d file(s)", sum["hosts"], sum["poweredOn"], sum["connections"], sum["workloads"], sum["cloudResources"], len(m.Files)))
 
@@ -84,21 +84,12 @@ func executeInfra(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"lcy", runLifecycle}, {"cap", runCapacity}, {"dep", runDependencies}, {"k8s", runKubernetes}, {"cld", runCloud}, {"pla", code.RunPlatform}, {"isec", runInfraSecurity}}
-	var wg sync.WaitGroup
+	parts := make([]agents.Part, 0, len(facts))
 	for _, a := range facts {
 		s.Task(a.id, "Collect facts for all work packages.", nil)
-		wg.Add(1)
-		go func(id string, fn func(*Run)) {
-			defer wg.Done()
-			defer func() {
-				if p := recover(); p != nil {
-					s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-				}
-			}()
-			fn(r)
-		}(a.id, a.fn)
+		parts = append(parts, agents.Part{ID: a.id, Fn: a.fn})
 	}
-	wg.Wait()
+	r.RunParts(ctx, parts)
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	r.Step(4, "running", "")
@@ -120,7 +111,7 @@ func executeInfra(ctx context.Context, r *Run) {
 	if ok, why := r.ModelReady(); ok && len(m.Hosts) > 0 {
 		r.Step(5, "running", "")
 		s.Task("irol", "Name the role and environment of each host and the runtime services they form.", nil)
-		runRoles(ctx, r)
+		r.MeasureAgent("irol", func() { runRoles(ctx, r) })
 		r.Step(5, "done", fmt.Sprintf("%d hosts with a role, %d runtime services", len(s.Findings("host-role")), len(s.Findings("runtime-service"))))
 	} else if !ok {
 		r.Step(5, "skipped", "needs Claude: "+why+"; roles are guessed from host names")
@@ -130,7 +121,7 @@ func executeInfra(ctx context.Context, r *Run) {
 
 	r.Step(6, "running", "")
 	s.Task("iass", "Suggest a strategy per host, waves per move group, the approach and target sizing.", nil)
-	runInfraAssessment(r)
+	r.MeasureAgent("iass", func() { runInfraAssessment(r) })
 	r.Step(6, "done", "")
 
 	r.Step(7, "running", "")
@@ -146,7 +137,7 @@ func executeInfra(ctx context.Context, r *Run) {
 
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Infrastructure analysis report from verified findings.", nil)
-	r.Report = runInfraReport(ctx, r)
+	r.WriteReport(ctx, runInfraReport)
 	r.Step(8, "done", "")
 	r.Step(9, "people", "Open the results in MindSuite: your infrastructure team confirms, corrects or rejects each finding.")
 }
@@ -794,7 +785,7 @@ func runRoles(ctx context.Context, r *Run) {
 	r.AddSent(Sent{Agent: "irol", Model: ModelStrong, Files: []string{"(host names, OS, sizes, software and connection summaries; no IP addresses of outside parties, no credentials)"}, Chars: len(payload)})
 	var out roleOut
 	if err := r.LLM.JSON(ctx, ModelStrong, roleSystem, string(payload), roleSchema, 32000, &out); err != nil {
-		s.Log("irol", "Roles not written: "+err.Error())
+		r.AgentProblem("irol", "Roles not written: "+err.Error())
 		return
 	}
 	for _, h := range out.Hosts {
@@ -965,7 +956,7 @@ func runInfraReport(ctx context.Context, r *Run) string {
 				w("## How the system runs\n\n%s\n\n", out.Story)
 			}
 		} else {
-			s.Log("rep", "Written summary not available: "+err.Error())
+			r.AgentProblem("rep", "Written summary not available: "+err.Error())
 		}
 	}
 	section := func(title string, limit int, kinds ...string) {

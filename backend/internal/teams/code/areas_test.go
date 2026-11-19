@@ -48,7 +48,7 @@ func TestEvidenceAreas(t *testing.T) {
 	}
 
 	var b strings.Builder
-	writeAreas(&b, func(kinds ...string) []Finding { return run.Store.Findings(kinds...) })
+	writeAreas(&b, func(kinds ...string) []Finding { return run.Store.Findings(kinds...) }, nil)
 	for _, a := range evidenceAreas {
 		if !strings.Contains(b.String(), "## "+a.title+"\n") {
 			t.Errorf("report has no section %q", a.title)
@@ -56,5 +56,30 @@ func TestEvidenceAreas(t *testing.T) {
 	}
 	if !strings.Contains(b.String(), "Nothing about this area was found in the code. Run the Environment and infrastructure team") {
 		t.Error("an empty area does not say which team to run")
+	}
+}
+
+func TestAreasNotCheckedWhenAgentFailed(t *testing.T) {
+	run, err := agents.NewRun(agents.LoadFiles("x", map[string][]byte{"a.java": []byte("class A {}\n")}), agents.Options{}, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.Store.Add(Finding{Agent: "int", Kind: "outbound-call", Title: "Calls the bank", Citations: []Citation{{File: "a.java", Line: 1}}})
+	var b strings.Builder
+	writeAreas(&b, func(kinds ...string) []Finding { return run.Store.Findings(kinds...) },
+		map[string]Problem{"areas": {Name: "Platform & runtime", Part: "areas"}})
+	out := b.String()
+	tel := out[strings.Index(out, "## Telemetry"):]
+	if !strings.HasPrefix(tel, "## Telemetry\n\n**Not checked:** the Platform & runtime agent did not finish") {
+		t.Errorf("telemetry should be not checked:\n%s", tel[:200])
+	}
+	if strings.Contains(tel[:300], "Nothing about this area was found") {
+		t.Error("a failed area must not say nothing was found")
+	}
+	if !strings.Contains(out, "## Network and edge\n\n**Partly checked:** the Platform & runtime agent did not finish") {
+		t.Error("network has findings and a failed agent: it should be partly checked")
+	}
+	if !strings.Contains(out, "## Identity and access\n\nNothing about this area was found") {
+		t.Error("areas whose agents finished are unchanged")
 	}
 }

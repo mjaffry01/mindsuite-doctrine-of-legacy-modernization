@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
@@ -48,8 +47,9 @@ func executeNet(ctx context.Context, r *Run) {
 	s := r.Store
 	r.Step(1, "running", "")
 	s.Task("nrd", "Read the edge configuration, DNS, certificate, partner and firewall exports.", nil)
-	m := ParseNetwork(r)
-	st(r).m = m
+	m := agents.MeasureInput(r, "nrd", ParseNetwork, func(m *NModel) {
+		st(r).m = m
+	})
 	sum := m.Summary()
 	if len(m.Files) > 0 {
 		s.Add(Finding{Agent: "nrd", Kind: "edge-estate", Title: fmt.Sprintf("Edge: %v entry points, %v DNS records, %v certificates, %v partner connections, %v firewall rules", sum["entryPoints"], sum["dnsRecords"], sum["certificates"], sum["partners"], sum["firewallRules"]),
@@ -70,21 +70,12 @@ func executeNet(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"ent", runEntries}, {"dns", runDNS}, {"tls", runTLS}, {"prt", runPartners}, {"fw", runFirewall}}
-	var wg sync.WaitGroup
+	parts := make([]agents.Part, 0, len(facts))
 	for _, a := range facts {
 		s.Task(a.id, "Collect facts from all exports.", nil)
-		wg.Add(1)
-		go func(id string, fn func(*Run)) {
-			defer wg.Done()
-			defer func() {
-				if p := recover(); p != nil {
-					s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-				}
-			}()
-			fn(r)
-		}(a.id, a.fn)
+		parts = append(parts, agents.Part{ID: a.id, Fn: a.fn})
 	}
-	wg.Wait()
+	r.RunParts(ctx, parts)
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	r.Step(4, "running", "")
@@ -99,7 +90,7 @@ func executeNet(ctx context.Context, r *Run) {
 	if ok, why := r.ModelReady(); ok && len(r.Reading) > 0 {
 		r.Step(5, "running", "")
 		s.Task("nmea", "Say who reaches the system through which entry and what each partner exchanges.", nil)
-		runEdgeMap(ctx, r)
+		r.MeasureAgent("nmea", func() { runEdgeMap(ctx, r) })
 		r.Step(5, "done", fmt.Sprintf("%d user groups and partners described", len(s.Findings("edge-flow"))))
 	} else if !ok {
 		r.Step(5, "skipped", "needs Claude: "+why)
@@ -109,7 +100,7 @@ func executeNet(ctx context.Context, r *Run) {
 
 	r.Step(6, "running", "")
 	s.Task("nass", "List what must change at cut-over and in which order.", nil)
-	runCutover(r)
+	r.MeasureAgent("nass", func() { runCutover(r) })
 	r.Step(6, "done", "")
 
 	r.Step(7, "running", "")
@@ -125,7 +116,7 @@ func executeNet(ctx context.Context, r *Run) {
 
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Network edge & partners analysis report from verified findings.", nil)
-	r.Report = runNetReport(ctx, r)
+	r.WriteReport(ctx, runNetReport)
 	r.Step(8, "done", "")
 	r.Step(9, "people", "Open the results in MindSuite: your network team confirms, corrects or rejects each finding.")
 }
@@ -389,7 +380,7 @@ func runEdgeMap(ctx context.Context, r *Run) {
 	r.AddSent(Sent{Agent: "nmea", Model: ModelStrong, Files: []string{"(entry-point and partner names, hosts and protocols; no secrets)"}, Chars: len(payload)})
 	var out mapOut
 	if err := r.LLM.JSON(ctx, ModelStrong, mapSystem, string(payload), mapSchema, 12000, &out); err != nil {
-		s.Log("nmea", "Edge map not written: "+err.Error())
+		r.AgentProblem("nmea", "Edge map not written: "+err.Error())
 		return
 	}
 	for _, f := range out.Flows {

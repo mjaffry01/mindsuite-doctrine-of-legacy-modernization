@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
+	"os"
 	"strings"
 	"testing"
 )
@@ -94,8 +95,8 @@ func TestDatabaseRun(t *testing.T) {
 	if strings.Contains(string(b), "'WHEAT', 'A', 210") {
 		t.Error("a data row leaked into the result")
 	}
-	if snap.Run.Steps[4].Status != "skipped" {
-		t.Errorf("step 5 should be skipped without a model, got %s", snap.Run.Steps[4].Status)
+	if snap.Run.Steps[4].Status != "done" || len(snap.Sent) != 0 {
+		t.Errorf("want local business operations without model calls: %+v", snap.Run.Steps[4])
 	}
 	if len(r.Reading) == 0 || r.Reading[0].From == 0 {
 		t.Errorf("reading list should hold program line ranges: %+v", r.Reading)
@@ -109,5 +110,81 @@ func TestDatabaseRun(t *testing.T) {
 	}
 	if !strings.Contains(r.Report, "# Database analysis report") || !strings.Contains(r.Report, "Migration assessment per domain") {
 		t.Error("report incomplete")
+	}
+	_, operating, found := strings.Cut(r.Report, "## How the business operates")
+	if !found {
+		t.Fatal("missing business report")
+	}
+	operating, _, _ = strings.Cut(operating, "## Migration approach")
+	for _, want := range []string{
+		"Scheduled job NIGHTLY_SETTLEMENT is configured to call this routine",
+		"Declared schedule: FREQ=DAILY;BYHOUR=2",
+		"The routine calls SETTLE.SETTLEMENT_PKG.CALC_PAYMENT",
+		"This branch checks whether grade equals A and moist is below 14",
+		"This path multiplies price by 1.10",
+		"targeting HARVEST.DELIVERIES. It sets status to REJECTED",
+		"INSERT statement targeting SETTLE.PAYMENTS",
+		"weight kg is above 40000",
+		"programs.sql:",
+		"What to confirm",
+	} {
+		if !strings.Contains(operating, want) {
+			t.Errorf("missing operational detail %q", want)
+		}
+	}
+	if strings.Contains(operating, "Secr3tPw") || strings.Contains(operating, "WHEAT") {
+		t.Fatal("business section contains database data or a credential")
+	}
+
+}
+
+func TestDatabaseBusinessFlowAcrossBatches(t *testing.T) {
+	files := map[string][]byte{}
+	for _, name := range []string{"programs.sql", "jobs_and_security.sql"} {
+		data, err := os.ReadFile("testdata/sample/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[name] = append(data, []byte(strings.Repeat("-- batch fixture\n", 2800))...)
+	}
+	input := agents.LoadFiles("settlement", files)
+	run, err := agents.NewRun(input, agents.Options{Team: "database", Interview: &agents.InterviewFocus{
+		Problem: "Grade rejection and payment accuracy",
+	}}, nil, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.Execute(context.Background())
+	snap := run.Snapshot()
+	if snap.Run.Batches == nil || snap.Run.Batches.Completed != 2 || !strings.Contains(snap.Report, "Scheduled job NIGHTLY_SETTLEMENT is configured to call this routine") {
+		t.Fatalf("expected cross-batch job and routine link, report state %+v", snap.Run.Batches)
+	}
+}
+
+func TestSQLServerRoutineEndsBeforeDataRows(t *testing.T) {
+	sql := []byte(`CREATE PROCEDURE dbo.POST_RECEIPT AS
+BEGIN
+  IF @quantity <= 0
+    RETURN;
+  INSERT INTO dbo.STOCK_LEDGER (QTY) VALUES (@quantity);
+END;
+GO
+INSERT INTO dbo.OUTSIDE_DATA VALUES ('fixture row');
+`)
+	r, err := agents.NewRun(agents.LoadFiles("sqlserver", map[string][]byte{"procedure.sql": sql}), agents.Options{Team: "database"}, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Execute(context.Background())
+	_, operating, found := strings.Cut(r.Report, "## How the business operates")
+	if !found {
+		t.Fatal("missing business section")
+	}
+	operating, _, _ = strings.Cut(operating, "## Migration approach")
+	if !strings.Contains(operating, "quantity is at or below 0") || !strings.Contains(operating, "DBO.STOCK_LEDGER") {
+		t.Fatalf("missing procedure evidence: %s", operating)
+	}
+	if strings.Contains(operating, "fixture row") || strings.Contains(operating, "OUTSIDE_DATA") {
+		t.Fatal("a statement outside the stored routine was treated as part of the business workflow")
 	}
 }

@@ -12,6 +12,7 @@ type (
 	Reading   = agents.Reading
 	Sent      = agents.Sent
 	AgentInfo = agents.AgentInfo
+	Problem   = agents.Problem
 )
 
 const (

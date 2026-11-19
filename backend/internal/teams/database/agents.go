@@ -390,7 +390,7 @@ func runJobsLinks(r *Run) {
 			ev = []string{id}
 		}
 		s.Add(Finding{Agent: "job", Kind: "db-job", Title: "Scheduled job " + j.Name, Detail: detail, Citations: []Citation{dbCite(r, j.File, j.Line)}, Evidence: ev,
-			Confidence: "high", Data: map[string]any{"job": j.Name, "schedule": j.Detail, "runs": runs}})
+			Confidence: "high", Data: map[string]any{"job": j.Name, "schedule": j.Detail, "runs": runs, "operationTarget": cleanTarget(j.Extra)}})
 	}
 	for _, l := range m.Links {
 		target := l.Detail

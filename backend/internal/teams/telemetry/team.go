@@ -7,7 +7,6 @@ import (
 	"math"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
@@ -58,9 +57,10 @@ func executeTel(ctx context.Context, r *Run) {
 	s := r.Store
 	r.Step(1, "running", "")
 	s.Task("ing", "Read the logs and monitoring exports onto one timeline.", nil)
-	m := ParseTelemetry(r)
-	st(r).m = m
-	runReader(r)
+	m := agents.MeasureInput(r, "ing", ParseTelemetry, func(m *TModel) {
+		st(r).m = m
+		runReader(r)
+	})
 	sum := m.Summary()
 	r.Step(1, "done", fmt.Sprintf("%v requests over %v days (%v to %v), %v endpoints, from %d file(s)", sum["requests"], sum["days"], sum["from"], sum["to"], sum["endpoints"], len(m.Files)))
 
@@ -75,21 +75,12 @@ func executeTel(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"vol", runLoad}, {"prf", runPerf}, {"err", runErrors}, {"use", runUsage}, {"cov", runCoverage}}
-	var wg sync.WaitGroup
+	parts := make([]agents.Part, 0, len(facts))
 	for _, a := range facts {
 		s.Task(a.id, "Collect facts over the whole window.", nil)
-		wg.Add(1)
-		go func(id string, fn func(*Run)) {
-			defer wg.Done()
-			defer func() {
-				if p := recover(); p != nil {
-					s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-				}
-			}()
-			fn(r)
-		}(a.id, a.fn)
+		parts = append(parts, agents.Part{ID: a.id, Fn: a.fn})
 	}
-	wg.Wait()
+	r.RunParts(ctx, parts)
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	r.Step(4, "running", "")
@@ -101,7 +92,7 @@ func executeTel(ctx context.Context, r *Run) {
 	if ok, why := r.ModelReady(); ok && len(m.Endpoints) > 0 {
 		r.Step(5, "running", "")
 		s.Task("tmea", "Name the business functions behind the endpoints and the business calendar behind the peaks.", nil)
-		runBusinessUse(ctx, r)
+		r.MeasureAgent("tmea", func() { runBusinessUse(ctx, r) })
 		r.Step(5, "done", fmt.Sprintf("%d business functions", len(s.Findings("function-usage"))))
 	} else if !ok {
 		r.Step(5, "skipped", "needs Claude: "+why)
@@ -111,7 +102,7 @@ func executeTel(ctx context.Context, r *Run) {
 
 	r.Step(6, "running", "")
 	s.Task("tass", "Set capacity, scaling and service-level targets, freeze months and the cut-over window.", nil)
-	runCapacityTargets(r)
+	r.MeasureAgent("tass", func() { runCapacityTargets(r) })
 	r.Step(6, "done", "")
 
 	r.Step(7, "running", "")
@@ -127,7 +118,7 @@ func executeTel(ctx context.Context, r *Run) {
 
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Telemetry analysis report from verified findings.", nil)
-	r.Report = runTelReport(ctx, r)
+	r.WriteReport(ctx, runTelReport)
 	r.Step(8, "done", "")
 	r.Step(9, "people", "Open the results in MindSuite: your operations team confirms, corrects or rejects each finding.")
 }
@@ -566,7 +557,7 @@ func runBusinessUse(ctx context.Context, r *Run) {
 	r.AddSent(Sent{Agent: "tmea", Model: ModelStrong, Files: []string{"(endpoint names with ids removed, traffic numbers and peaks; no personal data)"}, Chars: len(payload)})
 	var out useOut
 	if err := r.LLM.JSON(ctx, ModelStrong, useSystem, string(payload), useSchema, 16000, &out); err != nil {
-		s.Log("tmea", "Business use not written: "+err.Error())
+		r.AgentProblem("tmea", "Business use not written: "+err.Error())
 		return
 	}
 	for _, f := range out.Functions {
@@ -665,7 +656,7 @@ func runTelReport(ctx context.Context, r *Run) string {
 				w("## How the system is used\n\n%s\n\n", out.Story)
 			}
 		} else {
-			s.Log("rep", "Written summary not available: "+err.Error())
+			r.AgentProblem("rep", "Written summary not available: "+err.Error())
 		}
 	}
 	section := func(title string, limit int, kinds ...string) {

@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
@@ -49,9 +48,10 @@ func executeDocs(ctx context.Context, r *Run) {
 	s := r.Store
 	r.Step(1, "running", "")
 	s.Task("drd", "Read the documents and diagrams.", nil)
-	m := ParseDocuments(r)
-	st(r).m = m
-	runReader(r)
+	m := agents.MeasureInput(r, "drd", ParseDocuments, func(m *DModel) {
+		st(r).m = m
+		runReader(r)
+	})
 	sum := m.Summary()
 	r.Step(1, "done", fmt.Sprintf("%v documents (%v words), %v diagrams, %v not readable", sum["documents"], sum["words"], sum["diagrams"], sum["notRead"]))
 
@@ -69,21 +69,12 @@ func executeDocs(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"dfr", runFreshness}, {"drs", runRuleStatements}, {"dgl", runGlossary}, {"dpr", runProcesses}, {"darc", runArchitecture}}
-	var wg sync.WaitGroup
+	parts := make([]agents.Part, 0, len(facts))
 	for _, a := range facts {
 		s.Task(a.id, "Collect facts from all documents.", nil)
-		wg.Add(1)
-		go func(id string, fn func(*Run)) {
-			defer wg.Done()
-			defer func() {
-				if p := recover(); p != nil {
-					s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-				}
-			}()
-			fn(r)
-		}(a.id, a.fn)
+		parts = append(parts, agents.Part{ID: a.id, Fn: a.fn})
 	}
-	wg.Wait()
+	r.RunParts(ctx, parts)
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	r.Step(4, "running", "")
@@ -94,10 +85,10 @@ func executeDocs(ctx context.Context, r *Run) {
 		r.Step(5, "running", "")
 		if len(r.Reading) > 0 {
 			s.Task("drul", "Write the business rules in the picked passages with their exact lines.", map[string]any{"passages": r.Reading})
-			agents.ReadRules(ctx, r, "drul", docRulesSystem)
+			r.MeasureAgent("drul", func() { agents.ReadRules(ctx, r, "drul", docRulesSystem) })
 		}
 		s.Task("dmea", "Describe the capabilities and find contradictions between documents (extracted facts only).", nil)
-		runStory(ctx, r)
+		r.MeasureAgent("dmea", func() { runStory(ctx, r) })
 		r.Step(5, "done", fmt.Sprintf("%d rules, %d capabilities, %d contradictions", len(s.Findings("business-rule")), len(s.Findings("doc-capability")), len(s.Findings("doc-conflict"))))
 	} else if !ok {
 		r.Step(5, "skipped", "needs Claude: "+why)
@@ -107,7 +98,7 @@ func executeDocs(ctx context.Context, r *Run) {
 
 	r.Step(6, "running", "")
 	s.Task("dass", "Judge how far each document can be trusted and plan the validation with people.", nil)
-	runEvidenceValue(r)
+	r.MeasureAgent("dass", func() { runEvidenceValue(r) })
 	r.Step(6, "done", "")
 
 	r.Step(7, "running", "")
@@ -123,7 +114,7 @@ func executeDocs(ctx context.Context, r *Run) {
 
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Documents & diagrams analysis report from verified findings.", nil)
-	r.Report = runDocReport(ctx, r)
+	r.WriteReport(ctx, runDocReport)
 	r.Step(8, "done", "")
 	r.Step(9, "people", "Open the results in MindSuite: your business analysts and architects confirm, correct or reject each finding.")
 }
@@ -583,7 +574,7 @@ func runStory(ctx context.Context, r *Run) {
 	r.AddSent(Sent{Agent: "dmea", Model: ModelStrong, Files: []string{"(extracted facts: titles, terms, processes, rule statements, diagram links)"}, Chars: len(payload)})
 	var out storyOut
 	if err := r.LLM.JSON(ctx, ModelStrong, storySystem, string(payload), storySchema, 16000, &out); err != nil {
-		s.Log("dmea", "Business story not written: "+err.Error())
+		r.AgentProblem("dmea", "Business story not written: "+err.Error())
 		return
 	}
 	add := func(kind, title, detail string, evidence []string) {

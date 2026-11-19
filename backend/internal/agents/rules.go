@@ -84,6 +84,8 @@ func ReadRules(ctx context.Context, r *Run, agent, system string) {
 	}
 	sem := make(chan struct{}, 3)
 	var wg sync.WaitGroup
+	var failMu sync.Mutex
+	failed, lastErr := 0, ""
 	for _, j := range jobs {
 		wg.Add(1)
 		go func(j job) {
@@ -102,6 +104,9 @@ func ReadRules(ctx context.Context, r *Run, agent, system string) {
 			var out ruleOut
 			if err := r.LLM.JSON(ctx, ModelStrong, system, user, ruleSchema, 16000, &out); err != nil {
 				s.Log(agent, fmt.Sprintf("%s lines %d-%d: %v", j.f.Path, j.from, j.to, err))
+				failMu.Lock()
+				failed, lastErr = failed+1, err.Error()
+				failMu.Unlock()
 				return
 			}
 			r.Cover(agent, j.f)
@@ -118,4 +123,8 @@ func ReadRules(ctx context.Context, r *Run, agent, system string) {
 		}(j)
 	}
 	wg.Wait()
+	if failed > 0 {
+		// One problem for the agent, not one per excerpt.
+		r.AgentProblem(agent, fmt.Sprintf("Claude could not read %d of %d excerpts, so their business rules are missing (last error: %s)", failed, len(jobs), lastErr))
+	}
 }

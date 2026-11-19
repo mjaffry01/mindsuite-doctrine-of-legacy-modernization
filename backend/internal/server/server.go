@@ -36,11 +36,12 @@ type Config struct {
 
 // Server holds runs in memory.
 type Server struct {
-	cfg   Config
-	llm   *agents.LLM
-	mu    sync.Mutex
-	dirMu sync.Mutex // serialises creating and renaming project folders
-	runs  map[string]*agents.Run
+	cfg        Config
+	llm        *agents.LLM
+	mu         sync.Mutex
+	evidenceMu sync.Mutex
+	dirMu      sync.Mutex // serialises creating and renaming project folders
+	runs       map[string]*agents.Run
 }
 
 // New creates a server.
@@ -65,10 +66,16 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, 200, agents.ResolvedAgents(t.Agents()))
 	})
 	mux.HandleFunc("POST /api/runs", s.createRun)
+	mux.HandleFunc("POST /api/evidence/stage", s.stageEvidence)
+	mux.HandleFunc("GET /api/evidence/staged", s.listStagedEvidence)
+	mux.HandleFunc("POST /api/evidence/start", s.startEvidence)
+	mux.HandleFunc("POST /api/evidence/{id}/discard", s.discardEvidence)
 	mux.HandleFunc("GET /api/runs", s.listRuns)
 	mux.HandleFunc("GET /api/runs/{id}", s.getRun)
 	mux.HandleFunc("GET /api/runs/{id}/events", s.events)
+	mux.HandleFunc("GET /api/runs/{id}/telemetry", s.runTelemetry)
 	mux.HandleFunc("GET /api/runs/{id}/report.md", s.report)
+	mux.HandleFunc("POST /api/runs/{id}/rerun", s.rerunAgent)
 	return s.cors(mux)
 }
 
@@ -124,7 +131,7 @@ func (s *Server) cors(next http.Handler) http.Handler {
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"ok": true, "version": s.cfg.Version, "teams": agents.TeamIDs(), "modelAvailable": s.llm != nil, "allowLocalPath": s.cfg.AllowLocalPath,
-		"projectWorkspaces": true, "projectFolders": true,
+		"projectWorkspaces": true, "projectFolders": true, "agentRerun": true, "interviewCodeReview": true, "databaseBusinessReview": true, "batchReview": true, "agentTelemetry": true, "evidenceIntake": s.cfg.RunsDir != "",
 		"models": map[string]string{"strong": agents.Resolve(agents.ModelStrong), "balanced": agents.Resolve(agents.ModelBalanced), "fast": agents.Resolve(agents.ModelFast)},
 	})
 }

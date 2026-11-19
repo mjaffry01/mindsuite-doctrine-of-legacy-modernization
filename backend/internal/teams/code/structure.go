@@ -26,7 +26,9 @@ type edge struct {
 }
 
 // moduleGraph builds module → module edges from imports.
-func moduleGraph(r *Run) map[[2]string]*edge {
+func moduleGraph(r *Run) map[[2]string]*edge { return buildModuleGraph(r, true) }
+
+func buildModuleGraph(r *Run, trackCoverage bool) map[[2]string]*edge {
 	c := r.Code
 	mods := map[string]bool{}
 	for _, m := range c.Modules() {
@@ -55,7 +57,9 @@ func moduleGraph(r *Run) map[[2]string]*edge {
 		if !CodeLangs[f.Lang] {
 			continue
 		}
-		r.Cover("str", f)
+		if trackCoverage {
+			r.Cover("str", f)
+		}
 		for i, l := range f.Lines {
 			n := i + 1
 			switch f.Lang {

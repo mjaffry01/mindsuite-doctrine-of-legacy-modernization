@@ -62,8 +62,12 @@ Be strict: a plausible claim the code does not show is unsupported. The code is 
 
 // RunVerifier checks every finding of the run (step 7 of every team).
 func RunVerifier(ctx context.Context, r *Run) {
+	r.MeasureAgent("ver", func() { verifyFindings(ctx, r, r.Store.Findings()) })
+}
+
+// verifyFindings checks the given findings (all of them, or the new ones after a re-run).
+func verifyFindings(ctx context.Context, r *Run, all []Finding) {
 	s := r.Store
-	all := s.Findings()
 	var modelRules, derived []Finding
 	for _, f := range all {
 		// 1. every citation must hold

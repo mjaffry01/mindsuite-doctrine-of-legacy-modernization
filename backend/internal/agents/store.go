@@ -90,12 +90,14 @@ type Store struct {
 	order    []string
 	counter  map[string]int
 	file     *os.File
+	dir      string
 	subs     map[chan Message]struct{}
 }
 
 // NewStore creates a store; if dir is not empty, messages are also written to dir/messages.jsonl.
 func NewStore(dir string) (*Store, error) {
 	s := &Store{findings: map[string]*Finding{}, counter: map[string]int{}, subs: map[chan Message]struct{}{}}
+	s.dir = dir
 	if dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, err
@@ -170,6 +172,15 @@ func (s *Store) Add(f Finding) string {
 	s.mu.Unlock()
 	s.append(Message{Type: MsgFinding, From: f.Agent, Finding: &f})
 	return f.ID
+}
+
+// addImported preserves IDs from a reviewed batch and their supporting links.
+func (s *Store) addImported(f Finding) {
+	s.mu.Lock()
+	s.findings[f.ID] = &f
+	s.order = append(s.order, f.ID)
+	s.mu.Unlock()
+	s.append(Message{Type: MsgFinding, From: f.Agent, Finding: &f})
 }
 
 // Verify records the verifier's result for a finding.
@@ -248,6 +259,17 @@ func (s *Store) Subscribe() (chan Message, func()) {
 		s.mu.Lock()
 		delete(s.subs, c)
 		s.mu.Unlock()
+	}
+}
+
+// reopen opens the message file again to add to it (a re-run after the run finished).
+func (s *Store) reopen() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.file == nil && s.dir != "" {
+		if f, err := os.OpenFile(filepath.Join(s.dir, "messages.jsonl"), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644); err == nil {
+			s.file = f
+		}
 	}
 }
 

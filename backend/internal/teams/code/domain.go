@@ -15,9 +15,24 @@ func runBusinessRules(ctx context.Context, r *Run) {
 
 // ---------- 10 Domain & process (model) ----------
 
+type domainStatement struct {
+	Text     string
+	Evidence []string
+}
+
+type domainOperatingFlow struct {
+	Name  string
+	Steps []struct {
+		Kind, Text string
+		Evidence   []string
+	}
+	Questions []string
+}
+
 type domainOut struct {
-	Purpose string `json:"purpose"`
-	Actors  []struct {
+	Purpose    domainStatement       `json:"purpose"`
+	Operations []domainOperatingFlow `json:"operations"`
+	Actors     []struct {
 		Name, Description string
 		Evidence          []string
 	} `json:"actors"`
@@ -49,7 +64,12 @@ type domainOut struct {
 }
 
 var domainSchema = obj(map[string]any{
-	"purpose":      str(),
+	"purpose": obj(map[string]any{"text": str(), "evidence": ev}),
+	"operations": arr(obj(map[string]any{
+		"name":      str(),
+		"steps":     arr(obj(map[string]any{"kind": str(), "text": str(), "evidence": ev})),
+		"questions": arr(str()),
+	})),
 	"actors":       arr(obj(map[string]any{"name": str(), "description": str(), "evidence": ev})),
 	"capabilities": arr(obj(map[string]any{"name": str(), "description": str(), "modules": arr(str()), "evidence": ev})),
 	"journeys":     arr(obj(map[string]any{"name": str(), "actor": str(), "steps": arr(obj(map[string]any{"text": str(), "evidence": ev}))})),
@@ -62,7 +82,8 @@ var domainSchema = obj(map[string]any{
 const domainSystem = `You are the domain & process agent in a legacy-modernization analysis team.
 You receive FACTS that other agents extracted from a system's code (each with an id such as "int-4" or "rul-12"). You do not see the code.
 Write the business story of the system:
-- purpose: 2-4 sentences, plain language.
+- purpose: 2-4 sentences, plain language, citing the particular facts that establish the purpose.
+- operations: explain how the business works from trigger through the observed outcome. Prefer a few deep, evidence-backed workflows to many short descriptions. Give each a business action name. Describe actors, trigger, inputs, checks and decision outcomes, records read or changed, handoffs and exception paths where demonstrated. Use ordered steps with kind Trigger, Role or access, Input, Application action, Decision, Data change, Handoff, Exception, or Outcome. Each step must cite specific source-backed fact IDs. A general module or screen name alone does not establish a business step. Do not treat a save or integration call as proof of success. Use questions to identify missing steps, manual work, or real operating policy.
 - actors: people, roles and external systems that use it.
 - capabilities: business capabilities (candidate bounded contexts), with the code modules that implement each.
 - journeys: end-to-end flows (e.g. "Customer places an order"), step by step.
@@ -77,19 +98,23 @@ func runDomain(ctx context.Context, r *Run) {
 	}
 	var facts []fact
 	limits := map[string]int{"module": 80, "endpoint": 300, "table-access": 250, "shared-table": 60, "messaging": 80, "schedule": 60, "business-rule": 250, "stored-procedure": 80,
-		"outbound-call": 60, "role-check": 80, "auth-method": 10, "legacy-program": 80, "batch-job": 60, "job-step": 80, "architecture-style": 1, "cycle": 20, "soap-service": 20, "file-exchange": 20, "cics": 40}
+		"outbound-call": 60, "role-check": 80, "auth-method": 10, "legacy-program": 80, "batch-job": 60, "job-step": 80, "workflow-trace": 60, "journey": 60, "purpose": 30, "screen": 100, "architecture-style": 1, "cycle": 20, "soap-service": 20, "file-exchange": 20, "cics": 40}
 	count := map[string]int{}
-	for _, f := range s.Findings() {
+	findings := s.Findings()
+	if r.Options.Interview != nil {
+		reviewPriority(r).sort(findings)
+	}
+	for _, f := range findings {
 		lim, ok := limits[f.Kind]
 		if !ok || count[f.Kind] >= lim || f.Status == StatusRejected {
 			continue
 		}
 		count[f.Kind]++
 		text := f.Title
-		if f.Kind == "business-rule" {
+		if f.Kind == "business-rule" || f.Kind == "workflow-trace" || f.Kind == "purpose" || f.Kind == "journey" {
 			text = f.Title + ": " + f.Detail
 		}
-		facts = append(facts, fact{f.ID, f.Kind, f.Module, short(text, 300)})
+		facts = append(facts, fact{f.ID, f.Kind, f.Module, short(text, 900)})
 	}
 	screens := []string{}
 	for _, f := range r.Code.Files {
@@ -110,20 +135,32 @@ func runDomain(ctx context.Context, r *Run) {
 	r.AddSent(Sent{Agent: "dom", Model: ModelStrong, Files: []string{"(extracted facts and screen file names only, no code)"}, Chars: len(payload)})
 	var out domainOut
 	if err := r.LLM.JSON(ctx, ModelStrong, domainSystem, string(payload), domainSchema, 32000, &out); err != nil {
-		s.Log("dom", "Business story not written: "+err.Error())
+		r.AgentProblem("dom", "Business story not written: "+err.Error())
 		return
 	}
 	add := func(kind, title, detail string, evidence []string, data map[string]any) {
 		s.Add(Finding{Agent: "dom", Kind: kind, Title: title, Detail: detail, Evidence: evidence, Basis: BasisModel, Confidence: "medium", Data: data})
 	}
-	if out.Purpose != "" {
-		var all []string
-		for i, f := range facts {
-			if i < 8 {
-				all = append(all, f.ID)
+	allowed := map[string]bool{}
+	for _, fact := range facts {
+		allowed[fact.ID] = true
+	}
+	if strings.TrimSpace(out.Purpose.Text) != "" && hasGroundedEvidence(out.Purpose.Evidence, allowed) {
+		add("purpose", "What the system is for", out.Purpose.Text, uniq(out.Purpose.Evidence), nil)
+	}
+	for _, op := range out.Operations[:min(len(out.Operations), 10)] {
+		flow, refs, ok := groundedOperation(op, allowed)
+		if ok {
+			var detail []string
+			for i, step := range flow.Steps {
+				var supporting []string
+				for _, ref := range step.Refs {
+					supporting = append(supporting, refs[ref])
+				}
+				detail = append(detail, fmt.Sprintf("%d. %s — %s [%s]", i+1, step.Kind, step.Text, strings.Join(supporting, ", ")))
 			}
+			add("operating-flow", domainLine(op.Name, 120), strings.Join(detail, "\n"), refs, map[string]any{"operatingFlow": flow})
 		}
-		add("purpose", "What the system is for", out.Purpose, all, nil)
 	}
 	for _, a := range out.Actors {
 		add("actor", a.Name, a.Description, a.Evidence, nil)
@@ -153,4 +190,51 @@ func runDomain(ctx context.Context, r *Run) {
 		s.Question("dom", "", q)
 	}
 	r.Store.Log("dom", fmt.Sprintf("Business story: %d actors, %d capabilities, %d journeys, %d events, %d terms.", len(out.Actors), len(out.Capabilities), len(out.Journeys), len(out.Events), len(out.Glossary)))
+}
+
+func hasGroundedEvidence(refs []string, allowed map[string]bool) bool {
+	if len(refs) == 0 {
+		return false
+	}
+	for _, id := range refs {
+		if !allowed[id] {
+			return false
+		}
+	}
+	return true
+}
+
+func domainLine(text string, limit int) string {
+	return short(strings.Join(strings.Fields(text), " "), limit)
+}
+
+func groundedOperation(op domainOperatingFlow, allowed map[string]bool) (operatingFlow, []string, bool) {
+	var flow operatingFlow
+	var evidence []string
+	if strings.TrimSpace(op.Name) == "" || len(op.Steps) < 2 || len(op.Steps) > 20 {
+		return flow, nil, false
+	}
+	positions := map[string]int{}
+	for _, step := range op.Steps {
+		if strings.TrimSpace(step.Text) == "" || !hasGroundedEvidence(step.Evidence, allowed) {
+			return operatingFlow{}, nil, false
+		}
+		row := operatingStep{Kind: domainLine(step.Kind, 36), Text: domainLine(step.Text, 550)}
+		for _, id := range uniq(step.Evidence) {
+			pos, ok := positions[id]
+			if !ok {
+				pos = len(evidence)
+				positions[id] = pos
+				evidence = append(evidence, id)
+			}
+			row.Refs = append(row.Refs, pos)
+		}
+		flow.Steps = append(flow.Steps, row)
+	}
+	for _, question := range op.Questions[:min(len(op.Questions), 6)] {
+		if question = domainLine(question, 300); question != "" {
+			flow.Questions = append(flow.Questions, question)
+		}
+	}
+	return flow, evidence, true
 }

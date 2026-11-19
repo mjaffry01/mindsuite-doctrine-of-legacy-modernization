@@ -6,7 +6,6 @@ import (
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
 	"sort"
 	"strings"
-	"sync"
 )
 
 // DBTeam is the database agent team in the order of a run (ids match db-agents.html in the web app).
@@ -21,7 +20,7 @@ var DBTeam = []AgentInfo{
 	{ID: "prt", Name: "Portability", Kind: "tool", Model: "", Does: "Engine-specific features and data types a move to another engine must convert, with effort."},
 	{ID: "dq", Name: "Design quality", Kind: "tool", Model: "", Does: "Tables without primary keys, foreign keys without indexes, very wide tables, generic and name/value columns, isolated tables."},
 	{ID: "drul", Name: "Database business rules", Kind: "model", Model: ModelStrong, Does: "Reads the programs the orchestrator picked and writes each business rule in plain language with its exact lines."},
-	{ID: "ddom", Name: "Data domains & meaning", Kind: "model", Model: ModelStrong, Does: "From table and column names, keys, programs and jobs (never data): data domains, what each main table means, vocabulary, data lifecycle."},
+	{ID: "ddom", Name: "Business operations & data domains", Kind: "tool+model", Model: ModelStrong, Does: "Trace stored routines, trigger conditions, job handoffs and changes to records. Describe data domains with Claude when allowed."},
 	{ID: "dass", Name: "Migration assessment", Kind: "tool", Model: "", Does: "Complexity, effort and order per data domain, and the overall migration approach."},
 	{ID: "ver", Name: "Verifier", Kind: "tool+model", Model: ModelBalanced, Does: "Re-opens every cited line of the export; a second model checks the rules; doubts become questions for your DBA and experts."},
 	{ID: "rep", Name: "Report writer", Kind: "tool+model", Model: ModelBalanced, Does: "Writes the Database analysis report from verified findings."},
@@ -37,8 +36,9 @@ func executeDB(ctx context.Context, r *Run) {
 	// 1 Receive
 	r.Step(1, "running", "")
 	s.Task("cat", "Read the export files: tables, columns, keys, programs, jobs, links, accounts, sizes.", nil)
-	m := ParseDB(r)
-	st(r).db = m
+	m := agents.MeasureInput(r, "cat", ParseDB, func(m *DBModel) {
+		st(r).db = m
+	})
 	if len(m.Files) == 0 {
 		s.Log("cat", "No schema export (.sql/.ddl) or catalog result (.csv) was recognised.")
 	}
@@ -71,26 +71,14 @@ func executeDB(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"rel", runRelationships}, {"vol", runVolume}, {"prc", runStoredCode}, {"dsec", runDBSecurity}, {"prt", runPortability}, {"dq", runDesignQuality}}
-	var wg sync.WaitGroup
-	safe := func(id string, fn func(*Run)) {
-		defer func() {
-			if p := recover(); p != nil {
-				s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-			}
-		}()
-		fn(r)
-	}
+	parts := make([]agents.Part, 0, len(facts))
 	for _, a := range facts {
 		s.Task(a.id, "Collect facts for all schemas.", map[string]any{"schemas": schemas})
-		wg.Add(1)
-		go func(id string, fn func(*Run)) {
-			defer wg.Done()
-			safe(id, fn)
-		}(a.id, a.fn)
+		parts = append(parts, agents.Part{ID: a.id, Fn: a.fn})
 	}
-	wg.Wait()
+	r.RunParts(ctx, parts)
 	s.Task("job", "Collect jobs, links and outside calls; link each job to the program it runs.", nil)
-	safe("job", runJobsLinks)
+	r.RunPart(ctx, agents.Part{ID: "job", Fn: runJobsLinks})
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	// 4 Reading list
@@ -99,23 +87,28 @@ func executeDB(ctx context.Context, r *Run) {
 	r.Step(4, "done", fmt.Sprintf("%d programs picked", len(r.Reading)))
 
 	// 5 Business meaning
+	r.Step(5, "running", "")
+	s.Task("ddom", "Trace database business operations from exported routines and triggers.", nil)
+	r.MeasureAgent("ddom", func() { runDatabaseOperations(r) })
+	flows := len(s.Findings("db-operating-flow"))
 	if ok, why := r.ModelReady(); ok {
-		r.Step(5, "running", "")
 		if len(r.Reading) > 0 {
 			s.Task("drul", "Write the business rules in the picked programs in plain language, with exact lines.", map[string]any{"programs": r.Reading})
-			agents.ReadRules(ctx, r, "drul", dbRulesSystem)
+			r.MeasureAgent("drul", func() { agents.ReadRules(ctx, r, "drul", dbRulesSystem) })
 		}
 		s.Task("ddom", "Name the data domains and explain the main tables from names, keys and programs (no data).", nil)
-		runDataDomains(ctx, r)
-		r.Step(5, "done", fmt.Sprintf("%d rules, %d data domains", len(s.Findings("business-rule")), len(s.Findings("data-domain"))))
+		r.MeasureAgent("ddom", func() { runDataDomains(ctx, r) })
+		r.Step(5, "done", fmt.Sprintf("%d traced operations, %d rules, %d data domains", flows, len(s.Findings("business-rule")), len(s.Findings("data-domain"))))
+	} else if flows > 0 {
+		r.Step(5, "done", fmt.Sprintf("%d traced operations. Optional AI interpretation skipped: %s", flows, why))
 	} else {
-		r.Step(5, "skipped", "needs Claude: "+why)
+		r.Step(5, "skipped", "No traceable routine bodies; optional AI interpretation skipped: "+why)
 	}
 
 	// 6 Assess
 	r.Step(6, "running", "")
 	s.Task("dass", "Score each data domain for migration and suggest the order and approach.", nil)
-	runDBAssessment(r)
+	r.MeasureAgent("dass", func() { runDBAssessment(r) })
 	r.Step(6, "done", "")
 
 	// 7 Verify
@@ -133,7 +126,7 @@ func executeDB(ctx context.Context, r *Run) {
 	// 8 Report
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Database analysis report from verified findings.", nil)
-	r.Report = runDBReport(ctx, r)
+	r.WriteReport(ctx, runDBReport)
 	r.Step(8, "done", "")
 
 	r.Step(9, "people", "Open the results in MindSuite: your DBA and experts confirm, correct or reject each finding.")
@@ -159,6 +152,10 @@ func chooseDBReading(r *Run) {
 			continue // no body in the export
 		}
 		x := cand{c: c}
+		if focused := databaseInterviewScore(r, c.Name+" "+strings.Join(c.Reads, " ")+" "+strings.Join(c.Writes, " ")); focused > 0 {
+			x.score += float64(focused)
+			x.why = append(x.why, "matches the project interview")
+		}
 		if len(c.Writes) > 0 {
 			x.score += 1.5 * float64(min(len(c.Writes), 4))
 			x.why = append(x.why, "writes "+strings.Join(firstN(c.Writes, 3), ", "))

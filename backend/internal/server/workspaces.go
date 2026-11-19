@@ -89,6 +89,10 @@ func workspaceFrom(w http.ResponseWriter, r *http.Request) (workspaceRef, bool) 
 // workspaceDir returns the project folder of a workspace, creating, renaming or migrating it as needed.
 // It returns "" when results are not saved.
 func (s *Server) workspaceDir(ref workspaceRef) string {
+	return s.workspaceDirectory(ref, true)
+}
+
+func (s *Server) workspaceDirectory(ref workspaceRef, create bool) string {
 	if s.cfg.RunsDir == "" || ref.id == "" {
 		return ""
 	}
@@ -108,6 +112,12 @@ func (s *Server) workspaceDir(ref workspaceRef) string {
 		case strings.HasSuffix(e.Name(), suffix) && folderBelongs(filepath.Join(root, e.Name()), ref.id):
 			existing = filepath.Join(root, e.Name())
 		}
+	}
+	if !create && existing == "" && legacy == "" {
+		return ""
+	}
+	if !create && existing != "" {
+		return existing
 	}
 	name := ref.name
 	want := filepath.Join(root, safeFolderName(name)+suffix)
@@ -222,7 +232,11 @@ func (s *Server) savedResult(ref workspaceRef, id string) (agents.Result, bool) 
 	}
 	folders := []string{s.cfg.RunsDir}
 	if ref.id != "" {
-		folders = runFolders(s.workspaceDir(ref))
+		dir := s.workspaceDirectory(ref, false)
+		if dir == "" {
+			return result, false
+		}
+		folders = runFolders(dir)
 	}
 	for _, folder := range folders {
 		file, err := os.Open(filepath.Join(folder, id, "result.json"))
@@ -240,16 +254,18 @@ func (s *Server) savedResult(ref workspaceRef, id string) (agents.Result, bool) 
 }
 
 type runListItem struct {
-	ID      string    `json:"id"`
-	Status  string    `json:"status"`
-	Started time.Time `json:"started"`
-	Team    string    `json:"team"`
-	Source  any       `json:"source"`
+	ID       string                `json:"id"`
+	Status   string                `json:"status"`
+	Started  time.Time             `json:"started"`
+	Team     string                `json:"team"`
+	Source   any                   `json:"source"`
+	Problems int                   `json:"problems,omitempty"` // agents that did not finish
+	Batches  *agents.BatchProgress `json:"batches,omitempty"`
 }
 
 func listItem(result agents.Result) runListItem {
 	run := result.Run
-	return runListItem{ID: run.ID, Status: run.Status, Started: run.Started, Team: run.Options.Team, Source: result.Source}
+	return runListItem{ID: run.ID, Status: run.Status, Started: run.Started, Team: run.Options.Team, Source: result.Source, Problems: len(run.Problems), Batches: run.Batches}
 }
 
 func (s *Server) resultsFor(ref workspaceRef) []runListItem {
@@ -263,13 +279,17 @@ func (s *Server) resultsFor(ref workspaceRef) []runListItem {
 	s.mu.Unlock()
 	results := make([]runListItem, 0, len(current))
 	for _, run := range current {
-		results = append(results, listItem(run.Snapshot()))
+		results = append(results, listItem(run.ListSummary()))
 	}
 	if ref.id == "" || s.cfg.RunsDir == "" {
 		return results
 	}
 	seen := map[string]bool{}
-	for _, folder := range runFolders(s.workspaceDir(ref)) {
+	dir := s.workspaceDirectory(ref, false)
+	if dir == "" {
+		return results
+	}
+	for _, folder := range runFolders(dir) {
 		entries, _ := os.ReadDir(folder)
 		for _, entry := range entries {
 			if !entry.IsDir() || current[entry.Name()] != nil || seen[entry.Name()] || !savedRunID.MatchString(entry.Name()) {
@@ -281,8 +301,48 @@ func (s *Server) resultsFor(ref workspaceRef) []runListItem {
 				continue
 			}
 			started, _ := time.Parse("20060102-150405", strings.Join(strings.Split(entry.Name(), "-")[:2], "-"))
-			results = append(results, runListItem{ID: entry.Name(), Status: "interrupted", Started: started})
+			teamID := "code"
+			for _, team := range teamFolders {
+				if filepath.Base(folder) == team.folder {
+					teamID = team.team
+					break
+				}
+			}
+			results = append(results, runListItem{ID: entry.Name(), Status: "interrupted", Started: started, Team: teamID})
 		}
 	}
 	return results
+}
+
+func (s *Server) runTelemetry(w http.ResponseWriter, r *http.Request) {
+	ref, ok := workspaceFrom(w, r)
+	if !ok {
+		return
+	}
+	id := r.PathValue("id")
+	if live := s.liveRun(ref.id, id); live != nil {
+		status, attempts := live.AgentTelemetry()
+		writeJSON(w, 200, map[string]any{"status": status, "attempts": attempts})
+		return
+	}
+	if saved, ok := s.savedResult(ref, id); ok {
+		writeJSON(w, 200, map[string]any{"status": saved.Run.Status, "attempts": saved.Telemetry})
+		return
+	}
+	if s.cfg.RunsDir != "" && savedRunID.MatchString(id) {
+		folders := []string{s.cfg.RunsDir}
+		if ref.id != "" {
+			folders = nil
+			if dir := s.workspaceDirectory(ref, false); dir != "" {
+				folders = runFolders(dir)
+			}
+		}
+		for _, folder := range folders {
+			if attempts, found := agents.ReadAgentTelemetry(filepath.Join(folder, id)); found {
+				writeJSON(w, 200, map[string]any{"status": "interrupted", "attempts": attempts})
+				return
+			}
+		}
+	}
+	httpErr(w, 404, "No telemetry was found for this run in this workspace.")
 }

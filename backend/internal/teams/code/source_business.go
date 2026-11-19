@@ -8,13 +8,13 @@ import (
 )
 
 type businessAction struct {
-	verb, area string
-	citations  []Citation
+	verb, area, method string
+	citations          []Citation
 }
 
 var businessCall = regexp.MustCompile("(?i)\\b([_a-z][a-z0-9_]*(?:service|repository|repo))\\s*\\.\\s*([a-z][a-z0-9_]*)\\s*\\(")
 var publicMethod = regexp.MustCompile("(?i)^\\s*(?:public|internal|friend)\\s+(?:[a-z_][a-z0-9_<>.,?\\[\\]]*\\s+)*([a-z][a-z0-9_]*)\\s*\\(")
-var businessVerb = regexp.MustCompile("(?i)^(get|list|find|search|add|create|insert|update|edit|save|delete|remove|approve|cancel)(.+)$")
+var businessVerb = regexp.MustCompile("(?i)^(get|list|find|search|add|create|insert|update|edit|save|delete|remove|approve|cancel|receive|adjust|ship|transfer|return|reserve|reconcile|submit|settle|inspect|grade|pack|dispatch|issue|renew|refund|post|register|schedule|enroll|process|calculate|pay|accept|reject)(.+)$")
 var businessWords = regexp.MustCompile("[A-Z]?[a-z]+|[A-Z]+(?:[0-9]+)?")
 
 func businessOperation(name string) (verb, area string) {
@@ -38,6 +38,20 @@ func businessOperation(name string) (verb, area string) {
 			area = "supplier records"
 		case "payment", "payments":
 			area = "payments"
+		case "claim", "claims":
+			area = "claims"
+		case "policy", "policies":
+			area = "policies"
+		case "account", "accounts":
+			area = "accounts"
+		case "lot", "lots", "batch", "batches":
+			area = "lots or batches"
+		case "harvest", "crop":
+			area = "harvest records"
+		case "shipment", "delivery", "deliveries":
+			area = "deliveries"
+		case "booking", "bookings":
+			area = "bookings"
 		}
 		if area != "" {
 			break
@@ -77,13 +91,12 @@ func businessImplementation(f *File) bool {
 
 // runSourceBusiness sketches only business activities that can be traced from a
 // screen or controller to a matching method in a service or repository.
-func runSourceBusiness(r *Run) int {
+func runSourceBusiness(r *Run) int { return traceSourceBusiness(r, nil) }
+
+func traceSourceBusiness(r *Run, crossBatch func([]Citation) bool) int {
 	project := businessProjectScope(r)
-	type implementation struct {
-		file *File
-		line int
-	}
-	methods := map[string][]implementation{}
+	evidence := workflowEvidence(r)
+	methods := map[string][]businessMethod{}
 	for _, f := range r.Code.Files {
 		if !applicationSource(f) || !businessImplementation(f) {
 			continue
@@ -92,7 +105,7 @@ func runSourceBusiness(r *Run) int {
 			match := publicMethod.FindStringSubmatch(text)
 			if match != nil {
 				key := project(f) + "\x00" + strings.ToLower(match[1])
-				methods[key] = append(methods[key], implementation{f, line + 1})
+				methods[key] = append(methods[key], businessMethod{f, line + 1})
 			}
 		}
 	}
@@ -103,39 +116,35 @@ func runSourceBusiness(r *Run) int {
 			continue
 		}
 		for line, text := range f.Lines {
-			trim := strings.TrimSpace(text)
-			if strings.HasPrefix(trim, "//") || strings.HasPrefix(trim, "'") {
-				continue
-			}
-			for _, call := range businessCall.FindAllStringSubmatch(text, -1) {
+			code := workflowCodeLine(f.Lang, text)
+			for _, call := range businessCall.FindAllStringSubmatch(code, -1) {
 				verb, area := businessOperation(call[2])
-				key := project(f) + "\x00" + area + "\x00" + verb
+				key := f.Path + "\x00" + strings.ToLower(call[2])
 				if area == "" || seen[key] {
 					continue
 				}
 				matches := methods[project(f)+"\x00"+strings.ToLower(call[2])]
-				for _, target := range matches {
-					name := strings.ToLower(path.Base(target.file.Path))
-					receiver := strings.TrimLeft(strings.ToLower(call[1]), "_")
-					if raw := strings.TrimLeft(call[1], "_"); len(raw) > 1 && raw[0] == 'I' && raw[1] >= 'A' && raw[1] <= 'Z' {
-						receiver = receiver[1:]
-					}
-					if !strings.Contains(name, receiver) && !strings.Contains(receiver, strings.TrimSuffix(name, path.Ext(name))) {
-						continue
-					}
-					if actions[project(f)] == nil {
-						actions[project(f)] = map[string][]businessAction{}
-					}
-					actions[project(f)][area] = append(actions[project(f)][area], businessAction{
-						verb: verb, area: area, citations: []Citation{cite(f, line+1), cite(target.file, target.line)},
-					})
-					r.Cover("dom", f)
-					r.Cover("dom", target.file)
-					seen[key] = true
-					break
+				target, ok := matchBusinessMethod(call[1], matches)
+				if !ok {
+					continue
 				}
+				module := project(f)
+				if actions[module] == nil {
+					actions[module] = map[string][]businessAction{}
+				}
+				action := businessAction{
+					verb: verb, area: area, method: call[2], citations: []Citation{cite(f, line+1), cite(target.file, target.line)},
+				}
+				actions[module][area] = append(actions[module][area], action)
+				r.Cover("dom", f)
+				r.Cover("dom", target.file)
+				seen[key] = true
+				recordWorkflowTrace(r, module, action, target, methods, evidence, crossBatch)
 			}
 		}
+	}
+	if crossBatch != nil {
+		return 0
 	}
 	count := 0
 	for _, module := range sortedKeys(actions) {
@@ -144,7 +153,7 @@ func runSourceBusiness(r *Run) int {
 			var verbs []string
 			var citations []Citation
 			for _, action := range observed {
-				verbs = append(verbs, action.verb)
+				verbs = appendUnique(verbs, action.verb)
 				citations = append(citations, action.citations...)
 				r.Store.Add(Finding{Agent: "dom", Kind: "journey", Module: module, Title: action.verb + " " + action.area,
 					Detail: fmt.Sprintf("The user-facing code calls a service or repository method to %s %s. The citations identify the call and matching implementation.", action.verb, action.area),

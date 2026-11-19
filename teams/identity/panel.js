@@ -6,14 +6,14 @@ const ID_EXPORT_RE=/\.(csv|tsv|json|txt|pem|crt|cer|out|properties|ya?ml|xml|con
 let ID_LIVE={log:[],snap:null,es:null,poll:null,timer:null};
 function openIdAgents(id){const w=window.open('teams/identity/agents.html'+(typeof id==='string'?'#'+id:''),'mindsuite-id-agents','width=1240,height=900');if(w)w.focus();}
 function idAgentOptions(){const c=agentCfg();return {team:'identity',allowModel:!!c.idAllowModel,gitHistory:false,maxModelFiles:Math.max(1,Math.min(60,+c.maxFiles||12))};}
-function idAgentGo(){go('analysis');setTimeout(()=>document.getElementById('id-agent-run')?.scrollIntoView({block:'start'}),80);}
+function idAgentGo(){showAgentTeam('id-agent-run');}
 function idAgentPick(kind){const i=document.createElement('input');i.type='file';if(kind==='folder'){i.webkitdirectory=true;i.multiple=true;}else if(kind==='zip')i.accept='.zip,application/zip';else{i.multiple=true;i.accept='.csv,.tsv,.json,.txt,.pem,.crt,.cer,.properties,.yaml,.yml,.xml';}i.onchange=()=>{if(i.files.length)idAgentSend([...i.files],kind);};i.click();}
 async function idAgentSend(files,kind){const fd=new FormData();fd.append('options',JSON.stringify(idAgentOptions()));let sent=0,skipped=0;
  if(kind==='zip'){fd.append('zip',files[0],files[0].name);sent=1;}
  else{for(const f of files){const p=f.webkitRelativePath||f.name;if(/(^|\/)(node_modules|\.git|target|bin|obj|build|dist|vendor)\//.test('/'+p)||!ID_EXPORT_RE.test(p)||f.size>2*1024*1024){skipped++;continue;}fd.append('file',f,p);sent++;}fd.append('root',(files[0].webkitRelativePath||'').split('/')[0]||'identity-export');}
  if(!sent){notice('No directory, provider or certificate exports among the chosen files.');return;}
  notice('Sending '+(kind==='zip'?files[0].name:sent+' file'+(sent===1?'':'s')+(skipped?' ('+skipped+' other files left out)':''))+' to the identity & access agents…');
- try{const j=await agentFetch('/api/runs',{method:'POST',body:fd});idAgentFollow(j.id);}catch(e){notice('Could not start the identity & access agents: '+e.message);}}
+ await stageAgentForm(fd);}
 function idAgentFollow(id){const c=agentCfg();c.idRunId=id;persist();if(ID_LIVE.es)ID_LIVE.es.close();clearInterval(ID_LIVE.poll);ID_LIVE.log=[];ID_LIVE.snap=null;
  try{const es=new EventSource(agentURL('/api/runs/'+id+'/events'));ID_LIVE.es=es;es.addEventListener('message',e=>{try{ID_LIVE.log.push(JSON.parse(e.data));if(ID_LIVE.log.length>300)ID_LIVE.log.shift();idAgentRenderSoon();}catch(err){}});es.addEventListener('done',()=>{es.close();idAgentRefresh();});es.onerror=()=>{};}catch(e){}
  ID_LIVE.poll=setInterval(idAgentRefresh,2000);idAgentRefresh();idAgentGo();}
@@ -24,7 +24,7 @@ function idAgentKeep(s){const pick=d=>{if(!d)return undefined;const o={};for(con
  const keep=s.findings.filter(f=>f.status!=='rejected').slice(0,3000).map(f=>({id:f.id,agent:f.agent,kind:f.kind,module:f.module||'',title:f.title,detail:(f.detail||'').slice(0,900),status:f.status,verdict:f.verdict||'',cite:f.citations&&f.citations[0]?f.citations[0].file+(f.citations[0].line?':'+f.citations[0].line:''):'',data:pick(f.data)}));
  M.idAgentRun={id:s.run.id,url:agentBase(),at:new Date().toISOString(),status:s.run.status,error:s.run.error||'',steps:s.run.steps,source:s.source,counts:s.counts,rejected:s.findings.filter(f=>f.status==='rejected').length,findings:keep,questions:(s.questions||[]).map(q=>({from:q.from,ref:q.ref||'',text:q.text})),sent:s.sentToModel||[],report:(s.report||'').length<400000?s.report:'',imported:false};
  persist();notice('Identity & access agent run finished: '+keep.length+' findings, '+M.idAgentRun.questions.length+' questions for your identity team.');}
-function idAgentImport(){const A=M.idAgentRun;if(!A)return;ensureDiscovery();const fileId='idagentrun-'+A.id;const src=A.source||{};
+function idAgentImport(_event,result){const A=result||M.idAgentRun;if(!A)return;ensureDiscovery();const fileId='idagentrun-'+A.id;const src=A.source||{};
  M.files=M.files.filter(f=>f.id!==fileId);M.files.push({id:fileId,name:'Identity & access agent run '+A.id,size:0,category:'security',source:'identity',parsed:true,sample:false,registeredAt:A.at,context:{component:M.scope.component||'',environment:M.scope.environment||'',asOf:src.asOf||A.at.slice(0,10),revision:'',origin:'MindSuite identity & access agent team',custodian:'',basis:'implemented',locator:(src.accounts||0)+' accounts, '+(src.groups||0)+' groups',lineage:''}});
  const R=(id,cite,fields,status)=>({id:'idagent-'+id,origin:'agent',team:'identity',status:status||'extracted',method:status==='inferred-code'?'inferred':'extracted',evidence:[fileId],cite,...fields});
  for(const t of INV_TYPES)M.inventory[t.key]=M.inventory[t.key].filter(x=>x.origin!=='agent'||x.team!=='identity'||protectedStatus(x.status));
@@ -37,7 +37,7 @@ function idAgentImport(){const A=M.idAgentRun;if(!A)return;ensureDiscovery();con
   'inactive-accounts':['security','Disable inactive accounts before the move'],'shared-accounts':['security','Give each person their own account'],'password-never-expires':['security','Rotate, or replace with managed identities'],
   'certificate-issue':['security','Renew or replace the certificate'],secret:['security','Remove from shared files and rotate'],'legacy-protocol':['security','Move sign-in to OpenID Connect or SAML'],'broad-groups':['security','Check what broad groups can do']};
  put('risks',A.findings.filter(f=>RISK[f.kind]).slice(0,80).map(f=>R(f.id,by(f),{name:f.title,category:RISK[f.kind][0],severity:(f.data&&f.data.severity)||'medium',context:'',mitigation:RISK[f.kind][1]})));
- A.imported=true;persist();notice('Identity & access results added to the inventory for your identity team to confirm.');render();}
+ A.imported=true;if(!result){persist();notice('Identity & access results added to the inventory for your identity team to confirm.');render();}}
 function idAgentDownloadReport(){const A=M.idAgentRun;const snap=ID_LIVE.snap;const text=(snap&&snap.run.id===A?.id&&snap.report)||A?.report;if(text)downloadText('identity-analysis-'+(A?.id||'run')+'.md',text);else window.open(agentURL('/api/runs/'+A.id+'/report.md'));}
 function idAgentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=ID_LIVE.snap&&ID_LIVE.snap.run.id===c.idRunId?ID_LIVE.snap:null;const A=M.idAgentRun;const running=live&&live.run.status==='running';
  const steps=(live?live.run.steps:A&&A.steps)||[];
@@ -47,7 +47,7 @@ function idAgentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=
   h('div',{class:'type-chips'},[agentChip('Allow the AI agent to send group and application names (no person names) to Claude (Anthropic)',!!c.idAllowModel,v=>{c.idAllowModel=v;persist();render();})]),
   c.idAllowModel?h('p',{class:'scan-privacy',text:'With this on, the role-model agent sends group and application names with member counts; the report writer sends finding titles. Never person names, passwords or hashes. Everything sent is listed in the result.'}):h('p',{class:'scan-privacy',text:'Nothing leaves the backend machine: 11 rule-based agents run; the target role model is listed as a gap.'}),
   h('p',{class:'muted',text:'Give the exports from Record evidence → Identity & access → How to extract: AD users (Get-ADUser … | Export-Csv, with LastLogonDate, PasswordNeverExpires, MemberOf), group members (one CSV per group, named after it), the Entra MFA registration report and Conditional Access policies, Okta users/groups/apps JSON, and openssl certificate output. Account names stay on the backend machine.'}),
-  h('div',{class:'scan-actions'},[button('Choose export files & run',()=>idAgentPick('files'),'btn primary'),button('Choose folder',()=>idAgentPick('folder'),'btn small'),button('Choose zip',()=>idAgentPick('zip'),'btn small')])]);
+  h('div',{class:'scan-actions'},[button('Stage export files',()=>idAgentPick('files'),'btn primary'),button('Choose folder',()=>idAgentPick('folder'),'btn small'),button('Choose zip',()=>idAgentPick('zip'),'btn small')])]);
  const stepList=steps.length?h('ol',{class:'agent-steps'},steps.map(s=>h('li',{class:'agent-step '+s.status},[h('span',{class:'agent-step-dot'}),h('b',{text:s.n+' · '+s.title}),h('small',{text:({waiting:'Waiting',running:'Running…',done:'Done',skipped:'Skipped',people:'Your turn'}[s.status]||s.status)+(s.note?' — '+s.note:'')})]))):null;
  const log=running||(live&&ID_LIVE.log.length)?h('div',{class:'agent-log'},ID_LIVE.log.slice(-14).map(m=>h('div',{class:'agent-msg '+m.type},[h('span',{class:'agent-msg-type',text:m.type}),h('b',{text:ID_AGENT_LABEL[m.from]||m.from}),' ',m.type==='finding'?m.finding.title:m.type==='verification'?m.ref+': '+m.status+(m.text?' — '+m.text:''):m.text||'']))):null;
  let result=null;

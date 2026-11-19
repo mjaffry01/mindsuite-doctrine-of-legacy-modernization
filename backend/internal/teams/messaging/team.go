@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
 )
@@ -47,9 +46,10 @@ func executeMsg(ctx context.Context, r *Run) {
 	s := r.Store
 	r.Step(1, "running", "")
 	s.Task("brk", "Read the broker and cache exports.", nil)
-	m := ParseMsg(r)
-	st(r).m = m
-	runReader(r)
+	m := agents.MeasureInput(r, "brk", ParseMsg, func(m *MsgModel) {
+		st(r).m = m
+		runReader(r)
+	})
 	sum := m.Summary()
 	r.Step(1, "done", fmt.Sprintf("%v brokers, %v queues, %v topics, %v exchanges, %v channels, %v caches from %d file(s)", sum["brokers"], sum["queues"], sum["topics"], sum["exchanges"], sum["channels"], sum["caches"], len(m.Files)))
 
@@ -73,21 +73,12 @@ func executeMsg(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"lcy", runVersions}, {"flw", runFlows}, {"hlt", runHealth}, {"rel", runReliability}, {"csh", runCaching}, {"msec", runMsgSecurity}}
-	var wg sync.WaitGroup
+	parts := make([]agents.Part, 0, len(facts))
 	for _, a := range facts {
 		s.Task(a.id, "Collect facts for all brokers and caches.", nil)
-		wg.Add(1)
-		go func(id string, fn func(*Run)) {
-			defer wg.Done()
-			defer func() {
-				if p := recover(); p != nil {
-					s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-				}
-			}()
-			fn(r)
-		}(a.id, a.fn)
+		parts = append(parts, agents.Part{ID: a.id, Fn: a.fn})
 	}
-	wg.Wait()
+	r.RunParts(ctx, parts)
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	r.Step(4, "running", "")
@@ -102,7 +93,7 @@ func executeMsg(ctx context.Context, r *Run) {
 	if ok, why := r.ModelReady(); ok && len(m.Dests) > 0 {
 		r.Step(5, "running", "")
 		s.Task("mint", "Name the business event each queue or topic carries and the systems it connects.", nil)
-		runMeaning(ctx, r)
+		r.MeasureAgent("mint", func() { runMeaning(ctx, r) })
 		r.Step(5, "done", fmt.Sprintf("%d message meanings, %d integrations", len(s.Findings("message-meaning")), len(s.Findings("integration"))))
 	} else if !ok {
 		r.Step(5, "skipped", "needs Claude: "+why)
@@ -112,7 +103,7 @@ func executeMsg(ctx context.Context, r *Run) {
 
 	r.Step(6, "running", "")
 	s.Task("mass", "Suggest a target per broker and cache, the order and the approach.", nil)
-	runMsgAssessment(r)
+	r.MeasureAgent("mass", func() { runMsgAssessment(r) })
 	r.Step(6, "done", "")
 
 	r.Step(7, "running", "")
@@ -128,7 +119,7 @@ func executeMsg(ctx context.Context, r *Run) {
 
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Messaging & caching analysis report from verified findings.", nil)
-	r.Report = runMsgReport(ctx, r)
+	r.WriteReport(ctx, runMsgReport)
 	r.Step(8, "done", "")
 	r.Step(9, "people", "Open the results in MindSuite: your middleware team confirms, corrects or rejects each finding.")
 }
@@ -656,7 +647,7 @@ func runMeaning(ctx context.Context, r *Run) {
 	r.AddSent(Sent{Agent: "mint", Model: ModelStrong, Files: []string{"(queue, topic and channel names, flows and partners; no message contents, no credentials)"}, Chars: len(payload)})
 	var out meaningOut
 	if err := r.LLM.JSON(ctx, ModelStrong, meaningSystem, string(payload), meaningSchema, 24000, &out); err != nil {
-		s.Log("mint", "Integration meaning not written: "+err.Error())
+		r.AgentProblem("mint", "Integration meaning not written: "+err.Error())
 		return
 	}
 	for _, x := range out.Messages {
@@ -819,7 +810,7 @@ func runMsgReport(ctx context.Context, r *Run) string {
 				w("## What flows through the system\n\n%s\n\n", out.Story)
 			}
 		} else {
-			s.Log("rep", "Written summary not available: "+err.Error())
+			r.AgentProblem("rep", "Written summary not available: "+err.Error())
 		}
 	}
 	section := func(title string, limit int, kinds ...string) {

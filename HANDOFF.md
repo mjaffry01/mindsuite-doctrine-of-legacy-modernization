@@ -38,14 +38,12 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 
 ## 3. Current product (as of the latest entry)
 
-**Phase 1 · Discovery plan** (header only)
-- **01 Record evidence**, with four steps:
-  1. **Start:** project name, system being modernized, **system type** (the 8 doctrine types; the agent suggests one from the code scan), and the **Client brief** (why now, hard deadline, success criteria).
-  2. **Connect sources:** 10 source cards, tailored by system type (Required / Recommended / hidden). Each card has its upload or scan, **How to extract** (commands + official links), **Facts only you know**, **No access? Answer instead**, and **Not applicable**. One **Import collector bundle** button sits at the top.
-  3. **What the agent found:** the 9 evidence views and what was detected automatically.
-  4. **Validate:** confirm detections, business owner, regulation & compliance, type-specific questions, and per context strategic value, criticality, availability, consistency, maintainer and key-person risk.
-- **02 Code analysis** (report: modules, dependency graph, cycles, code-to-table map, tests, hotspots, extractability, effort, extraction order).
-- 03 System inventory · 04 Review findings · 05 Resolve gaps · 06 Discovery summary.
+**Phase 1 · Discovery**
+- **Project → Evidence → Reports**
+  1. **Project interview:** enter the project name first. Ask for modernization reasons, the current problem and what success looks like. Deadline, system type and scope are also available. Interview answers are saved with the project.
+  2. **Evidence:** add files by source. Each card explains its team, runs analysis for that card’s staged files, and shows progress and completed reports. An optional Claude setting under More evidence options applies to the next team launch.
+  3. **Reports:** workspace runs and team results, with advanced settings for one team at a time.
+- The sidebar gives access to System inventory, Review findings, Resolve gaps and the Discovery summary.
 
 **Phase 2 · Deciding**
 - 07 Rules & people: people, technology stances, constraints, budget/risk/standards, business case.
@@ -90,6 +88,130 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 ---
 
 ## 6. Change log (newest first)
+
+### 2026-11-19 — Business operations in Database reports (Codex)
+
+- Database now uses the same Business operations report tab as Source code. The Business operations & data domains agent traces exported procedures, named Oracle package members, triggers, and explicit connections from scheduler job actions, with source file and line per step. The view shows conditions, calculations, reads and writes, routine and external handoffs, errors, returns and transaction boundaries where present.
+- The local flow uses schema and routine definitions. The report distinguishes declared schedules and code paths from runtime behaviour and turns missing ownership, confirmation, and failure paths into questions. Claude can optionally interpret the cited facts and data lifecycle.
+- Current interview terms prioritize workflows and review targets locally. A new database review can run on previously saved evidence. Large reports link job declarations and routines across batches. Raw interview text does not go to Claude.
+- Verified with Oracle settlement, SQL Server procedure boundaries and a split jobs/programs fixture. No client data rows or stored credential values were copied into the new section.
+
+### 2026-11-19 — Business operations in the code report (Codex)
+
+- New Source code reports open on Business operations. The section lays out evidence-backed workflow triggers, actions, decisions, access checks, records, handoffs and exceptions as ordered steps. It keeps manual work, actor ownership and production outcomes as questions when the evidence stops.
+- The local reader structures supported C# and VB.NET traces, including recognized numeric decisions and rollback calls. Declared JCL job steps show as operating sequences. Code reports across batches retain this section and prioritize using the existing interview.
+- The optional domain model can write richer operating flows. Every step must cite supplied facts, and rendering requires accepted supporting evidence and source locations. Interview free text stays local. Older reports need a fresh code run for the new view. Code batch checkpoints use a newer signature because the findings now carry structured operations.
+- Regression coverage includes stock receiving, validation, ledger writes, rollback, missing actor, declared job order, rejected missing evidence and workflow citations across batches. The front-end view was checked with a representative report and a DOM fixture.
+
+### 2026-11-19 — Per-agent run telemetry (Codex)
+
+- Evidence and Reports now expose Telemetry per run. The report viewer also shows its saved attempts. The live view refreshes while the analysis is running and can filter by agent.
+- The Go runner records an ID, agent, step, optional batch and part, start, end, elapsed time, outcome and model requests for each measured attempt. Retried agents remain separate. Resumed reviews mark recovered attempts as reused.
+- Each run appends the attempt states to telemetry.jsonl and keeps the final snapshot in result.json. The workspace-scoped telemetry endpoint recovers interrupted attempts after restart. Earlier runs may have no timing data.
+- Regression checks cover failed and timed-out attempts, saved and reused telemetry after restart, and workspace isolation.
+
+### 2026-11-19 — Shared large-evidence batching and resume (Codex)
+
+- Large inputs use the shared runner for all ten teams. The planner groups code by module, targets up to 5,000 lines, and splits long files at recognized boundaries where possible. Telemetry can use log or CSV row ranges. Structured inputs without a safe split remain intact. Reports count oversized batches and source-loader skips.
+- Each successfully reviewed batch saves an atomic checkpoint inside the project review folder. Evidence and Reports show progress and offer Resume analysis after interruption. Resume starts a new report, reuses compatible checkpoints, and leaves previous reports intact.
+- The second pass links repeated evidence and, for source code, cross-batch imports and supported workflow traces. Findings preserve original source line numbers. Whole-period Telemetry metrics are calculated from the complete timeline so a partial window cannot make a live endpoint look unused. Other local estimates retain their batch scope.
+- The code interview prioritizes batches and findings. The selected excerpt budget is shared across the review, and no raw interview answers are added to model requests. Update the checkpoint version if a change makes existing saved batch results incompatible.
+- The full Go suite passed, including checkpoint recovery across a restart, original source citations, cross-batch workflows, intact structured exports, and full-period Telemetry. Frontend resume dispatch was checked with a mock response, and the updated local service passed health checks. Browser visual verification was unavailable. The existing upload and loader caps remain in force.
+
+### 2026-11-19 — Interview-guided workflow and business-rule review (Codex)
+
+- The Source code card sends the current problem, success criteria, reason selections, scope and optional deadline to the local backend. Interview terms rank cited workflow and rule findings and help choose files for closer reading. Interview answers are kept out of Claude requests and saved run JSON. The report shows a supplied deadline as project context.
+- The local code team traces supported C# and VB.NET entry points into uniquely matched services and repositories. It records conditional exits, persistence and available integration/access evidence with file and line references. The report calls out what the trace did not establish. Exclusions lower review priority while retaining the source baseline for dependency review.
+- Run code review again starts a new review on saved code with the latest interview answers. It retains previous reports and refuses a second review for an upload already running.
+- Verified the Go suite, including an inventory workflow with a quantity rule and report prioritization, the saved-evidence repeat review, and local server health. The refreshed service on 8090 uses the existing runs directory. No user project analysis was started.
+
+### 2026-11-19 — Populate System inventory from evidence reports (Codex)
+
+- System inventory can now load the newest completed report for each team in the active workspace. It reuses the team importers to propose records for review and keep citations where available. Confirmed records are preserved. Any reports that fail to load are counted separately.
+- The code importer adds modules as components and can propose bounded contexts from cited business-purpose findings when explicit capability findings are absent.
+- Verified with a local test fixture covering citations, repeat import, protected records, and partial errors.
+
+### 2026-11-19 — Interview before evidence and individual team runs (Codex)
+
+- The flow opens on Project. A project name is required to proceed to Evidence. Reasons, current problems and success criteria are asked before upload. Existing M.scope.brief data is reused, including whyDetail and success.
+- Evidence cards offer About this team and Run agent team. Each launch submits only that team’s pending upload IDs to the existing evidence endpoint and stays on Evidence for report progress. Use Reports to see all runs. The first launch creates the project folders.
+- Interview data remains in the workspace. The evidence endpoint still runs baseline analysis and receives no interview text.
+- Verified JavaScript syntax, per-team submission, the duplicate guard, and all ten agent-guide paths. Browser automation could not open the preview.
+
+### 2026-11-19 — Multiple modernization reasons (Codex)
+
+- Start offers 33 optional reasons in six groups. Users can choose and clear any combination or specify Other in Goal details.
+- New selections are saved as an array in M.scope.brief.why. Existing single-reason strings remain readable. Sign-off lists every reason. Readiness checks the deadline and success criteria independently of the optional reasons.
+- Browser tested adding two reasons, reload persistence, Sign-off and clearing the selection in an isolated test project.
+
+### 2026-11-19 — Streamlined discovery workspace (Codex)
+
+- Record evidence now shows one stage at a time. The compact four-step flowchart also appears on Agent reports and fits horizontally at phone width.
+- Upload actions and available reports stay visible on each source row. Collection guidance, manual answers and applicability sit under Collection details. Collector import, the reference scenario, the browser scan and the evidence register sit under More evidence options.
+- The Start view puts the system name, optional modernization goal and launch controls together. System type and scope can be opened for overrides. Start analysis uses the existing staging and agent launch path.
+- Reports starts with workspace runs, with a selector for one team’s setup and run details. Resume and retry links open the appropriate team. Review links to findings and opens validation and evidence coverage on demand.
+- Checked at 1440 × 900 and 375 px in the browser. Verified stage navigation, source filtering, Start form, report settings and review access. The UI checks used the open project without starting an agent run or changing its form values.
+
+### 2026-11-19 — Record evidence flowchart (Codex)
+
+- The Record evidence page now links each step in the workflow: Upload evidence → Set a goal (optional) → Start → Agents analyze → Review findings.
+- The Start node takes the user to the existing Start control, which creates the project workspace and launches the available teams for staged evidence. Agents analyze opens Code analysis, where the user can open reports by team. Review findings jumps to evidence validation.
+- The optional goal updates the flowchart immediately. Goal-based recommendations are shown as planned after review. This change adds no second analysis pass or backend orchestration.
+- The main footer opens findings for real evidence. The simulation remains available as Analyze reference scenario when sample evidence is loaded.
+- Checked JavaScript syntax and verified desktop layout, goal selection, Start navigation, Code analysis, and the findings link in an isolated browser preview.
+
+### 2026-11-19 — When an agent fails, the run carries on and says so (Claude, not committed)
+- **Shared guard** (`backend/internal/agents/guard.go`): every team's fact agents now run through `r.RunParts` / `r.RunPart` instead of their own goroutine loop. All ten `teams/*/team.go` were converted.
+  - A part that crashes, or does not finish within `agents.AgentTimeLimit` (10 minutes), is recorded as a `Problem` (agent, name, part key, step, error, timed out, can re-run). The other agents carry on. A stuck agent no longer holds up the run.
+  - A failed Claude request is recorded too (`r.AgentProblem`): business rules (one problem per agent, with the count of failed excerpts), business story or meaning, roles and the written summary, in every team.
+  - The step becomes `partial`, with "did not finish: <names>" in its note. The run stays `done` and lists `problems` (saved in `result.json`). Steps every later step depends on (reading the input, the verifier, the report) still stop the run as `failed`.
+  - Every report opens with "Warning: this report is incomplete", naming each agent, its step and its error (`withProblemsNote`, applied in `Run.Execute`).
+- **Code report:** each evidence area knows which fact agents look for it (`parts` in `evidenceAreas`). When one failed, the area says **Not checked** (nothing found) or **Partly checked** (some findings), instead of "Nothing about this area was found".
+- **Run one agent again:** `POST /api/runs/{id}/rerun?part=<key>` (health `agentRerun: true`). It re-runs only that part, verifies only its new findings, rewrites the report and saves the result. It needs the run's evidence in memory, so after a backend restart it answers 409 "Run the team again". Steps that used the facts earlier (reading list, assessment) are not redone, and the log says so. Teams register their report writer with `r.WriteReport(ctx, fn)` so a re-run can rewrite it.
+- **Web app:** a warning box lists the agents that did not finish, with a **Run again** button each (`agentProblemsBox` / `agentRerun` in `teams/shared/agent-backend.js`; used by `teams/shared/team-panel.js` and `teams/code/panel.js`). Steps show "Done with problems". The report viewer (`assets/agent-report.js`) shows the box and "Finished with problems". The project's run list (`assets/project-workspaces.js`) shows "Finished with problems (N agents did not finish)". Cache keys are `agent-problems-1`. Styles: `.agent-problems`, `.agent-step.partial` in `index.html`.
+- **Testing failures:** `MINDSUITE_TEST_FAIL_AGENT=areas,sec` makes those parts crash on their first try (for testing only; leave it unset).
+- **Tests:** `agents/guard_test.go` (a crash and a hang are skipped and reported, the report warns, `problems` are saved, re-run fixes one and rewrites the report, a second re-run while one is going is refused). `teams/code/areas_test.go` covers Not checked / Partly checked. `go vet` and `go test ./...` pass.
+- **Checked live** on a test backend (port 8093, scratch runs folder) with CardDemo. Security and the evidence-areas part were forced to fail; 1,036 findings from the others were kept; step 3 showed "Done with problems"; the report warned and marked Identity, Telemetry and Messaging "Not checked". In the browser, **Run again** on Security added its finding and left one problem. The run list showed "Finished with problems (1 agent did not finish)". The browser pane's storage was restored and the test backend stopped afterwards.
+- The backend on 8090 was a Codex-built exe (`work\evidence-prefill\mindsuite-agents-prefill.exe`). On 2026-11-19 it was stopped and restarted from this source with `go run` (`.claude/launch.json` "mindsuite-agents-backend", same runs folder); health shows `agentRerun: true`.
+
+### 2026-11-19 — Open agent reports from evidence cards (Codex)
+
+- Each evidence card shows reports from its own agent team in the current workspace. The latest completed report is visible directly, with earlier runs under a disclosure. A running analysis refreshes in place. The card opens the existing report reader.
+- The cards and report history share the workspace run list request and cache. Browser verified the Source code and Database cards each opened the corresponding saved report. JavaScript syntax checked. No backend changes.
+
+
+
+### 2026-11-19 — Recover staged uploads automatically (Codex)
+
+- Record evidence checks for unlisted staged uploads when it opens. Restored files appear in the regular list. Removed the recovery button and empty-recovery message.
+- Browser tested an empty page and a staged upload absent from browser state. The file appeared after reload without any recovery action. Removed the test upload afterward.
+
+
+
+### 2026-11-19 — Project title and modernization question (Codex)
+
+- Record evidence now shows the detected name in the heading as Record evidence: <project>. Name project and Rename project sit beside the heading. Step 2 keeps the system name and system types and asks for the modernization goal before Start.
+- The brief asks Why do you want to modernize this system? It distinguishes source inspection during upload from completed analysis. Existing modernization reason values and saved project data use the same format.
+- Browser verified upload-driven heading, manual rename, reason persistence after reload, and a system name that remains independent of renaming the project. JavaScript syntax checked. No backend changes needed.
+
+
+
+### 2026-11-19 — Suggest project fields from uploaded evidence (Codex)
+
+- Source intake inspects filenames and a bounded set of project manifests in staged folders or ZIPs. When it can identify one named project, it fills the project and system names from it. Otherwise it uses the upload name for blank fields. App types are selected only when supported by source markers. A database export on its own does not classify the system.
+- Step 2 shows the supporting file for suggestions. Manual changes to either name or the type selection remain in place on later uploads. Full analysis remains behind Start, and prefill works locally without Claude.
+- Backend coverage includes a WinForms ZIP and an ignored test-only web marker. Browser verification used StockDesk.vbproj in a differently named ZIP, confirmed both names and Desktop applications, then verified that manual names and type selection survived a later Web Forms upload. Temporary test files were removed and the local backend was refreshed.
+
+
+
+### 2026-11-19 — Upload evidence before Start (Codex)
+
+- Record evidence now starts with Upload evidence. Selecting a file, folder, or ZIP stages an original copy under runs/staging/<workspace-id>/<upload-id>/files. The first upload names an unnamed draft. Users can change the name or remove/recover staged uploads before Start.
+- Start makes the named project and all ten team folders in the configured runs/workspaces directory. It promotes each upload to its team's evidence/<upload-id>/files folder and starts analysis from there. Reports, result JSON and logs remain under the matching team/run directory. The report list refreshes while runs are active. Claude remains opt-in for Start.
+- New endpoints in backend/internal/server/evidence.go handle staging, listing, discarding and starting. A repeat Start reuses a run already created for that upload. Read-only history queries no longer create folders for an unstarted draft. The original files are retained after Start. Standard collector bundle import and manual notes remain browser workflows.
+- Verified go test ./..., JavaScript syntax, and the browser with separate source and database uploads. No project folder was created during staging in the integration test. The browser suggested IntakeCatalog for the first file, accepted a renamed project on Start, and displayed both completed reports. Confirmed the physical files and reports in separate team folders. Local backend refreshed on port 8090.
+
+
 
 ### 2026-11-18 — Results saved per project and agent team; code report covers every evidence area (Claude)
 - **Runs folder:** the local backend saves results in `C:\Users\X1 CARBON\Downloads\Legecy Modernization\runs` (`-runs` in `.claude/launch.json` "mindsuite-agents-backend", which runs `go run` from this repo).

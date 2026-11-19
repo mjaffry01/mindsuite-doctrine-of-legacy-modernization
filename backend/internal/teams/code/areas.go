@@ -329,29 +329,31 @@ type evidenceArea struct {
 	title, team, other string
 	kinds              []string
 	keep               func(Finding) bool
+	// parts are the fact agents (part keys) that look for this area; when one fails, the area is not fully checked.
+	parts []string
 }
 
 func dbConnection(f Finding) bool { return strings.HasPrefix(f.Title, "Database connection") }
 
 var evidenceAreas = []evidenceArea{
 	{"Database", "database", "schema exports, DDL and query statistics",
-		[]string{"shared-table", "table-access", "legacy-sql", "stored-procedure", "procedure-call", "db-object", "ims-database", "ims-view", "ims-use", "connection", "legacy-file", "dataset"}, nil},
+		[]string{"shared-table", "table-access", "legacy-sql", "stored-procedure", "procedure-call", "db-object", "ims-database", "ims-view", "ims-use", "connection", "legacy-file", "dataset"}, nil, []string{"dat", "pla", "leg"}},
 	{"Environment and infrastructure", "infrastructure", "server, cloud and infrastructure-as-code exports",
-		[]string{"app-server", "container", "k8s-object", "iac-resource", "ci-pipeline", "environment"}, nil},
+		[]string{"app-server", "container", "k8s-object", "iac-resource", "ci-pipeline", "environment"}, nil, []string{"pla"}},
 	{"Messaging and caching", "messaging", "queue manager and broker exports",
-		[]string{"messaging", "messaging-tech", "file-exchange", "cache"}, nil},
+		[]string{"messaging", "messaging-tech", "file-exchange", "cache"}, nil, []string{"int", "areas", "pla"}},
 	{"Identity and access", "identity", "directory, RACF / ACF2 and role exports",
-		[]string{"auth-method", "role-check", "secret", "weak-crypto", "injection-risk", "csrf-disabled", "cors-any"}, nil},
+		[]string{"auth-method", "role-check", "secret", "weak-crypto", "injection-risk", "csrf-disabled", "cors-any"}, nil, []string{"sec"}},
 	{"Telemetry", "telemetry", "monitoring, logging and APM exports",
-		[]string{"telemetry"}, nil},
+		[]string{"telemetry"}, nil, []string{"areas"}},
 	{"Batch and scheduling", "batch", "scheduler exports and run history",
-		[]string{"schedule", "batch-job", "job-step"}, nil},
+		[]string{"schedule", "batch-job", "job-step"}, nil, []string{"pla", "leg", "areas"}},
 	{"Network and edge", "network", "firewall, load balancer, DNS and proxy exports",
-		[]string{"outbound-call", "soap-service", "network-target", "tls-config", "edge-config", "connection"}, nil},
+		[]string{"outbound-call", "soap-service", "network-target", "tls-config", "edge-config", "connection"}, nil, []string{"int", "areas", "pla"}},
 	{"Documents and diagrams", "documents", "design documents, runbooks and diagrams",
-		[]string{"document"}, nil},
+		[]string{"document"}, nil, []string{"areas"}},
 	{"Incidents and changes", "incidents", "ticket, incident and change exports",
-		[]string{"change-record", "incident-ref", "known-issue", "churn-hotspot", "bus-factor"}, nil},
+		[]string{"change-record", "incident-ref", "known-issue", "churn-hotspot", "bus-factor"}, nil, []string{"areas", "qua"}},
 }
 
 func init() {
@@ -362,7 +364,8 @@ func init() {
 
 // writeAreas writes what the code shows for each evidence area, so the source code report also covers
 // databases, infrastructure, messaging and the rest when the code reveals them.
-func writeAreas(b *strings.Builder, accepted func(kinds ...string) []Finding) {
+// failed lists the fact agents that did not finish (by part key): their areas are marked as not, or only partly, checked.
+func writeAreas(b *strings.Builder, accepted func(kinds ...string) []Finding, failed map[string]Problem) {
 	w := func(format string, a ...any) { fmt.Fprintf(b, format, a...) }
 	w("# What the code shows for each evidence area\n\n")
 	w("The source code often shows part of what the other agent teams read from their own evidence. Each area below lists what the code shows; the team for that area confirms and completes it.\n\n")
@@ -380,6 +383,20 @@ func writeAreas(b *strings.Builder, accepted func(kinds ...string) []Finding) {
 		}
 		sort.SliceStable(fs, func(i, j int) bool { return rank[fs[i].Kind] < rank[fs[j].Kind] })
 		w("## %s\n\n", a.title)
+		var down []string
+		for _, p := range a.parts {
+			if pr, ok := failed[p]; ok && !contains(down, pr.Name) {
+				down = append(down, pr.Name)
+			}
+		}
+		if len(down) > 0 {
+			who := strings.Join(down, " and ")
+			if len(fs) == 0 {
+				w("**Not checked:** the %s agent did not finish, so the code was not fully searched for this area. Run the agent again, or run the %s team with %s.\n\n", who, a.title, a.other)
+				continue
+			}
+			w("**Partly checked:** the %s agent did not finish, so findings may be missing below.\n\n", who)
+		}
 		if len(fs) == 0 {
 			w("Nothing about this area was found in the code. Run the %s team with %s.\n\n", a.title, a.other)
 			continue

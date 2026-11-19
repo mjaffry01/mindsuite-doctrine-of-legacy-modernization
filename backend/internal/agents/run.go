@@ -8,12 +8,27 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
 
+// InterviewFocus guides local code review prioritization. It is not saved in result JSON or sent to the model.
+type InterviewFocus struct {
+	Reasons    []string
+	Problem    string
+	Success    string
+	System     string
+	Objective  string
+	OutOfScope string
+	Deadline   string
+}
+
 // Options chosen by the client for one run.
 type Options struct {
+	BatchDir  string          `json:"-"`
+	Interview *InterviewFocus `json:"-"`
+
 	Workspace string `json:"workspace,omitempty"` // set by the HTTP server
 	// AllowModel is the client's consent to send selected code excerpts to Claude.
 	// Without it, only the rule-based agents run and the model-based steps are reported as gaps.
@@ -30,20 +45,23 @@ type Options struct {
 type Step struct {
 	N      int    `json:"n"`
 	Title  string `json:"title"`
-	Status string `json:"status"` // waiting | running | done | skipped | people
+	Status string `json:"status"` // waiting | running | done | partial (an agent failed) | skipped | people
 	Note   string `json:"note,omitempty"`
 }
 
 // Run is one analysis of one codebase.
 type Run struct {
-	ID       string    `json:"id"`
-	Status   string    `json:"status"` // running | done | failed
-	Error    string    `json:"error,omitempty"`
-	Started  time.Time `json:"started"`
-	Finished time.Time `json:"finished,omitempty"`
-	Options  Options   `json:"options"`
-	Steps    []Step    `json:"steps"`
-	Report   string    `json:"-"`
+	ID       string         `json:"id"`
+	Status   string         `json:"status"` // running | done | failed
+	Error    string         `json:"error,omitempty"`
+	Started  time.Time      `json:"started"`
+	Finished time.Time      `json:"finished,omitempty"`
+	Options  Options        `json:"options"`
+	Steps    []Step         `json:"steps"`
+	Report   string         `json:"-"`
+	Batches  *BatchProgress `json:"batches,omitempty"`
+	// Problems lists agents that failed or did not finish; the run carried on without them.
+	Problems []Problem `json:"problems,omitempty"`
 
 	Code    *Codebase `json:"-"`
 	Store   *Store    `json:"-"`
@@ -55,12 +73,20 @@ type Run struct {
 	// SentToModel lists what left this machine, for transparency.
 	SentToModel []Sent `json:"-"`
 
-	mu       sync.Mutex
-	coverage map[string]map[string]bool // file -> agents that read it
-	titles   []string
-	team     Team
+	attempts        map[string]AgentAttempt
+	attemptProblems map[string]bool
+	attemptNumber   int
+	attemptSink     func(AgentAttempt)
+	mu              sync.Mutex
+	coverage        map[string]map[string]bool // file -> agents that read it
+	titles          []string
+	team            Team
 	// State is the running team's own working state (its parsed model, finding ids…).
 	State any `json:"-"`
+
+	current  int             // the step that is running
+	parts    map[string]Part // fact parts by key, for re-runs
+	reporter func(context.Context, *Run) string
 }
 
 // Reading is a file the orchestrator picked for in-depth reading.
@@ -89,6 +115,9 @@ func NewRun(code *Codebase, opts Options, llm *LLM, baseDir string) (*Run, error
 	dir := ""
 	if baseDir != "" {
 		dir = filepath.Join(baseDir, id)
+	}
+	if opts.BatchDir == "" && dir != "" {
+		opts.BatchDir = filepath.Join(dir, "checkpoints")
 	}
 	st, err := NewStore(dir)
 	if err != nil {
@@ -136,6 +165,22 @@ func (r *Run) MarkSecret(file string, line int) {
 // Step updates one of the 9 steps and logs it.
 func (r *Run) Step(n int, status, note string) {
 	r.mu.Lock()
+	if status == "running" {
+		r.current = n
+	}
+	if status == "done" {
+		// A step whose agents did not all finish is only partly done.
+		var failed []string
+		for _, p := range r.Problems {
+			if p.Step == n {
+				failed = append(failed, p.Name)
+			}
+		}
+		if len(failed) > 0 {
+			status = "partial"
+			note = strings.TrimPrefix(note+"; did not finish: "+strings.Join(failed, ", "), "; ")
+		}
+	}
 	r.Steps[n-1].Status = status
 	if note != "" {
 		r.Steps[n-1].Note = note
@@ -156,7 +201,13 @@ func (r *Run) ModelReady() (bool, string) {
 }
 
 // Execute runs the whole team. It is safe to call in a goroutine.
-func (r *Run) Execute(ctx context.Context) {
+func (r *Run) Execute(ctx context.Context) { r.execute(ctx, true) }
+
+func (r *Run) executeSingle(ctx context.Context) { r.execute(ctx, false) }
+
+func (r *Run) execute(ctx context.Context, allowBatches bool) {
+	finish := r.beginAgent("orch", "run", 0)
+	status := "failed"
 	defer func() {
 		if p := recover(); p != nil {
 			r.mu.Lock()
@@ -167,14 +218,26 @@ func (r *Run) Execute(ctx context.Context) {
 		r.mu.Lock()
 		r.Finished = time.Now().UTC()
 		r.mu.Unlock()
+		finish(status)
 		r.save()
 		r.Store.Close()
 	}()
-	r.team.Execute(ctx, r)
+	var batches []evidenceBatch
+	if allowBatches {
+		batches = planEvidenceBatches(r.Code, r.Options.Team)
+	}
+	if len(batches) > 0 {
+		r.executeBatches(ctx, batches)
+	} else {
+		r.team.Execute(ctx, r)
+	}
+	note := r.problemsNote()
 	r.mu.Lock()
+	r.Report = withProblemsNote(r.Report, note)
 	if r.Status == "running" {
 		r.Status = "done"
 	}
+	status = r.Status
 	r.mu.Unlock()
 }
 
@@ -183,11 +246,23 @@ func (r *Run) AddSent(x Sent) {
 	r.mu.Lock()
 	x.Model = Resolve(x.Model)
 	r.SentToModel = append(r.SentToModel, x)
+	for id, a := range r.attempts {
+		if a.Agent == x.Agent && a.Status == "running" {
+			a.ModelRequests++
+			r.attempts[id] = a
+		}
+	}
 	r.mu.Unlock()
 }
 
 // Team returns the team of this run.
 func (r *Run) Team() Team { return r.team }
+
+func (r *Run) IsRunning() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.Status == "running"
+}
 
 // Coverage summarises which files were analysed.
 type Coverage struct {
@@ -239,6 +314,7 @@ func (r *Run) CoverageSummary() Coverage {
 
 // Result is the full output of a run.
 type Result struct {
+	Telemetry []AgentAttempt `json:"telemetry,omitempty"`
 	Run       *Run           `json:"run"`
 	Source    any            `json:"source"`
 	Coverage  Coverage       `json:"coverage"`
@@ -252,20 +328,40 @@ type Result struct {
 	Agents    []AgentInfo    `json:"agents"`
 }
 
+// ListSummary returns lightweight status for a batch run without copying its findings.
+func (r *Run) ListSummary() Result {
+	r.mu.Lock()
+	progress := r.Batches
+	if progress == nil {
+		r.mu.Unlock()
+		return r.Snapshot()
+	}
+	summary := &Run{ID: r.ID, Status: r.Status, Started: r.Started, Options: r.Options, Batches: progress, Problems: append([]Problem(nil), r.Problems...)}
+	r.mu.Unlock()
+	return Result{Run: summary, Source: map[string]any{"root": r.Code.Root, "files": len(r.Code.Files), "batches": progress.Total}}
+}
+
 // Snapshot returns the current result.
 func (r *Run) Snapshot() Result {
 	r.mu.Lock()
+	telemetry := sortAttempts(r.attempts)
 	sent := append([]Sent(nil), r.SentToModel...)
 	reading := append([]Reading(nil), r.Reading...)
 	report := r.Report
-	runCopy := &Run{ID: r.ID, Status: r.Status, Error: r.Error, Started: r.Started, Finished: r.Finished, Options: r.Options, Steps: append([]Step(nil), r.Steps...)}
+	runCopy := &Run{ID: r.ID, Status: r.Status, Error: r.Error, Started: r.Started, Finished: r.Finished, Options: r.Options, Batches: r.Batches, Steps: append([]Step(nil), r.Steps...), Problems: append([]Problem(nil), r.Problems...)}
 	r.mu.Unlock()
 	source := map[string]any{"root": r.Code.Root, "files": len(r.Code.Files)}
-	for k, v := range r.team.Source(r) {
-		source[k] = v
+	if runCopy.Batches == nil {
+		for k, v := range r.team.Source(r) {
+			source[k] = v
+		}
+	} else {
+		source["lines"] = r.Code.TotalLines()
+		source["batches"] = runCopy.Batches.Total
 	}
 	return Result{
 		Run:       runCopy,
+		Telemetry: telemetry,
 		Source:    source,
 		Coverage:  r.CoverageSummary(),
 		Findings:  r.Store.Findings(),

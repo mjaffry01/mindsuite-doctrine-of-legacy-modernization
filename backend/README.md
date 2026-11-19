@@ -112,12 +112,19 @@ go test ./internal/teams/infrastructure/   # one team only
 | GET | `/api/runs/{id}` | Status, the 9 steps, coverage, findings, questions, reading list, what was sent to Claude, report |
 | GET | `/api/runs/{id}/events?after=N` | Server-Sent Events: every message in the evidence store |
 | GET | `/api/runs/{id}/report.md` | The Markdown report |
+| POST | `/api/runs/{id}/rerun?part=<key>` | Run one failed agent again (see "When an agent fails"). Needs header `X-MindSuite: 1`. |
 
 `options`: `team` (`code` default, `database`, `infrastructure`, `messaging`, `identity`, `telemetry`), `allowModel` (consent to send excerpts to Claude), `gitHistory` (code team, local folders only), `maxModelFiles` (files or programs read in depth; default 12).
 
 ## Project workspaces
 
 The web app attaches `?workspace=<workspace-id>` to run creation, listing, snapshots, live events and report downloads. The server sets the workspace from the request URL and scopes every lookup to it. With a runs folder configured, project results, reports and logs live under `workspaces/<workspace-id>/<run-id>/` inside that folder. Completed runs and reports remain available after restart. Requests without a workspace continue to use legacy runs. Workspace IDs are for project organization. The deployment still requires authentication for network access.
+
+## Evidence intake
+
+The Upload evidence screen stages files before Start. The staging routes accept multipart uploads scoped to a workspace and evidence team. Each folder selection keeps relative paths. One ZIP can also be stored as an archive and read from the project when analysis starts. The upload cap is 512 MB.
+
+Start creates the named project, moves staged originals into the matching team evidence folders, and starts the agents from the saved files. Reports are saved separately in each team's run folder. The start request carries optional Claude consent. The local backend needs a configured runs directory. Staged files remain until they are started or removed.
 
 ## How a run works
 
@@ -132,6 +139,37 @@ Every team runs the same 9 steps (`Team.Execute`), writes only to the evidence s
 7. **Verify** every claim: cited lines re-opened, model claims second-checked, derived claims need accepted evidence.
 8. **Report** (Markdown).
 9. **People** confirm in the web app.
+
+### Interview-guided code review
+
+Source code runs can take project interview context through the existing staged evidence endpoint. The local code team uses the problem, success criteria, modernization reasons, scope and deadline to prioritize the review. Free-text answers are not sent to Claude or serialized into the run options. The report shows cited workflow traces for supported C# and VB.NET paths, conditional exits, persistence evidence, and questions for validation. Run code review again reuses saved source with the current interview and keeps the earlier run.
+
+### Business operations in code reports
+
+The report presents operating workflows as cited steps from triggers to data changes, handoffs and exceptions. It includes a separate list of questions for the process owner where the source lacks evidence. The local review structures supported C# and VB.NET traces and JCL job steps. When allowed, the domain model explains additional workflows from existing findings. The report checks those step references and distinguishes AI interpretation from source traces.
+
+### Business operations in database reports
+
+Database reports use exported stored code, triggers and scheduler metadata to trace business workflows with source line citations. Jobs are linked when their action names a traced routine. The report separates code behaviour from production outcomes and leaves unknown ownership and failure handling for confirmation. The local flow works without Claude. Optional AI interpretation uses existing metadata and findings. For a richer report, include stored routine bodies and job actions with the schema export.
+
+### Batch review for large evidence
+
+All registered teams use the shared runner for large inputs. It aims for up to 5,000 lines per batch, retaining whole structured files when a safe boundary is unavailable. Successful batches are checkpointed on disk in the project’s run directory. The project UI can resume interrupted reviews from their saved evidence. Resume starts a new report while preserving prior reports. Changes to the evidence or review options invalidate incompatible checkpoints. Batch reports preserve original file and line citations, show skipped work, and link related evidence. Telemetry computes global metrics on the complete timeline after batch review. Upload and source-loader size limits still apply.
+
+### Agent run telemetry
+
+Use GET /api/runs/{id}/telemetry with the project workspace to inspect live or saved agent attempts. The run records start, finish, elapsed duration, status, step, batch and model requests. Interrupted attempts without an observed finish have no final duration. Reused checkpoint timings describe their original attempt. Timing data contains operational metadata and stays in the local run directory.
+
+### When an agent fails
+
+The run carries on without it and says so:
+
+- Fact agents run side by side through `Run.RunParts` (one agent alone: `Run.RunPart`). A part that crashes or takes longer than `agents.AgentTimeLimit` (10 minutes) is recorded in the run's `problems`; the others carry on.
+- A failed Claude request is recorded the same way (`Run.AgentProblem`).
+- The step is marked `partial`, the run stays `done` with its `problems` listed, and the report opens with a warning naming each agent. In the code report, evidence areas whose agent failed say "Not checked" or "Partly checked".
+- `POST /api/runs/{id}/rerun?part=<key>` runs one failed part again, verifies its new findings and rewrites the report. It works until the backend restarts.
+- Reading the input, the verifier and the report are needed by everything after them: if one of them fails, the run stops as `failed`.
+- To test this, set `MINDSUITE_TEST_FAIL_AGENT=<part keys>`: those parts crash on their first try.
 
 ### Code team (`internal/teams/code/`)
 Inventory, supply chain, structure, data access, interfaces, security, quality, platform & config, legacy specialists; business rules and domain & process (Claude); assessment; report.

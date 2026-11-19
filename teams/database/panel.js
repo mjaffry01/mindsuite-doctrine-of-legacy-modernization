@@ -6,14 +6,14 @@ const DB_EXPORT_RE=/\.(sql|ddl|csv|tsv|txt|pks|pkb|pls|plsql|prc|fnc|trg|vw)$/i;
 let DB_LIVE={log:[],snap:null,es:null,poll:null,timer:null};
 function openDbAgents(id){const w=window.open('teams/database/agents.html'+(typeof id==='string'?'#'+id:''),'mindsuite-db-agents','width=1240,height=900');if(w)w.focus();}
 function dbAgentOptions(){const c=agentCfg();return {team:'database',allowModel:!!c.dbAllowModel,gitHistory:false,maxModelFiles:Math.max(1,Math.min(60,+c.maxFiles||12))};}
-function dbAgentGo(){go('analysis');setTimeout(()=>document.getElementById('db-agent-run')?.scrollIntoView({block:'start'}),80);}
+function dbAgentGo(){showAgentTeam('db-agent-run');}
 function dbAgentPick(kind){const i=document.createElement('input');i.type='file';if(kind==='folder'){i.webkitdirectory=true;i.multiple=true;}else if(kind==='zip')i.accept='.zip,application/zip';else{i.multiple=true;i.accept='.sql,.ddl,.csv,.tsv,.txt,.pks,.pkb,.pls,.prc,.fnc,.trg';}i.onchange=()=>{if(i.files.length)dbAgentSend([...i.files],kind);};i.click();}
 async function dbAgentSend(files,kind){const fd=new FormData();fd.append('options',JSON.stringify(dbAgentOptions()));let sent=0,skipped=0;
  if(kind==='zip'){fd.append('zip',files[0],files[0].name);sent=1;}
  else{for(const f of files){const p=f.webkitRelativePath||f.name;if(!DB_EXPORT_RE.test(p)||f.size>2*1024*1024){skipped++;continue;}fd.append('file',f,p);sent++;}fd.append('root',(files[0].webkitRelativePath||'').split('/')[0]||'database-export');}
  if(!sent){notice('No schema exports (.sql, .ddl) or catalog results (.csv) among the chosen files.');return;}
  notice('Sending '+(kind==='zip'?files[0].name:sent+' export file'+(sent===1?'':'s')+(skipped?' ('+skipped+' other files left out)':''))+' to the database agents…');
- try{const j=await agentFetch('/api/runs',{method:'POST',body:fd});dbAgentFollow(j.id);}catch(e){notice('Could not start the database agents: '+e.message);}}
+ await stageAgentForm(fd);}
 function dbAgentFollow(id){const c=agentCfg();c.dbRunId=id;persist();if(DB_LIVE.es)DB_LIVE.es.close();clearInterval(DB_LIVE.poll);DB_LIVE.log=[];DB_LIVE.snap=null;
  try{const es=new EventSource(agentURL('/api/runs/'+id+'/events'));DB_LIVE.es=es;es.addEventListener('message',e=>{try{DB_LIVE.log.push(JSON.parse(e.data));if(DB_LIVE.log.length>300)DB_LIVE.log.shift();dbAgentRenderSoon();}catch(err){}});es.addEventListener('done',()=>{es.close();dbAgentRefresh();});es.onerror=()=>{};}catch(e){}
  DB_LIVE.poll=setInterval(dbAgentRefresh,2000);dbAgentRefresh();dbAgentGo();}
@@ -24,7 +24,7 @@ function dbAgentKeep(s){const pick=d=>{if(!d)return undefined;const o={};for(con
  const keep=s.findings.filter(f=>f.status!=='rejected').slice(0,3000).map(f=>({id:f.id,agent:f.agent,kind:f.kind,module:f.module||'',title:f.title,detail:(f.detail||'').slice(0,600),status:f.status,verdict:f.verdict||'',cite:f.citations&&f.citations[0]?f.citations[0].file+(f.citations[0].line?':'+f.citations[0].line:''):'',data:pick(f.data)}));
  M.dbAgentRun={id:s.run.id,url:agentBase(),at:new Date().toISOString(),status:s.run.status,error:s.run.error||'',steps:s.run.steps,source:s.source,counts:s.counts,rejected:s.findings.filter(f=>f.status==='rejected').length,findings:keep,questions:(s.questions||[]).map(q=>({from:q.from,ref:q.ref||'',text:q.text})),sent:s.sentToModel||[],report:(s.report||'').length<400000?s.report:'',imported:false};
  persist();notice('Database agent run finished: '+keep.length+' findings, '+M.dbAgentRun.questions.length+' questions for your DBA and experts.');}
-function dbAgentImport(){const A=M.dbAgentRun;if(!A)return;ensureDiscovery();const fileId='dbagentrun-'+A.id;const src=A.source||{};
+function dbAgentImport(_event,result){const A=result||M.dbAgentRun;if(!A)return;ensureDiscovery();const fileId='dbagentrun-'+A.id;const src=A.source||{};
  M.files=M.files.filter(f=>f.id!==fileId);M.files.push({id:fileId,name:'Database agent run '+A.id,size:0,category:'data',source:'database',parsed:true,sample:false,registeredAt:A.at,context:{component:M.scope.component||'',environment:M.scope.environment||'',asOf:A.at.slice(0,10),revision:src.version||'',origin:'MindSuite database agent team',custodian:'',basis:'implemented',locator:(src.tables||0)+' tables, '+(src.programs||0)+' programs',lineage:''}});
  const R=(id,cite,fields,status)=>({id:'dbagent-'+id,origin:'agent',team:'database',status:status||'extracted',method:status==='inferred-code'?'inferred':'extracted',evidence:[fileId],cite,...fields});
  for(const t of INV_TYPES)M.inventory[t.key]=M.inventory[t.key].filter(x=>x.origin!=='agent'||x.team!=='database'||protectedStatus(x.status));
@@ -45,7 +45,7 @@ function dbAgentImport(){const A=M.dbAgentRun;if(!A)return;ensureDiscovery();con
  for(const f of F('vendor-feature').filter(f=>f.data&&f.data.effort==='high'))risks.push(R(f.id,by(f),{name:f.title,category:'coupling',severity:'medium',context:'',mitigation:'Plan its conversion before choosing the target engine'}));
  put('risks',risks);
  const size=F('db-size')[0];if(size&&size.data&&size.data.sizeGb){const gb=String(size.data.sizeGb);const sys=M.inventory.capacity.filter(x=>!x.context);if(sys.length){for(const x of sys)if(!x.dataGb)x.dataGb=gb;}else put('capacity',[R('cap','database agents: catalog statistics',{name:'Database size from the agents (whole system)',context:'',basis:'measured',dataGb:gb})]);}
- A.imported=true;persist();notice('Database agent results added to the inventory for your DBA and experts to confirm.');render();}
+ A.imported=true;if(!result){persist();notice('Database agent results added to the inventory for your DBA and experts to confirm.');render();}}
 function dbAgentDownloadReport(){const A=M.dbAgentRun;const snap=DB_LIVE.snap;const text=(snap&&snap.run.id===A?.id&&snap.report)||A?.report;if(text)downloadText('database-analysis-'+(A?.id||'run')+'.md',text);else window.open(agentURL('/api/runs/'+A.id+'/report.md'));}
 function dbAgentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=DB_LIVE.snap&&DB_LIVE.snap.run.id===c.dbRunId?DB_LIVE.snap:null;const A=M.dbAgentRun;const running=live&&live.run.status==='running';
  const steps=(live?live.run.steps:A&&A.steps)||[];
@@ -55,7 +55,7 @@ function dbAgentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=
   h('div',{class:'type-chips'},[agentChip('Allow the AI agents to send selected stored-code excerpts and table/column names to Claude (Anthropic)',!!c.dbAllowModel,v=>{c.dbAllowModel=v;persist();render();})]),
   c.dbAllowModel?h('p',{class:'scan-privacy',text:'With this on, the business-rules agent sends up to '+(+c.maxFiles||12)+' programs picked by the orchestrator, the data-domains agent sends table and column names and extracted facts, and the verifier and report writer send findings. Never data rows; lines that may hold a password are removed first. Everything sent is listed in the result.'}):h('p',{class:'scan-privacy',text:'Nothing leaves the backend machine: 11 rule-based agents run; business rules from stored code and the data domains are listed as gaps.'}),
   h('p',{class:'muted',text:'Give the DBA\'s schema-only export (.sql / .ddl: tables, keys, procedures, jobs) and, for sizes, the read-only catalog query result (.csv) from Record evidence → Database → How to extract. Metadata only: no business data, no passwords.'}),
-  h('div',{class:'scan-actions'},[button('Choose export files & run',()=>dbAgentPick('files'),'btn primary'),button('Choose folder',()=>dbAgentPick('folder'),'btn small'),button('Choose zip',()=>dbAgentPick('zip'),'btn small')])]);
+  h('div',{class:'scan-actions'},[button('Stage export files',()=>dbAgentPick('files'),'btn primary'),button('Choose folder',()=>dbAgentPick('folder'),'btn small'),button('Choose zip',()=>dbAgentPick('zip'),'btn small')])]);
  const stepList=steps.length?h('ol',{class:'agent-steps'},steps.map(s=>h('li',{class:'agent-step '+s.status},[h('span',{class:'agent-step-dot'}),h('b',{text:s.n+' · '+s.title}),h('small',{text:({waiting:'Waiting',running:'Running…',done:'Done',skipped:'Skipped',people:'Your turn'}[s.status]||s.status)+(s.note?' — '+s.note:'')})]))):null;
  const log=running||(live&&DB_LIVE.log.length)?h('div',{class:'agent-log'},DB_LIVE.log.slice(-14).map(m=>h('div',{class:'agent-msg '+m.type},[h('span',{class:'agent-msg-type',text:m.type}),h('b',{text:DB_AGENT_LABEL[m.from]||m.from}),' ',m.type==='finding'?m.finding.title:m.type==='verification'?m.ref+': '+m.status+(m.text?' — '+m.text:''):m.text||'']))):null;
  let result=null;

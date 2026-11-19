@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mjaffry01/mindsuite-doctrine-of-legacy-modernization/backend/internal/agents"
@@ -51,8 +50,9 @@ func executeInc(ctx context.Context, r *Run) {
 	s := r.Store
 	r.Step(1, "running", "")
 	s.Task("ird", "Read the incident, change and problem exports.", nil)
-	m := ParseIncidents(r)
-	st(r).m = m
+	m := agents.MeasureInput(r, "ird", ParseIncidents, func(m *IModel) {
+		st(r).m = m
+	})
 	if len(m.Files) > 0 {
 		s.Add(Finding{Agent: "ird", Kind: "ticket-estate", Title: fmt.Sprintf("%d incidents, %d changes, %d problem records over %d months", len(m.Incidents), len(m.Changes), len(m.Problems), m.Months()),
 			Detail: fmt.Sprintf("From %d export file(s), %s to %s. Not read: %s.", len(m.Files), m.From.Format("Jan 2006"), m.To.Format("Jan 2006"), strings.Join(append([]string{"people's names"}, m.Ignored...), ", ")),
@@ -74,21 +74,12 @@ func executeInc(ctx context.Context, r *Run) {
 		id string
 		fn func(*Run)
 	}{{"ihot", runHotspots}, {"irec", runRecurring}, {"imttr", runRestore}, {"ichg", runChanges}, {"ifail", runFailed}}
-	var wg sync.WaitGroup
+	parts := make([]agents.Part, 0, len(facts))
 	for _, a := range facts {
 		s.Task(a.id, "Collect facts from all exports.", nil)
-		wg.Add(1)
-		go func(id string, fn func(*Run)) {
-			defer wg.Done()
-			defer func() {
-				if p := recover(); p != nil {
-					s.Log(id, fmt.Sprint("Agent stopped with an error: ", p))
-				}
-			}()
-			fn(r)
-		}(a.id, a.fn)
+		parts = append(parts, agents.Part{ID: a.id, Fn: a.fn})
 	}
-	wg.Wait()
+	r.RunParts(ctx, parts)
 	r.Step(3, "done", fmt.Sprintf("%d findings", len(s.Findings())))
 
 	r.Step(4, "running", "")
@@ -101,7 +92,7 @@ func executeInc(ctx context.Context, r *Run) {
 	if ok, why := r.ModelReady(); ok && len(m.Incidents) > 0 {
 		r.Step(5, "running", "")
 		s.Task("imea", "Say which business functions are fragile and why, from cleaned titles and counts.", nil)
-		runStory(ctx, r)
+		r.MeasureAgent("imea", func() { runStory(ctx, r) })
 		r.Step(5, "done", fmt.Sprintf("%d fragile areas described", len(s.Findings("fragile-area"))))
 	} else if !ok {
 		r.Step(5, "skipped", "needs Claude: "+why)
@@ -111,7 +102,7 @@ func executeInc(ctx context.Context, r *Run) {
 
 	r.Step(6, "running", "")
 	s.Task("iass", "Set the delivery profile, what to fix first and the periods to avoid.", nil)
-	runPriorities(r)
+	r.MeasureAgent("iass", func() { runPriorities(r) })
 	r.Step(6, "done", "")
 
 	r.Step(7, "running", "")
@@ -127,7 +118,7 @@ func executeInc(ctx context.Context, r *Run) {
 
 	r.Step(8, "running", "")
 	s.Task("rep", "Write the Incidents & changes analysis report from verified findings.", nil)
-	r.Report = runIncReport(ctx, r)
+	r.WriteReport(ctx, runIncReport)
 	r.Step(8, "done", "")
 	r.Step(9, "people", "Open the results in MindSuite: your service desk and problem manager confirm, correct or reject each finding.")
 }
@@ -579,7 +570,7 @@ func runStory(ctx context.Context, r *Run) {
 	r.AddSent(Sent{Agent: "imea", Model: ModelStrong, Files: []string{"(counts and cleaned ticket titles grouped into problems; no names, no descriptions)"}, Chars: len(payload)})
 	var out storyOut
 	if err := r.LLM.JSON(ctx, ModelStrong, storySystem, string(payload), storySchema, 12000, &out); err != nil {
-		s.Log("imea", "Failure story not written: "+err.Error())
+		r.AgentProblem("imea", "Failure story not written: "+err.Error())
 		return
 	}
 	for _, f := range out.Fragile {

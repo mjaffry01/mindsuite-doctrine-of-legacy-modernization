@@ -10,19 +10,19 @@ async function agentSend(files,kind){const fd=new FormData();fd.append('options'
  else{for(const f of files){const p=f.webkitRelativePath||f.name;if(AGENT_SKIP_RE.test('/'+p)||f.size>2*1024*1024){skipped++;continue;}fd.append('file',f,p);sent++;}fd.append('root',(files[0].webkitRelativePath||'').split('/')[0]||'upload');}
  if(!sent){notice('No source files to send.');return;}
  notice('Sending '+(kind==='zip'?files[0].name:sent+' files'+(skipped?' ('+skipped+' build/vendor files left out)':''))+' to the agent backend…');
- try{const j=await agentFetch('/api/runs',{method:'POST',body:fd});agentFollow(j.id);}catch(e){notice('Could not start the agents: '+e.message);}}
+ await stageAgentForm(fd);}
 async function agentRunPath(){const c=agentCfg();if(!c.path.trim()){notice('Enter the folder path on the backend machine.');return;}
  try{const j=await agentFetch('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:c.path.trim(),options:agentOptions()})});agentFollow(j.id);}catch(e){notice('Could not start the agents: '+e.message);}}
 function agentFollow(id){const c=agentCfg();c.runId=id;persist();if(AGENT_LIVE.es)AGENT_LIVE.es.close();clearInterval(AGENT_LIVE.poll);AGENT_LIVE.log=[];AGENT_LIVE.snap=null;
  try{const es=new EventSource(agentURL('/api/runs/'+id+'/events'));AGENT_LIVE.es=es;es.addEventListener('message',e=>{try{AGENT_LIVE.log.push(JSON.parse(e.data));if(AGENT_LIVE.log.length>300)AGENT_LIVE.log.shift();agentRenderSoon();}catch(err){}});es.addEventListener('done',()=>{es.close();agentRefresh();});es.onerror=()=>{};}catch(e){}
- AGENT_LIVE.poll=setInterval(agentRefresh,2000);agentRefresh();go('analysis');setTimeout(()=>document.getElementById('agent-run')?.scrollIntoView({block:'start'}),60);}
+ AGENT_LIVE.poll=setInterval(agentRefresh,2000);agentRefresh();showAgentTeam('agent-run');}
 async function agentRefresh(){const c=agentCfg();if(!c.runId)return;try{const s=await agentFetch('/api/runs/'+c.runId);AGENT_LIVE.snap=s;if(s.run.status!=='running'){clearInterval(AGENT_LIVE.poll);if(AGENT_LIVE.es)AGENT_LIVE.es.close();agentKeep(s);}agentRenderSoon();}catch(e){clearInterval(AGENT_LIVE.poll);notice('Lost contact with the agent backend: '+e.message);}}
 function agentRenderSoon(){clearTimeout(AGENT_LIVE.timer);AGENT_LIVE.timer=setTimeout(()=>{const a=document.activeElement;if(screen==='analysis'&&!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))render();},350);}
 // Keep a compact copy of the result in the project, so it survives a reload without the backend.
 function agentKeep(s){const keep=s.findings.filter(f=>f.status!=='rejected').slice(0,1500).map(f=>({id:f.id,agent:f.agent,kind:f.kind,module:f.module||'',title:f.title,detail:(f.detail||'').slice(0,600),status:f.status,verdict:f.verdict||'',cite:f.citations&&f.citations[0]?f.citations[0].file+(f.citations[0].line?':'+f.citations[0].line:''):'',data:f.kind==='journey'||f.kind==='capability'||f.kind==='assessment'||f.kind==='term'?f.data:undefined}));
- M.agentRun={id:s.run.id,url:agentBase(),at:new Date().toISOString(),status:s.run.status,error:s.run.error||'',steps:s.run.steps,source:s.source,coverage:{files:s.coverage.files,analysed:s.coverage.analysed,notRead:(s.coverage.notRead||[]).length,skipped:(s.coverage.skipped||[]).length,byAgent:s.coverage.byAgent},counts:s.counts,rejected:s.findings.filter(f=>f.status==='rejected').length,findings:keep,questions:(s.questions||[]).map(q=>({from:q.from,ref:q.ref||'',text:q.text})),sent:s.sentToModel||[],report:(s.report||'').length<400000?s.report:'',imported:false};
- persist();notice('Agent run finished: '+keep.length+' findings, '+M.agentRun.questions.length+' questions for your experts.');}
-function agentImport(){const A=M.agentRun;if(!A)return;ensureDiscovery();const fileId='agentrun-'+A.id;
+ M.agentRun={id:s.run.id,url:agentBase(),at:new Date().toISOString(),status:s.run.status,error:s.run.error||'',problems:s.run.problems||[],steps:s.run.steps,source:s.source,coverage:{files:s.coverage.files,analysed:s.coverage.analysed,notRead:(s.coverage.notRead||[]).length,skipped:(s.coverage.skipped||[]).length,byAgent:s.coverage.byAgent},counts:s.counts,rejected:s.findings.filter(f=>f.status==='rejected').length,findings:keep,questions:(s.questions||[]).map(q=>({from:q.from,ref:q.ref||'',text:q.text})),sent:s.sentToModel||[],report:(s.report||'').length<400000?s.report:'',imported:false};
+ persist();const np=M.agentRun.problems.length;notice('Agent run finished'+(np?' with problems: '+np+' agent'+(np===1?'':'s')+' did not finish':'')+': '+keep.length+' findings, '+M.agentRun.questions.length+' questions for your experts.');}
+function agentImport(_event,result){const A=result||M.agentRun;if(!A)return;ensureDiscovery();const fileId='agentrun-'+A.id;
  M.files=M.files.filter(f=>f.id!==fileId);M.files.push({id:fileId,name:'Agent run '+A.id,size:0,category:'code',source:'code',parsed:true,sample:false,registeredAt:A.at,context:{component:M.scope.component||'',environment:'',asOf:A.at.slice(0,10),revision:(A.source&&A.source.commit)||'',origin:'MindSuite agent team',custodian:'',basis:'implemented',locator:A.coverage.analysed+' of '+A.coverage.files+' files',lineage:''}});
  const R=(id,cite,fields,status)=>({id:'agent-'+id,origin:'agent',status:status||'extracted',method:status==='inferred-code'?'inferred':'extracted',evidence:[fileId],cite,...fields});
  for(const t of INV_TYPES)M.inventory[t.key]=M.inventory[t.key].filter(x=>x.origin!=='agent'||!!x.team||protectedStatus(x.status));
@@ -31,14 +31,31 @@ function agentImport(){const A=M.agentRun;if(!A)return;ensureDiscovery();const f
  put('rules',F('business-rule').map(f=>R(f.id,by(f)+' · '+(f.status==='accepted'?'verified':'needs an expert'),{name:f.title+(f.detail?': '+f.detail:''),context:'',source:'code'},'inferred-code')));
  put('events',F('domain-event').map(f=>R(f.id,'business story · '+f.id,{name:f.title,context:'',consumers:[],trigger:f.detail},'inferred-code')));
  put('terms',F('term').map(f=>R(f.id,'business story · '+f.id,{name:f.title,meaning:f.detail,variants:'',context:'',conflict:f.data&&f.data.conflict?'yes':'no'},'inferred-code')));
- if(!M.inventory.contexts.some(c=>c.origin!=='scan'&&c.origin!=='agent'))put('contexts',F('capability').slice(0,12).map(f=>R('ctx-'+slug(f.title),'business story · '+f.id,{name:f.title,description:f.detail+(f.data&&f.data.modules&&f.data.modules.length?' (modules: '+f.data.modules.join(', ')+')':''),owner:'',knowledge:'',volumes:''},'inferred-code')));
+ const proposedContexts=F('capability');
+ const contextFindings=proposedContexts.length?proposedContexts:F('purpose').filter(f=>f.cite);
+ const contextName=f=>f.title.replace(/^Likely business use:\s*/i,'');
+ const knownContexts=new Set(M.inventory.contexts.map(c=>slug(c.name)));
+ const contexts=[];
+ for(const finding of contextFindings){
+  const name=contextName(finding);
+  const key=slug(name);
+  if(!key||knownContexts.has(key))continue;
+  knownContexts.add(key);
+  contexts.push(R('ctx-'+key,by(finding),{name,description:finding.detail,owner:'',knowledge:'',volumes:''},'inferred-code'));
+  if(contexts.length===12)break;
+ }
+ put('contexts',contexts);
+ put('components',F('module').filter(f=>f.module).map(f=>R('module-'+f.module,by(f),{
+  name:f.module,kind:'module',context:'',tech:Object.keys(f.data?.languages||{}).join(', '),
+  size:f.data?.files!=null?f.data.files+' files':'',schedule:''
+ })));
  const proto={'messaging':'mq','messaging-tech':'mq','soap-service':'soap','file-exchange':'file','outbound-call':'rest'};
  put('interfaces',A.findings.filter(f=>proto[f.kind]).slice(0,60).map(f=>R(f.id,by(f),{name:f.title,partner:'',direction:f.kind==='outbound-call'?'out':f.kind==='messaging'&&/consumes/.test(f.title)?'in':'both',protocol:proto[f.kind],context:'',contract:'unknown',frequency:''})));
  const sev={secret:['security','high','Move to a secret store and rotate'],'weak-crypto':['security','medium','Replace with a current algorithm'],'injection-risk':['security','high','Use parameterised queries'],'csrf-disabled':['security','medium','Re-enable CSRF protection or justify it'],'cors-any':['security','medium','Limit allowed origins']};
  const risks=A.findings.filter(f=>sev[f.kind]).slice(0,40).map(f=>R(f.id,by(f),{name:f.title+' ('+f.cite+')',category:sev[f.kind][0],severity:sev[f.kind][1],context:'',mitigation:sev[f.kind][2]}));
  for(const f of A.findings.filter(f=>(f.kind==='dependency'||f.kind==='runtime')&&/risk|support|vulnerab|end of life|old/i.test(f.detail)))risks.push(R(f.id,by(f),{name:f.title+': '+f.detail,category:/vulnerab/i.test(f.detail)?'security':'eol',severity:/critical|vulnerab/i.test(f.detail)?'high':'medium',context:'',mitigation:'Upgrade or replace'}));
  for(const f of F('bus-factor').filter(f=>/bus factor 1\b/.test(f.title)))risks.push(R(f.id,'Git history',{name:f.title,category:'knowledge',severity:'medium',context:'',mitigation:'Pair the main contributor with others; record their knowledge'}));
- put('risks',risks);A.imported=true;persist();notice('Agent results added to the inventory for your experts to confirm.');render();}
+ put('risks',risks);A.imported=true;if(!result){persist();notice('Agent results added to the inventory for your experts to confirm.');render();}}
 function agentDownloadReport(){const A=M.agentRun;const snap=AGENT_LIVE.snap;const text=(snap&&snap.run.id===A?.id&&snap.report)||A?.report;if(text)downloadText('code-analysis-'+(A?.id||'run')+'.md',text);else window.open(agentURL('/api/runs/'+A.id+'/report.md'));}
 function agentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=AGENT_LIVE.snap&&AGENT_LIVE.snap.run.id===c.runId?AGENT_LIVE.snap:null;const A=M.agentRun;const running=live&&live.run.status==='running';
  const steps=(live?live.run.steps:A&&A.steps)||[];
@@ -49,9 +66,9 @@ function agentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=AG
    agentChip('Allow the AI agents to send selected code excerpts to Claude (Anthropic)',!!c.allowModel,v=>{c.allowModel=v;persist();render();}),
    agentChip('Read Git history (local folder only)',!!c.git,v=>{c.git=v;persist();render();})]),
   c.allowModel?h('p',{class:'scan-privacy',text:'With this on, the business-rules agent sends up to '+(+c.maxFiles||12)+' files picked by the orchestrator, the verifier sends the cited lines, and the domain agent and report writer send extracted facts only. Lines that may hold a password or key are removed first. Everything sent is listed in the result.'}):h('p',{class:'scan-privacy',text:'Nothing leaves the backend machine: The code team looks for likely business use and workflows in the source. Findings are shown with their evidence for review.'}),
-  h('div',{class:'scan-actions'},[button('Choose folder & run agents',()=>agentPick('folder'),'btn primary'),button('Choose zip & run',()=>agentPick('zip'),'btn small'),
+  h('div',{class:'scan-actions'},[button('Upload source evidence folder',()=>agentPick('folder'),'btn primary'),button('Upload evidence ZIP',()=>agentPick('zip'),'btn small'),
    H&&H.allowLocalPath?h('span',{class:'agent-path'},[inputControl('…or a folder path on the backend machine',c.path,v=>{c.path=v;persist();},'text','C:\\code\\legacy-app'),button('Run on path',agentRunPath,'btn small')]):null])]);
- const stepList=steps.length?h('ol',{class:'agent-steps'},steps.map(s=>h('li',{class:'agent-step '+s.status},[h('span',{class:'agent-step-dot'}),h('b',{text:s.n+' · '+s.title}),h('small',{text:({waiting:'Waiting',running:'Running…',done:'Done',skipped:'Skipped',people:'Your turn'}[s.status]||s.status)+(s.note?' — '+s.note:'')})]))):null;
+ const stepList=steps.length?h('ol',{class:'agent-steps'},steps.map(s=>h('li',{class:'agent-step '+s.status},[h('span',{class:'agent-step-dot'}),h('b',{text:s.n+' · '+s.title}),h('small',{text:(AGENT_STEP_TEXT[s.status]||s.status)+(s.note?' — '+s.note:'')})]))):null;
  const log=running||(live&&AGENT_LIVE.log.length)?h('div',{class:'agent-log'},AGENT_LIVE.log.slice(-14).map(m=>h('div',{class:'agent-msg '+m.type},[h('span',{class:'agent-msg-type',text:m.type}),h('b',{text:AGENT_LABEL[m.from]||m.from}),' ',m.type==='finding'?m.finding.title:m.type==='verification'?m.ref+': '+m.status+(m.text?' — '+m.text:''):m.text||'']))):null;
  let result=null;
  if(A&&!running){const F=k=>A.findings.filter(f=>f.kind===k);const rules=F('business-rule'),caps=F('capability'),journeys=F('journey'),purpose=F('purpose')[0];
@@ -60,6 +77,7 @@ function agentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=AG
    h('div',{class:'metrics'},[['Findings',A.findings.length],['Rejected by verifier',A.rejected],['Files analysed',A.coverage.analysed+' / '+A.coverage.files],['Business rules',rules.length],['Expert questions',A.questions.length],['Sent to Claude',A.sent.length?A.sent.length+' requests':'nothing']].map(([l,v])=>h('div',{class:'metric'},[h('b',{text:String(v)}),h('span',{text:l})]))),
    h('p',{class:'muted',text:'Run '+A.id+' · '+(A.source?A.source.root+(A.source.commit?' @ '+String(A.source.commit).slice(0,10):''):'')+' · findings per agent: '+counts.map(([k,v])=>(AGENT_LABEL[k]||k)+' '+v).join(', ')}),
    A.error?h('p',{class:'input-status open',text:'The run stopped with an error: '+A.error}):null,
+   agentProblemsBox(A,agentFollow),
    purpose?h('div',{class:'validate-card'},[h('b',{text:'What the system is for'}),h('p',{text:purpose.detail})]):null,
    caps.length?h('div',{class:'validate-card'},[h('b',{text:'Capabilities (candidate bounded contexts)'}),h('ul',{class:'plain-list'},caps.map(f=>h('li',{},[h('b',{text:f.title}),' — '+f.detail])))]):null,
    journeys.length?h('div',{class:'validate-card journeys'},[h('b',{text:'Journeys'}),...journeys.map(f=>h('details',{class:'more-detail'},[h('summary',{text:f.title}),h('pre',{class:'agent-pre',text:f.detail})]))]):null,
@@ -71,4 +89,4 @@ function agentPanel(){const c=agentCfg();const H=AGENT_LIVE.health;const live=AG
   h('p',{class:'muted',text:'The agent backend (a small Go service, backend/ in this repository) runs all 15 agents in the 9 steps shown on the agent page: rule-based fact collection, then — if you allow it — Claude reads the rule-heavy code, writes the business rules and the business story, and a second model checks every claim against its lines. Results come back here for your experts to confirm.'}),
   h('p',{},[button('How the agents work ↗',openAgents,'linkbtn'),' · ',h('span',{class:'muted',text:'Start the backend: '}),h('code',{text:'go run ./backend/cmd/mindsuite-agents serve'})]),
   conn,stepList,log,result]);}
-function agentGo(){go('analysis');setTimeout(()=>document.getElementById('agent-run')?.scrollIntoView({block:'start'}),80);}
+function agentGo(){showAgentTeam('agent-run');}
