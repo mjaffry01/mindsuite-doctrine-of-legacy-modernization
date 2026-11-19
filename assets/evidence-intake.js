@@ -4,7 +4,8 @@ const evidenceTypes = {
   batch: 'Batch evidence', network: 'Network evidence', documents: 'Document and diagram evidence',
   incidents: 'Incident and change evidence'
 };
-const evidenceUI = {busy: false, allowModel: false, message: '', checkedStaging: false, step: 'project'};
+// allowModel holds the per-card consent: {team: true} lets that team's next run send selected evidence to Claude.
+const evidenceUI = {busy: false, allowModel: {}, message: '', checkedStaging: false, step: 'project'};
 
 function evidenceTeam(source) {
   return source === 'middleware' ? 'messaging' : source;
@@ -228,10 +229,11 @@ async function runEvidenceTeam(team, reanalyze = false, resumeId = "") {
     }
     const result = await agentFetch('/api/evidence/start', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:M.project.trim(), uploads:pending.map(item=>item.id), allowModel:evidenceUI.allowModel, interview, reanalyze, resume:!!resumeId})
+      body:JSON.stringify({name:M.project.trim(), uploads:pending.map(item=>item.id), allowModel:!!evidenceUI.allowModel[team], interview, reanalyze, resume:!!resumeId})
     });
     M.evidenceWorkspace = result.folder;
-    evidenceUI.allowModel = false;
+    // Consent covers one run only.
+    delete evidenceUI.allowModel[team];
     for (const placed of result.uploads) {
       const item = evidenceUploads().find(entry => entry.id === placed.id);
       if (!item) continue;
