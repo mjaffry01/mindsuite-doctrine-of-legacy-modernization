@@ -89,6 +89,10 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 
 ## 6. Change log (newest first)
 
+### 2026-11-19 — Pushed: commit e5d8e1a on main
+- The 2026-11-19 Codex entries below (interview workflow, evidence intake, batching and resume, telemetry, guard, business operations in the reports). Before the push: `gofmt`, `go vet`, `go test ./...` (12 packages) and `node --check` on every changed script all passed; a secret scan found nothing; the app loaded with no console errors. GitHub Pages run 44474542191 succeeded.
+- The Claude VB.NET fixes were already pushed in Codex's commit `f61ae9e`.
+
 ### 2026-11-19 — Business operations in Database reports (Codex)
 
 - Database now uses the same Business operations report tab as Source code. The Business operations & data domains agent traces exported procedures, named Oracle package members, triggers, and explicit connections from scheduler job actions, with source file and line per step. The view shows conditions, calculations, reads and writes, routine and external handoffs, errors, returns and transaction boundaries where present.
