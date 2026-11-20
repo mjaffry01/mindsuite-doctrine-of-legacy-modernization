@@ -19,9 +19,12 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 | Local preview | `python -m http.server 8768` in the working copy → http://localhost:8768/ (also the `legacy-modernization` entry in `.claude/launch.json`) |
 | The app | `index.html`: a single static file, plain JS, no build, project state in `localStorage` keys `mindsuite-workspace-v1:<id>` (previous draft migrated on first open) |
 | Agent teams | **One folder per team**, backend and web app alike. Backend: shared core `backend/internal/agents/`, teams in `backend/internal/teams/{code,database,infrastructure,messaging,identity,telemetry,batch,network,documents,incidents}`: all ten evidence teams implemented. Web app: `teams/shared/` (backend connection, explanation-page engine), `teams/<team>/panel.js` (the panel in the app) and `teams/<team>/agents.html` (the explanation page). See `backend/README.md`. |
-| Agent backend (Go) | `backend/`: runs the code (15), database (14), infrastructure (13), messaging & caching (12), identity & access (12) telemetry (11), batch (10), network (11), documents (12) and incidents (11) teams. `cd backend && go run ./cmd/mindsuite-agents serve` → http://127.0.0.1:8090 (also `mindsuite-agents-backend` in `.claude/launch.json`). `go test ./...` must pass. See `backend/README.md`. |
+| Decision and product assets | `assets/project-mode.js` (start screen, product brief, deployment type), `assets/validate-page.js` (03 Validate), `assets/rules-page.js` + `assets/rule-catalog.js` (05 Rules & people, technology rules), `assets/decision-advisor.js` (advisor, robustness, portfolio, Claude review), `assets/target-options.js` (Target options team panel, Explore matrix, solution design). Each is loaded before the main script and hooked in with a few `typeof … === 'function'` checks in `index.html`. |
+| Agent backend (Go) | `backend/`: runs the code (15), database (14), infrastructure (13), messaging & caching (12), identity & access (12) telemetry (11), batch (10), network (11), documents (12) and incidents (11) teams. `cd backend && go run ./cmd/mindsuite-agents serve` → http://127.0.0.1:8090 (also `mindsuite-agents-backend` in `.claude/launch.json`). `go test ./...` must pass. See `backend/README.md`. Decision endpoints (Claude, consent per request): `POST /api/decide/suggest`, `/api/decide/review`, `/api/decide/options` (team run, `explore`, `design`). |
+| Running backends (2026-11-20) | **:8091** = Claude's test backend built from the latest code (`<scratchpad>\mindsuite-agents.exe serve -addr 127.0.0.1:8091`), runs saved in the session scratchpad; has every endpoint. **:8090** = the shared backend started from `Downloads\Legecy Modernization\bin`; it predates the review and options endpoints and **must be rebuilt from `main`** before projects on the default address can use them. A project chooses its backend on Record evidence → Source code → Agent backend address. |
+| Claude API key | Console key **L2M** (`sk-ant-usr-…`), saved DPAPI-encrypted in `~/.mindsuite/claude-key.xml`; checked working with billing on 2026-11-20. Never put it in code, config or chat. |
 
-**Git baseline (2026-11-17):** `main` = `origin/main` at `926eec4` (all ten evidence teams, workspace UI refresh). See the latest change log and working tree for changes after that baseline.
+**Git baseline (2026-11-20):** `main` = `origin/main` at `76f2833` (modernization and new products, decision advisor, Target options team). See the change log for anything after that.
 
 ---
 
@@ -30,7 +33,8 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 - **Do not push to GitHub until the owner says "push it".** Edit and test locally first.
 - Plain, non-technical wording in the UI. Clear, colour-coded inputs (orange = required and empty, green = filled).
 - Principle of the product: **take the minimum from the user, let the agent (scanner/collector) detect the maximum, then a human validates.**
-- Selling story: **scan the current state → decide the target → plan the modernization.** Be honest in claims: the code scan is real, target ranking is rule-based, and the Claude integration is implemented but real-key validation remains pending.
+- Selling story: **understand what exists or what is needed → decide the target → plan the delivery**, for legacy modernization *and* new products (README). Be honest in claims: the code scan is real, the advisor and ranking are rule-based and explainable, the Claude agents work with a real key (tested 2026-11-20) and every AI value is marked as AI-proposed, cited, or an assumption.
+- Architects want dense, comparable output (matrices, exact SKUs, sizes, north/south traffic), not prose cards.
 - When giving "how to extract" advice, use **verified official documentation links**, not guesses.
 - Test every change in the browser (desktop 1440×900 and mobile 375), check the console, and restore the owner's saved browser data afterwards (back up both `localStorage` keys first).
 
@@ -38,16 +42,19 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 
 ## 3. Current product (as of the latest entry)
 
+**Start:** a new, empty project opens on *What are you working on?*: **Modernize an existing system**, **Build a new product**, or **Modernize and extend** (`M.mode`; older projects count as modernize; changeable with the Project type switch on the interview step). The mode changes only discovery (scans vs product brief), the approaches offered (7 Rs vs build / buy / partner) and the sidebar label; everything else is shared.
+
 **Phase 1 · Discovery**
-- **Project → Evidence → Reports**
+- **Project → Evidence → Reports** (for a new product, "01 Product brief")
   1. **Project interview:** enter the project name first. Ask for modernization reasons, the current problem and what success looks like. Deadline, system type and scope are also available. Interview answers are saved with the project.
   2. **Evidence:** add files by source. Each card explains its team, runs analysis for that card’s staged files, and shows progress and completed reports. An optional Claude setting under More evidence options applies to the next team launch.
   3. **Reports:** workspace runs and team results, with advanced settings for one team at a time.
+  - **Product brief** (new and extend projects): problem, users and jobs, journeys, first release (MVP), success, integrations, preferences, expected users, peak load, data volume, availability, and **deployment type** (where it runs, tenancy, data residency, channels). Modernize projects get a short *Target deployment type*.
 - **03 Validate** (one page, three tabs: System inventory · Field findings · Gaps) and 04 Discovery summary. The old page ids `inventory`, `review` and `gaps` still work in `go()` and open Validate on that tab.
 
 **Phase 2 · Deciding**
 - 05 Rules & people, in three tabs (`assets/rules-page.js`): 1 Who decides (people) · 2 Technology rules (chips that open a rule editor: Standard, Preferred, Allowed, Needs approval, Retiring, Excluded, each with reason, owner and review date; presets; tech-radar CSV import and export; your own options) · 3 Priorities & limits (weights first, then risk/budget/standards, team skills/data/contracts, and a collapsible Money section with the current run cost).
-- 06 Target decisions: each card opens with the **decision advisor** (`assets/decision-advisor.js`): recommended approach with reasons, confidence and missing inputs, one deciding question, three scenarios (Safe / Balanced / Ambitious) with effort, risk and checks, cross-checks on the current target, and Draft rationale; the detailed choices fold under "Adjust in detail". Per context, the approach plus architecture, language, database, integration and cloud. Options are ranked with reasons, cloud services are mapped, and each card shows a hosting estimate and the CAP trade-off.
+- 06 Target decisions opens with a **Portfolio view** (all contexts, platforms, skills gaps, effort, 3-year cost against today with payback). Each card opens with the **decision advisor** (`assets/decision-advisor.js`): recommended approach with reasons, confidence and missing inputs, one deciding question, three scenarios (Safe / Balanced / Ambitious) with effort, risk and checks, cross-checks on the current target, Draft rationale, a robustness check against the priority weights, and a **Second opinion from Claude**; the detailed choices fold under "Adjust in detail". Under it, **Technical options from the AI agent team**: scouts per area, verifier with a product catalogue, rules guard, three blueprints (Safe / Balanced / Ambitious) with a challenger verdict, **Explore** (a comparison matrix per option: compute, SKU, scaling, network, SLA, DR, deployment, limits, cost model, compliance, operations, lock-in, north/south traffic; CSV download) and **Design this blueprint** (database and caching strategy, patterns, traffic, cross-cutting components, sizes, missing facts). Approaches: the 7 Rs, build / buy / partner, or both, by project type. Per context, the approach plus architecture, language, database, integration and cloud. Options are ranked with reasons, cloud services are mapped, and each card shows a hosting estimate and the CAP trade-off.
 
 **Phase 3 · Plan**
 - 07 Roadmap: foundations, calendar & capacity, 3 waves, freeze windows.
@@ -59,7 +66,8 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
   - database export parser (DDL and catalog CSV);
   - collector-bundle import (format defined);
   - all forms, decisions, roadmap and sign-off.
-- **Not built yet:** the Discovery Collector itself, Documents & diagrams and Incidents & changes teams; real-key validation of the implemented Claude agents. The other six non-code/database teams now have backend export parsers.
+  - Claude decision features (suggest, review, options, explore, design): tested with a real key on :8091 with the VB.NET sample and a test product.
+- **Not built yet:** the Discovery Collector itself; real-key validation of the code-team Claude agents on a large real codebase; the :8090 backend rebuild (see §1). The other six non-code/database teams have backend export parsers.
 - **Sample data:** "Load reference scenario" (HarvestLink) and the sample collector bundle.
 
 ---
@@ -77,6 +85,10 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 9. **Technology rules, step 2 (agreed direction, not built):** new decision areas (hosting model, user interface, packaged/SaaS products, mainframe path, batch and scheduling, identity, reporting and analytics) and missing options (Kotlin, PHP, low-code; Db2, MariaDB, MongoDB, Redis, warehouse; GraphQL, gRPC, existing ESB, EDI; Alibaba, Huawei, in-country and sovereign clouds, hybrid). Each needs its own scoring reasons in `SCORE_RULES` and a `CLOUD_SVC` mapping, otherwise it ranks on rules and skills only.
 11. ~~Decision advisor Phases B and C~~ built 2026-11-20 (see the change log). Still open: replace the effort rule of thumb with the roadmap's own estimates once they exist.
 10. **Technology rules, step 3:** rules scoped to one business area or to regulated data, and version limits ("Java 21 or later").
+12. **Rebuild the :8090 backend** from `main` so every project gets the review and options endpoints (needs the owner's OK; another session started it).
+13. **Product naming:** the app title still says "Legacy Modernization Advisor"; the doctrine is now "Legacy Modernization and Product Development". Rename on the owner's word.
+14. **New-product depth:** capture several capabilities per product (each decided build / buy / partner) instead of one "Whole system" context; link the product brief MVP to the roadmap's first release.
+15. **Projects list badge** showing each project's type.
 
 ---
 
@@ -91,6 +103,11 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 ---
 
 ## 6. Change log (newest first)
+
+### 2026-11-20 — Pushed: commit 76f2833 on main
+- All of 2026-11-20's Claude work below: doctrine for modernization and new products, start screen and product brief, 03 Validate, Rules & people tabs and richer technology rules, the decision advisor (Phases A–C), and the Target options team with Explore and the solution designer (backend endpoints `/api/decide/review` and `/api/decide/options`).
+- Before the push: gofmt and go vet clean, all 12 Go test packages pass, `node --check` on every script and the main inline script, secret scan and large-file check clean. GitHub Pages run 44791118818 succeeded; the live site serves the new assets and opens on the new start screen with no console errors.
+- **The live site is static:** the AI agent features need a backend that has these endpoints. 127.0.0.1:8091 (Claude's test backend) has them; the :8090 backend must be rebuilt from this commit before projects using the default address can use them.
 
 ### 2026-11-20 — Doctrine and app cover new product development (Claude)
 - **Doctrine** (`README.md`), renamed *MindSuite Doctrine of Legacy Modernization and Product Development*: three kinds of project (modernize an existing system, build a new product, modernize and extend) with what differs per kind; seven principles shared by every project; the legacy chapter kept as "Modernizing an existing system"; new chapters "Building a new product" (product brief, including **deployment type**: where it runs, tenancy, channels, data residency; build / buy / partner; the first release) and "Modernizing and extending"; *Verify before deciding* now also covers product brief answers. `PRODUCT-OUTCOMES.md` notes the new-product deliverables.
