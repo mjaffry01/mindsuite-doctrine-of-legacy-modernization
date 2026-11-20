@@ -1,5 +1,7 @@
 # MindSuite Legacy Modernization Advisor — What the client gets
 
+> **New product projects** (README, "Building a new product") replace Deliverable 1 with a **Product brief and target design**: the brief (problem, users, first release, scale, deployment type, constraints) as cited facts, and the agent team's blueprints and solution design. Deliverables 2 and 3 apply unchanged, with build / buy / partner as the approaches.
+
 This is the reference definition of the product's output. Build toward it, and judge every feature by whether it improves one of these deliverables.
 
 **One sentence:** from a legacy system's code, data, environment and a few business answers, MindSuite produces a **validated current-state dossier**, a **target decision record** per business area, and a **signed modernization roadmap**.

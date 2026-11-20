@@ -12,7 +12,15 @@ import (
 // Names, comments and unverified findings are never part of the input.
 
 // Approaches the model may suggest (the web app's APPROACH list, without "undecided").
-var Approaches = []string{"rehost", "replatform", "refactor", "rebuild", "replace", "encapsulate", "retire"}
+var Approaches = []string{"rehost", "replatform", "refactor", "rebuild", "replace", "encapsulate", "retire", "build", "buy", "partner"}
+
+// ModeApproaches are the approaches each project type uses (README "Three kinds of project"):
+// the 7 Rs for an existing system, build / buy / partner for new capabilities, both when extending.
+var ModeApproaches = map[string][]string{
+	"modernize": {"rehost", "replatform", "refactor", "rebuild", "replace", "encapsulate", "retire"},
+	"new":       {"build", "buy", "partner"},
+	"extend":    {"rehost", "replatform", "refactor", "rebuild", "replace", "encapsulate", "retire", "build", "buy", "partner"},
+}
 
 // Limits on what one suggestion request may carry.
 const (

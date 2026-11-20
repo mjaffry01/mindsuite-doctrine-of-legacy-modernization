@@ -15,9 +15,9 @@ A guided tool that takes a legacy system through three phases:
 
 | Phase | Steps (sidebar) | Purpose |
 |---|---|---|
-| **1 · Discovery plan** (phase header only) | **01 Record evidence** · 02 Code analysis · 03 System inventory · 04 Review findings · 05 Resolve gaps · 06 Discovery summary | Find out what the system is, with evidence |
-| **2 · Deciding** | 07 Rules & people · 08 Target decisions | Choose the target per bounded context (approach, architecture, language, database, integration, cloud) |
-| **3 · Plan** | 09 Roadmap · 10 Sign-off & export | Sequence the work in waves, get a named approval, export everything |
+| **1 · Discovery plan** (phase header only) | Start screen for a new project: modernize / new product / modernize and extend (`assets/project-mode.js`, `M.mode`). **01 Record evidence** ("Product brief" for a new product) · 02 Agent reports · 03 Validate (tabs: System inventory, Field findings, Gaps; `assets/validate-page.js`) · 04 Discovery summary | Find out what the system is, with evidence |
+| **2 · Deciding** | 05 Rules & people (three tabs, `assets/rules-page.js`; rule model in `assets/rule-catalog.js`) · 06 Target decisions (advisor, robustness, portfolio and Claude review in `assets/decision-advisor.js`; review endpoint `POST /api/decide/review`; Target options team in `assets/target-options.js` and `POST /api/decide/options`) | Choose the target per bounded context (approach, architecture, language, database, integration, cloud) |
+| **3 · Plan** | 07 Roadmap · 08 Sign-off & export | Sequence the work in waves, get a named approval, export everything |
 
 **Rule:** "Discovery plan" is only the name of the Phase 1 header; there is no separate plan step. All discovery inputs live on **01 Record evidence** (screen id `upload`; `uploadPage()` returns `evidencePage()`, code block `// 01 Record evidence`).
 
