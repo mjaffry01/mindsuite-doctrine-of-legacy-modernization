@@ -122,7 +122,7 @@ Launch approval covers first-release capabilities. Later capabilities can stay u
 
 ### 2026-11-21 — Pushed 408b442 (Claude)
 
-- The owner said "push it". Everything since b59b025 went to `main` as 408b442: Codex's workflows, Formfiller, dictation and workspace fixes, and Claude's compliance catalogue, Formfiller fixes and retry, peak-load and data-volume calculators, hosting models and Capability agent. Before pushing: no remote changes, no secrets in the diff, Go vet and all tests pass, every asset parses. GitHub Pages serves the new index (cache keys `cap-1`, `hosting-2`, `data-3`) and all new asset files return 200. The live site no longer needs a local fix to stop creating blank workspaces (Codex's fix is in this push).
+- The owner said "push it". Everything since b59b025 went to `main` as 408b442: Codex's workflows, Formfiller, dictation and workspace fixes, and Claude's compliance catalogue, Formfiller fixes and retry, peak-load and data-volume calculators, hosting models and Capability agent. Before pushing: no remote changes, no secrets in the diff, Go vet and all tests pass, every asset parses. GitHub Pages serves the new index (cache keys `cap-1`, `hosting-2`, `data-3`) and all new asset files return 200. Codex's fix for the live site creating blank workspaces is in this push; not yet checked on the live site.
 
 ### 2026-11-21 — Predicted sizing, data volume, hosting models and Capability agent (Claude)
 
