@@ -4,7 +4,7 @@ function assumptionStatus(){if(typeof assumptionsRegister!=='function')return ''
 function workflowGroups(){
  const people=(M.people||[]).length+' people';
  const approvals=M.plan.signoff;
- const approvalStatus=approvals?(approvals.fingerprint===planFingerprint()?'Approved':'Changed since approval'):'Not approved';
+ const pas=approvals&&typeof planApprovalState==='function'?planApprovalState().state:(approvals?(approvals.fingerprint===planFingerprint()?'current':'changed'):'none');const approvalStatus=pas==='current'?'Approved':pas==='legacy'?'Approved (dates not covered)':pas==='none'?'Not approved':'Changed since approval';
  const contexts=decCtxs();
  const decisions=contexts.filter(c=>decisionFor(c).status==='decided').length+' of '+contexts.length+' decided';
  if(isNewProduct())return [
@@ -16,7 +16,9 @@ function workflowGroups(){
    ['rules','03','Rules & people',people],
    ['decide','04','Design options',decisions],
    ['assumptions','✓','Assumptions',assumptionStatus()],
-   ['hld','✓','Architecture (HLD)',hldStatus()]
+   ['hld','✓','Architecture (HLD)',hldStatus()],
+   ['validation','✓','Architecture validation',typeof validationStatus==='function'?validationStatus():''],
+   ['datapolicy','✓','Data, cookie and session policy',typeof dataPolicyStatus==='function'?dataPolicyStatus():'']
   ]},
   {title:'Deliver',steps:[
    ['roadmap','05','Release plan','Pilot, first release and later releases'],
@@ -37,7 +39,9 @@ function workflowGroups(){
    ['rules','05','Rules & people',people],
    ['decide','06','Target decisions',decisions],
    ['assumptions','✓','Assumptions',assumptionStatus()],
-   ['hld','✓','Architecture (HLD)',hldStatus()]
+   ['hld','✓','Architecture (HLD)',hldStatus()],
+   ['validation','✓','Architecture validation',typeof validationStatus==='function'?validationStatus():''],
+   ['datapolicy','✓','Data, cookie and session policy',typeof dataPolicyStatus==='function'?dataPolicyStatus():'']
   ]},
   {title:'Migrate',steps:[
    ['roadmap','07','Migration roadmap',contexts.filter(c=>planOf(c).wave).length+' of '+contexts.length+' planned'],

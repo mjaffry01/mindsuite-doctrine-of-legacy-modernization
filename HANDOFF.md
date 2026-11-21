@@ -124,6 +124,128 @@ Launch approval covers first-release capabilities. Later capabilities can stay u
 
 ## 6. Change log (newest first)
 
+### 2026-11-21 — 8090 on the 16k policy build; session rerun succeeds (Claude, NOT pushed)
+
+- **Restart** (owner: "Yes, restart again"): stopped PID 45548 (`mindsuite-agents-dropnotes.exe`). 8090 now runs `bin\mindsuite-agents-policy16k.exe` (PID 78288, same arguments, cwd `bin`, stderr to `backend-policy16k.log`). Health shows `dataPolicyAgent` and `sessionPolicyAgent`; the older builds are kept for rollback.
+- **Live Session policy rerun** (food copy on 127.0.0.1, one press): 46 s, first attempt, **0 dropped**.
+  - All four cookie categories: necessary with no consent; preferences, analytics and marketing asked first.
+  - Sessions: Customer is hybrid with MFA optional; Restaurant staff is hybrid and Platform administrator is server-side, both with MFA required; all user types matched.
+  - 6 conflicts and 10 questions. Pathfinder's own checks found none, and the draft is current (not stale). It renders with no console errors.
+  - The earlier run's 6 drops were therefore probably over-long conflict or question lines rather than cookie rules; the shorter-field instruction and the larger output budget fixed it.
+- The draft is not accepted; it stays in the food copy for the owner to review.
+
+### 2026-11-21 — 8090 on the drop-notes build; session rerun cut off; 16k fix built (Claude, NOT pushed)
+
+- **Restart** (owner: "Yes, restart 8090"): stopped PID 80220 (`mindsuite-agents-policy.exe`). 8090 now runs `bin\mindsuite-agents-dropnotes.exe` (PID 45548, same arguments, cwd `bin`, stderr to `backend-dropnotes.log`). Health shows `dataPolicyAgent` and `sessionPolicyAgent`.
+- **Live Session policy rerun failed:** Claude's answer hit the 8,000-token output limit ("the answer was longer than allowed and was cut off"). The previous draft stays in the food copy; the page showed the error.
+- **Fix, built but not running:** both policy agents now allow 16,000 output tokens (the call streams; there is no extended thinking). Their prompts ask for one or two short sentences per field and at most 8 conflicts and 10 questions. `go vet` and the tests pass. The binary is `bin\mindsuite-agents-policy16k.exe`; switching 8090 to it needs the owner's OK.
+
+### 2026-11-21 — Policy agents report why they dropped items (Claude, NOT pushed; 8090 not restarted)
+
+Owner: "Yes, add drop reasons".
+- **Backend:** `DataPolicyOutput` and `SessionPolicyOutput` gain `dropNotes` (at most 20, each up to 200 characters). Each note gives the reason and the object, category or user type, never the dropped text. Examples:
+  - "cookie rule “analytics”: names azure monitor, which the design does not mention; add the tool to the design or write this rule yourself"
+  - "data rule for “Menu”: this business object was not sent"
+  - "question 4: longer than 300 characters"
+- New helpers in `agents/datapolicy.go`: `unstatedProduct()` (returns the most specific catalogue name, e.g. "azure functions" rather than "azure"), `addDropNote()` and `keepLines()`. New test `agents/dropnotes_test.go`; `go vet` and `go test ./...` pass.
+- Note: "google analytics" is not in the product catalogue, so the live session draft's missing analytics and marketing cookie rules were not dropped for naming it. The live summary says those categories "need a decision", so the model may simply have left them out. The reasons will show this on the next call.
+- **Web app** (`data-policy.js` `dp-4`, `session-policy.js` `sp-3`): the "N suggestions were dropped" line folds out into the list of reasons. Drafts from an older backend say "this backend does not report the reasons yet". Checked on 127.0.0.1 with both kinds of draft.
+- **Build ready, not running:** `Downloads\Legecy Modernization\bin\mindsuite-agents-dropnotes.exe`. 8090 still runs `mindsuite-agents-policy.exe` (PID 80220); switching needs the owner's OK (same arguments, cwd `bin`, stderr to `backend-dropnotes.log`).
+
+### 2026-11-21 — 8090 on the policy build; live Data and Session policy calls (Claude, NOT pushed)
+
+- **Restart** (owner: "Yes, restart 8090"; done by the main session): 8090 now runs `Downloads\Legecy Modernization\bin\mindsuite-agents-policy.exe serve -config mindsuite.json -runs "C:/Users/X1 CARBON/Downloads/Legecy Modernization/runs"` from `bin` (PID 80220), with stderr in `backend-policy.log`. It was built from `lm-repo/backend` and `go vet` passes. `/api/health` shows `dataPolicyAgent: true` and `sessionPolicyAgent: true`. The previous `mindsuite-agents-diagram.exe` is kept for rollback. The backend log shows only counts ("7 objects, 1 journeys, 6 layers"; "3 user types, 3 channels, 6 layers").
+- **Live Data policy call** (food copy on 127.0.0.1, one button press; `claude-opus-5-5`, 51 s, first attempt, 0 dropped):
+  - 7 data rules and 7 cache rules, all for the objects sent.
+  - Consistency is strong for stock, order, payment and payout; mixed for customer account and delivery; eventual for menu.
+  - Stock, order, payment and payout are never cached; customer account and delivery briefly; menu freely.
+  - 4+ conflicts were raised (RTO/RPO not decided vs the DR layer; replica and cache reads for stock; CDN showing sold-out items; duplicate payment webhooks over MSK) plus questions for the data owner. Pathfinder's own check found no caching conflict.
+- **Live Session policy call** (`claude-opus-5-5`, 68 s, first attempt, **6 items dropped by the checks**):
+  - Sessions: Customer is hybrid with MFA optional; Restaurant staff is hybrid and Platform administrator is server-side, both with MFA required; all user types matched.
+  - Cookies: only the necessary (no consent) and preferences (consent) categories survived. The analytics and marketing rules were probably dropped for naming a product the design doesn't mention; the backend returns only the count.
+  - 3 conflicts and 10 questions; Pathfinder's own checks found none.
+- Both drafts render on the page and appear in HLD 4e/4f, the Markdown and the JSON, with no console errors. Both stay **drafts** (nothing accepted) in the food copy for the owner to review.
+- **Follow-up to consider:** return or log the reasons for dropped items (not their content) so the owner can see why a cookie category disappeared.
+
+### 2026-11-21 — Session policy agent: cookies and sessions (Claude, NOT pushed)
+
+Owner: "we need an agent guide me for cookies and session policy too". It is a sibling of the Data policy agent, built on the same pattern, and **8090 has not been rebuilt or restarted** (that needs the owner's OK).
+- **Backend:** new `internal/agents/sessionpolicy.go`.
+  - `SessionPolicyInput` has project, kind, platform, targets, layers, 1–12 `userTypes` {name, staff} and the channels.
+  - Output: `cookies` by category (necessary, preferences, analytics, marketing) with purpose, consent (required / not-required), attributes, lifetime, domain and path; `sessions` per user type with store (server / token / hybrid), idle timeout, absolute lifetime, re-authentication, MFA (required / optional / not-required), sign-out everywhere, rotation, concurrent sessions, remember me, outage behaviour and why; plus conflicts and questions.
+  - `verify()` makes strictly necessary cookies need no consent and forces consent for every other category, reporting the correction as a conflict. It reports staff without required MFA as a conflict, drops unknown user types, invalid enums and unstated products, and retries once when no session rule survives.
+  - Handler `internal/server/sessionpolicy.go` and route `POST /api/design/sessionpolicy`; health adds `sessionPolicyAgent: true`. Tests: `agents/sessionpolicy_test.go` and `server/sessionpolicy_test.go`. `go vet` and `go test ./...` pass.
+- **Web app:** new `assets/session-policy.js` (`sp-2`) adds a second tab, **Cookies and sessions**, to the policy page. `data-policy.js` (`dp-3`) now has two tabs; the navigation label is "Data, cookie and session policy".
+  - User types come from the brief (each "Name:" in Users and their jobs; staff detected by words like staff, admin, operator, restaurant, manager; editable) and channels from the brief.
+  - The button sends metadata only, one request per press. The draft is stored in `M.dataPolicy.session.ai` and marked out of date when the platform, targets, identity, cache or recovery design, user types or channels change.
+  - The cookie policy and the session policy are accepted separately and stay editable afterwards. The page warns when the person accepting isn't the privacy or data owner (cookies) or the security owner (sessions).
+  - Local checks: server-side sessions with no cache failover in the design while availability is at least 99.9%; staff without required MFA; "remember me" for staff; non-essential cookies without consent (naming GDPR or DPDP when it applies); necessary cookies without Secure.
+  - Exports: HLD section 4f, a Markdown section and `designJson().sessionPolicy`.
+- **Verified on 127.0.0.1** (food copy, agent reply **mocked in the page**, so no Claude call):
+  - The request is about 3.7 KB, with Customer, Restaurant staff (staff) and Platform administrator (staff).
+  - Conflicts for optional MFA and remember-me on staff appear, and clear after editing.
+  - Analytics cookies without consent are flagged under DPDP. The cache is "clustered across zones", so no failover conflict is raised, which is correct. Adding a user type marks the draft out of date.
+  - HLD 4f, Markdown and JSON work, and there are no console errors. The mocked draft was removed afterwards.
+
+### 2026-11-21 — Data policy agent (Claude on the backend) and the Data and caching policy page (Claude, NOT pushed)
+
+The owner asked for an agent to draft both a database (data) policy and a caching policy, and chose "Claude on backend". **The 8090 backend has not been rebuilt or restarted yet**: it needs the owner's OK. Until then, the page's button says the backend needs the update.
+- **Backend** (Go):
+  - New `internal/agents/datapolicy.go`, a copy of the Diagram agent pattern. `DataPolicyInput` has project, kind, platform, targets, layers, 1–30 `objects` (name, source, writers, sensitivity, consistency hints) and up to 30 `journeys` (journey, failure, measure). Each object gets a data rule (owner role, authoritative writer, consistency strong/eventual/mixed, retention, classification, backup, access, why) and a cache rule (cacheable no/short/yes, max staleness, invalidation, behaviour when the cache is down, personal data, why); the output also has conflicts and questions.
+  - `verify()` drops a rule for an object that wasn't sent, a duplicate, an invalid enum, an empty owner or writer, or one naming a product the design doesn't mention; it counts what it drops and caps lengths. There is one retry when no data rule survives, using `ModelStrong`.
+  - Handler `internal/server/datapolicy.go` and route `POST /api/design/datapolicy`: 256 KB limit, unknown fields refused, 503 without Claude, 4-minute timeout, only counts logged. Health adds `dataPolicyAgent: true`.
+  - Tests are in `agents/datapolicy_test.go` (validate, verify, retry with a fake model) and `server/datapolicy_test.go` (refusals). `go vet` and `go test ./...` pass.
+- **Web app:** new screen `datapolicy`, "Data and caching policy" (`assets/data-policy.js` `dp-2`), after Architecture validation in both workflows.
+  - Business objects come from validation rows (their object field), brief or capability keywords (stock, order, payment, customer account, menu, booking, payout, delivery …) and, for modernization, discovery data stores with their writers. You can add and remove objects.
+  - "Ask the Data policy agent" sends one request per press and says what is sent: metadata only, with no records, people's names or secrets. Its reply is stored in `M.dataPolicy.ai` and marked out of date when the platform, the database/cache/recovery layers, the objects or writers, or the targets change.
+  - Drafts stay drafts until "Accept as policy". The accepted policy is stored in `M.dataPolicy.accepted[object]`, with who accepted it and when, and stays editable. A local check flags caching that contradicts a validation journey's measure ("exactly one", "never negative" …).
+  - Architecture validation now needs "an accepted data policy for <object>" before launch or cutover. The HLD gains section 4e, a Markdown section and `designJson().dataPolicy`.
+- **Verified on 127.0.0.1** (food copy) with the agent reply **mocked in the page**, so no Claude call was made:
+  - The request is about 3.9 KB, with 7 objects, 6 layers and 1 journey.
+  - The draft, conflicts (stock cached for 30 s against "exactly one paid order") and questions appear. Accepting stock clears the validation need; setting "Never cache" clears the conflict; changing the database marks the draft out of date. HLD 4e, Markdown and JSON work, and there are no console errors.
+  - The mocked draft was removed from the copy afterwards.
+- **To go live:** rebuild `bin\mindsuite-agents-diagram.exe` from `backend` (`go build -o <bin path> ./cmd/mindsuite-agents`) and restart 8090 the same way as before (stderr to `backend-diagram.log`). Then check `/api/health` shows `dataPolicyAgent: true` and make one live call, all with the owner's OK.
+
+### 2026-11-21 — Legibility: font quality, contrast and background (Claude, NOT pushed)
+
+Owner: "improve the quality of the font and the background so that it becomes more legible". New `assets/legibility.css` (`leg-4`, loaded after `typography.css`). The Google Fonts link now loads Inter as a variable font with optical sizes (`Inter:opsz,wght@14..32,400..800`), so small text gets sturdier letters. Body weight is 430, with no forced antialiasing, so text is not thin on Windows.
+- **Colours:**
+  - Ink `#141a2b` and secondary text `#454b61` (about 9:1). Labels are `#2f3548` at weight 560, and placeholders are darker.
+  - The page background is neutral `#eef0f4`, with white cards that have a visible edge and a soft shadow instead of the pale blue-lavender wash.
+  - The left rail and the page index use darker items.
+  - Hard-coded pale greys and purples from the older theme are overridden: scan, evidence and people tables, section headings, buttons, chips, reason chips, eyebrows, summaries, assessment states and page descriptions.
+- **Measured** on 8 pages of the food copy at 127.0.0.1 (5,830 text elements): before, about 860 were below 7:1 and 34 below 4.5:1 (on Design options alone). After, 98% meet WCAG AAA (7:1) and none fall below 4.5:1. SVG diagrams keep their own styles.
+- Cookie and session policy: the owner asked for an agent; this was passed to the "Data and caching policy agent" session, which is building that backend agent.
+
+### 2026-11-21 — HLD icons, plan approval covers dates, Architecture validation (Claude, NOT pushed)
+
+- **HLD icons** (owner: "the HLD lacks good icons"): new `assets/hld-icons.js` (`ic-3`).
+  - About 50 original line icons on a 24-unit grid (database, queue, stream, CDN, firewall, sign-in card, key, logs, tracing, CI/CD, DR, payment, mail, partner, AI and more), drawn white on a coloured badge in each box's top-left corner. Text is centred beside the badge.
+  - The icon comes from the component id (`HLD_ICON_BY_ID`), or from words in the title or subtitle (`HLD_ICON_WORDS`) for Diagram-agent and architecture-diagram boxes. The badge colour follows the zone.
+  - Both diagrams use it (`hld.js` `hx-7`), as do the SVG and PDF exports. The platform group has its own icon, and component boxes carry a `<title>` tooltip.
+  - `HLD_ICON_CSS` keeps the white lines, because the diagrams' `.cb rect` / `.hld-box rect` styles otherwise repaint the icon shapes. No vendor logos are used.
+- **Plan approval covers the calendar** (from the owner's review). The modernization `planFingerprint()` compared only decisions, wave, pattern and size, so moving an approved cutover left the approval looking current.
+  - It now also covers wave dates, freeze months, business events and teams. Sign-off stores a `snapshot`, and new `assets/plan-approval.js` (`pa-1`) works out `planApprovalState()`: current / changed / legacy / none.
+  - The sign-off callout lists what changed (e.g. "Wave 2 moved: May 2027 – Aug 2027 → Oct 2027 – Dec 2027. Affects: Whole system"; "Wave 2 now runs in change-freeze month (Dec)…") and who must review again (the approver plus the business owners).
+  - Approvals saved under the old comparison show "approval does not cover the wave dates: approve again". The product (launch) fingerprint is unchanged.
+- **Architecture validation** (new screen `validation`, `assets/validation.js` `val-1`, listed after Architecture (HLD) in both workflows).
+  - One row per critical journey: decision tested, consequential failure, operating condition, acceptance measure, test method, result and date, evidence, explicit assumption plus approver acceptance, open question, business object, and three owners (approves design / owns data / operates and restores, each "suggested" until they accept). Modernization adds current system, wave, authoritative writer, reconciliation and variance, rollback condition and last safe point, writes after rollback, and the **known writers and consumers** of the business object from discovery records (data-store writers and readers, batch jobs and database code, interfaces), each marked verified or not.
+  - The verdict is **derived, never picked**:
+    - Enough evidence to choose (passed + evidence)
+    - Proceed under an explicit assumption (written + accepted by a confirmed approver)
+    - Needs a test first (otherwise, or failed)
+    - Reopen: the platform, route, wave dates, assumption or decision changed since it was tested or accepted (names what changed and who reopens it)
+    - Not ready to judge (missing fields)
+  - Separately, "demonstrated ready to launch / cut over" also needs a confirmed data owner and operator; for modernization it needs the writer, reconciliation and rollback too, and no unverified writers.
+  - Suggestions come from the brief and findings: "A customer pays for the last item in stock" (with the build-or-buy question, or "which system owns stock while both are live"), duplicate payment confirmation, sign-in provider outage, region loss (RTO and RPO from the brief) and, for modernization, a failed cutover. Journeys from the brief or business areas without a row are listed as "not covered".
+  - Stored in `M.validation.rows`. It appears in HLD section 4d, the Markdown ("Architecture validation") and the JSON (`validation`).
+- Verified on 127.0.0.1: on the food copy, the last-item case went incomplete → test first → assumption → enough → reopen (cloud aws→gcp) → ready once the data owner and operator were confirmed. On a CardDemo copy with temporary stock records (removed), the batch job and supplier feed were flagged as unverified writers, cutover was blocked, and moving the wave reopened the decision. No console errors. The food copy keeps one validation row for review.
+- Not built yet, from the owner's review: build/buy/partner before the platform; a first-release feasibility experiment as its own record; a "retain for now" approach; dual-running and transition cost; a per-wave cutover record beyond the validation row.
+
+### 2026-11-21 — Pushed 26ed271 (Claude)
+
+Pushed at the owner's "push it": traceable technology choices (capabilities, overview, presets with a real Cancel, impact preview, HLD explanations), the platform-save fix and the "On this page" index. Before pushing, the remote had no new commits, there were no secrets, and all JS parsed. Pages built 26ed271; the live index carries `cap-7`, `impact-3` and `pi-3`, and the new assets return 200. The entries below marked "NOT pushed" are now in this commit.
+
 ### 2026-11-21 — "On this page" index in the left rail (Claude, NOT pushed)
 
 Owner: "every page has got multiple indexes; divide the left hand pane into page and its index like the MindSuite website". New `assets/page-index.js` (`pi-3`, loaded after `agents-page.js`):

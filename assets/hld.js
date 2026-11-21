@@ -54,10 +54,14 @@ function hldDiagram(m){
  const B=m.blueprint,L=id=>(B.platform.find(l=>l.id===id)||{}),I=m.inputs;
  const W=1120,MAIN=820,GAP=16;
  const parts=[];let H=0;
- const box=(x,y,w,h,title,sub,cls)=>{const tl=hldWrap(title,Math.floor(w/7),2),sl=sub?hldWrap(sub,Math.floor(w/6.2),3):[];
+ const box=(x,y,w,h,title,sub,cls,ik)=>{
+  // Icon badge in the top-left corner; the text is centred in the space beside it.
+  const ic=typeof hldIconBadge==='function'&&w>=90,small=h<48,bs=small?20:24,pad=ic?bs+10:0,cx=x+pad/2+w/2;
+  const tl=hldWrap(title,Math.floor((w-pad)/7),2),sl=sub?hldWrap(sub,Math.floor((w-pad)/6.2),3):[];
   parts.push('<g class="hld-box '+(cls||'')+'"><rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="8"/>'+
-   tl.map((t,i)=>'<text x="'+(x+w/2)+'" y="'+(y+18+i*15)+'" class="t">'+hldEsc(t)+'</text>').join('')+
-   sl.map((t,i)=>'<text x="'+(x+w/2)+'" y="'+(y+20+tl.length*15+i*13)+'" class="s">'+hldEsc(t)+'</text>').join('')+'</g>');
+   (ic?hldIconBadge(ik||hldIconKey('',title,sub),x+8,small?y+(h-bs)/2:y+9,bs,hldIconColor(cls)):'')+
+   tl.map((t,i)=>'<text x="'+cx+'" y="'+(y+18+i*15)+'" class="t">'+hldEsc(t)+'</text>').join('')+
+   sl.map((t,i)=>'<text x="'+cx+'" y="'+(y+20+tl.length*15+i*13)+'" class="s">'+hldEsc(t)+'</text>').join('')+'</g>');
   return {x,y,w,h,cx:x+w/2,cy:y+h/2,b:y+h,r:x+w};};
  const arrow=(x1,y1,x2,y2,dash)=>parts.push('<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" class="hld-edge'+(dash?' dash':'')+'" marker-end="url(#hldArrow)"/>');
  const row=(y,h,items,cls)=>{if(!items.length)return [];const w=Math.min(260,(MAIN-GAP*(items.length-1))/items.length);const total=w*items.length+GAP*(items.length-1);let x=20+(MAIN-total)/2;
@@ -78,7 +82,8 @@ function hldDiagram(m){
  const rows=Math.max(1,Math.ceil(mods.length/perRow));
  const py=212,ph=72+rows*(mh+10);
  const [ht,hs]=hldSplit(L('hosting').t||'Application platform');
- parts.push('<g class="hld-platform"><rect x="20" y="'+py+'" width="'+MAIN+'" height="'+ph+'" rx="10"/><text x="36" y="'+(py+22)+'" class="pt">'+hldEsc('Shared platform · '+ht)+'</text><text x="36" y="'+(py+40)+'" class="s left">'+hldEsc(hldWrap(hs,110,1)[0]||'')+'</text></g>');
+ const pic=typeof hldIconBadge==='function'?hldIconBadge('platform',34,py+12,26,hldIconColor('platform')):'',px=pic?70:36;
+ parts.push('<g class="hld-platform"><rect x="20" y="'+py+'" width="'+MAIN+'" height="'+ph+'" rx="10"/>'+pic+'<text x="'+px+'" y="'+(py+22)+'" class="pt">'+hldEsc('Shared platform · '+ht)+'</text><text x="'+px+'" y="'+(py+40)+'" class="s left">'+hldEsc(hldWrap(hs,110,1)[0]||'')+'</text></g>');
  mods.forEach((c,i)=>box(40+(i%perRow)*(mw+GAP),py+56+Math.floor(i/perRow)*(mh+10),mw,mh,c.name,'','module'));
  if(!mods.length)box(40,py+56,MAIN-40,mh,'No capability runs on the shared platform in this basis','','module');
  const lastE=E[E.length-1];arrow(lastE.cx,lastE.b,lastE.cx,py-2);
@@ -104,7 +109,7 @@ function hldDiagram(m){
  const css='.hld-box rect{fill:#f7f9ff;stroke:#b8c6e3}.hld-box.actor rect{fill:#fff;stroke:#7c8fb8}.hld-box.edge rect{fill:#eef6ff;stroke:#8fb0dd}.hld-box.module rect{fill:#fff;stroke:#c9c1f2}.hld-box.data rect{fill:#f3faf6;stroke:#9fd3b5}.hld-box.ext rect{fill:#fffaf2;stroke:#e5c48a}.hld-box.ext.id rect{fill:#f6f4ff;stroke:#b9aef0}.hld-box.ext.pay rect{fill:#fff4f4;stroke:#e3a1a1}'+
   '.hld-platform rect{fill:#f6f4ff;stroke:#7a6ae0;stroke-width:1.5}.t{font:600 12px system-ui,sans-serif;text-anchor:middle;fill:#1d2433}.s{font:11px system-ui,sans-serif;text-anchor:middle;fill:#5b6478}.s.left{text-anchor:start}.pt{font:700 13px system-ui,sans-serif;fill:#3f33a8}'+
   '.hld-edge{stroke:#8091b3;stroke-width:1.4}.hld-edge.dash{stroke-dasharray:5 4}';
- return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" class="hld-svg" role="img" aria-label="Architecture diagram"><style>'+css+'</style><defs><marker id="hldArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8091b3"/></marker></defs>'+parts.join('')+'</svg>';
+ return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" class="hld-svg" role="img" aria-label="Architecture diagram"><style>'+css+(typeof HLD_ICON_CSS==='string'?HLD_ICON_CSS:'')+'</style><defs><marker id="hldArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8091b3"/></marker></defs>'+parts.join('')+'</svg>';
 }
 
 /* ---- Full design as JSON: everything the project decided, assumed and derived, for tools and the other diagrams ---- */
@@ -149,6 +154,9 @@ function designJson(){
   componentDetails:typeof hldComponentDetails==='function'?hldComponentDetails(m,hldComponents(m)):[],
   journeys:typeof hldJourneys==='function'?hldJourneys(m,hldComponents(m)):[],
   policyAndDecisions:typeof hldPolicyAndDecisions==='function'?hldPolicyAndDecisions():null,
+  validation:typeof validationExport==='function'?validationExport():[],
+  dataPolicy:typeof dataPolicyExport==='function'?dataPolicyExport():null,
+  sessionPolicy:typeof sessionPolicyExport==='function'?sessionPolicyExport():null,
   capabilities:typeof CAP_LIST!=='undefined'?CAP_LIST.map(c=>{const s=capStatus(c[0]);return {id:c[0],area:c[1],label:c[2],needed:s.needed,baseline:s.baseline,evidence:s.evidence,provider:s.prov,service:s.name,serviceId:s.id||'',status:s.status,note:s.note};}):[],
   recovery:typeof capRecovery==='function'?capRecovery():null,
   aiDiagram:M.hldAi?{stale:(typeof hldStaleReasons==='function'&&M.hldAi.basis)?hldStaleReasons(M.hldAi.basis,hldBasis(m,hldComponents(m))):null,basis:M.hldAi.basis||null,model:M.hldAi.model,at:M.hldAi.at,summary:M.hldAi.summary,nodes:M.hldAi.nodes,flows:M.hldAi.edges,missing:M.hldAi.missing,conflicts:M.hldAi.conflicts,dropped:M.hldAi.dropped}:null,
@@ -314,12 +322,14 @@ function hldComponentDiagram(m,cm){
   lines.push('<path d="M'+(SX-12)+' '+top+' H'+(SX-6)+' V'+bot+' H'+(SX-12)+'" class="ce" fill="none"/>');
   lines.push('<path d="M'+ax+' '+(rowY.app+rowH.app/2)+' H'+(SX-30)+' V'+mid+' H'+(SX-8)+'" class="ce d" fill="none" marker-end="url(#cmA)"/>');
   lab(SX-34,mid-6,'every part: sign-in, secrets, settings, telemetry; released by CI/CD','r');}
- const boxes=cm.nodes.filter(n=>pos[n.id]).map(n=>{const p=pos[n.id],tl=hldWrap(n.title,Math.floor(p.w/7),2),sl=hldWrap(n.sub,Math.floor(p.w/6),p.h>80?4:3);
-  return '<g class="cb '+n.zone+'"><rect x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="7"/>'+tl.map((t,i)=>'<text x="'+(p.x+p.w/2)+'" y="'+(p.y+16+i*14)+'" class="t">'+hldEsc(t)+'</text>').join('')+sl.map((t,i)=>'<text x="'+(p.x+p.w/2)+'" y="'+(p.y+18+tl.length*14+i*12)+'" class="s">'+hldEsc(t)+'</text>').join('')+'</g>';});
+ const boxes=cm.nodes.filter(n=>pos[n.id]).map(n=>{const p=pos[n.id];
+  const ic=typeof hldIconBadge==='function'&&p.w>=90,bs=22,pad=ic?bs+9:0,cx=p.x+pad/2+p.w/2;
+  const tl=hldWrap(n.title,Math.floor((p.w-pad)/7),2),sl=hldWrap(n.sub,Math.floor((p.w-pad)/6),p.h>80?4:3);
+  return '<g class="cb '+n.zone+'"><title>'+hldEsc(n.title+(n.sub?' — '+n.sub:''))+'</title><rect x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="7"/>'+(ic?hldIconBadge(hldIconKey(n.id,n.title,n.sub),p.x+7,p.y+7,bs,hldIconColor(n.zone)):'')+tl.map((t,i)=>'<text x="'+cx+'" y="'+(p.y+16+i*14)+'" class="t">'+hldEsc(t)+'</text>').join('')+sl.map((t,i)=>'<text x="'+cx+'" y="'+(p.y+18+tl.length*14+i*12)+'" class="s">'+hldEsc(t)+'</text>').join('')+'</g>';});
  const css='.zone{fill:none;stroke:#d5dcec;stroke-dasharray:4 4}.zone.vnet{fill:#fbfcff;stroke:#9fb3d9;stroke-dasharray:6 4}.zone.app{fill:#faf9ff}.zone.data{fill:#f7fcf9}.zt{font:700 11px system-ui,sans-serif;fill:#6b7389;text-transform:uppercase}.zt.r{text-anchor:end}'+
   '.cb rect{fill:#f7f9ff;stroke:#b8c6e3}.cb.actors rect{fill:#fff;stroke:#7c8fb8}.cb.edge rect{fill:#eef6ff;stroke:#8fb0dd}.cb.app rect{fill:#f1eeff;stroke:#7a6ae0}.cb.data rect{fill:#eef9f3;stroke:#8fcbab}.cb.net rect{fill:#f3f6fb;stroke:#a9b6cf}.cb.cross rect{fill:#f6f4ff;stroke:#b9aef0}.cb.ext rect{fill:#fffaf2;stroke:#e5c48a}'+
   '.t{font:600 11.5px system-ui,sans-serif;text-anchor:middle;fill:#1d2433}.s{font:10.5px system-ui,sans-serif;text-anchor:middle;fill:#5b6478}.ce{stroke:#8091b3;stroke-width:1.2}.ce.d{stroke-dasharray:4 4}.cl{font:9.5px system-ui,sans-serif;text-anchor:middle;fill:#4b5570;paint-order:stroke;stroke:#fff;stroke-width:3px}.cl.r{text-anchor:end}.cl.l{text-anchor:start}';
- return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" class="hld-svg" role="img" aria-label="Component diagram"><style>'+css+'</style><defs><marker id="cmA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8091b3"/></marker></defs>'+P.join('')+lines.join('')+boxes.join('')+labels.join('')+'</svg>';
+ return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" class="hld-svg" role="img" aria-label="Component diagram"><style>'+css+(typeof HLD_ICON_CSS==='string'?HLD_ICON_CSS:'')+'</style><defs><marker id="cmA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8091b3"/></marker></defs>'+P.join('')+lines.join('')+boxes.join('')+labels.join('')+'</svg>';
 }
 
 /* ---- Diagram agent (Claude): reads the whole design and returns a reviewed component diagram ---- */
@@ -387,6 +397,9 @@ function hldMarkdown(m){
   p('\n### Flows');for(const e of cm.edges){const a=cm.nodes.find(x=>x.id===e.from),b=cm.nodes.find(x=>x.id===e.to);if(a&&b)p('- '+a.title+' → '+b.title+(e.label?': '+e.label:''));}}
  if(typeof hldJourneys==='function'){const cm2=hldComponents(m);p('\n## Business journeys');for(const j of hldJourneys(m,cm2)){p('\n### '+j.actor+': '+j.goal);p('Enters through '+j.entry+'. Source: '+j.source+'.');j.steps.forEach((x,i)=>p((i+1)+'. **'+x.component+'**: '+x.action));p('- Authorization: '+j.authorization);p('- Failure handling: '+j.failure.join('; '));p('- Signals: '+j.signals.join('; '));}
   p('\n## Components explained');p('| Component | Need it serves | Technology | Status | Owner | Open questions |');p('|---|---|---|---|---|---|');for(const d of hldComponentDetails(m,cm2))p('| '+d.title+' | '+(d.serves||'').replace(/\|/g,'/')+' | '+d.technology.replace(/\|/g,'/')+' | '+d.statusLabel+' | '+d.owner+' | '+(d.open.join('; ')||'—')+' |');
+  if(typeof dataPolicyExport==='function'){const X=dataPolicyExport();p('\n## Data and caching policy');if(!X.objects.length)p('No business objects recorded.');for(const o of X.objects){p('\n### '+o.object+' ('+(o.status==='accepted'?'accepted by '+(o.acceptedBy||'—'):o.status==='draft'?'draft, not accepted':'no policy')+')');if(o.data)p('- Owner: '+(o.data.owner||'—')+' · only writer: '+(o.data.authoritativeWriter||'—')+' · consistency: '+(o.data.consistency||'—')+' · retention: '+(o.data.retention||'—')+' · classification: '+(o.data.classification||'—')+' · backup: '+(o.data.backup||'—')+' · access: '+(o.data.access||'—'));if(o.cache)p('- Cache: '+(o.cache.cacheable||'—')+(o.cache.maxStaleness?' (up to '+o.cache.maxStaleness+')':'')+' · removal: '+(o.cache.invalidation||'—')+' · cache down: '+(o.cache.onCacheFailure||'—'));}for(const c of X.conflicts.concat(X.agentConflicts))p('- Conflict: '+c);if(X.agent&&X.agent.stale.length)p('- Agent draft is STALE: '+X.agent.stale.join('; '));}
+  if(typeof sessionPolicyExport==='function'){const Y=sessionPolicyExport();const st=b=>b.status==='accepted'?'accepted by '+b.accepted.by+(b.accepted.role?' ('+b.accepted.role+')':''):b.status==='draft'?'draft, not accepted':'none';p('\n## Cookie and session policy');p('Cookie policy: '+st(Y.cookies)+'.');for(const c of Y.cookies.rules)p('- '+c.category+': '+(c.purpose||'—')+' · consent '+(c.consent==='required'?'asked first':'not needed')+' · '+(c.attributes||'—')+(c.lifetime?' · '+c.lifetime:''));p('\nSession policy: '+st(Y.sessions)+'.');for(const s of Y.sessions.rules)p('- '+s.userType+': '+(s.store||'—')+' · idle '+(s.idleTimeout||'—')+' · lifetime '+(s.absoluteLifetime||'—')+' · MFA '+(s.mfa||'—')+(s.reauth?' · sign in again for '+s.reauth:'')+(s.outage?' · outage: '+s.outage:''));for(const c of Y.conflicts.concat(Y.agentConflicts))p('- Conflict: '+c);if(Y.agent&&Y.agent.stale.length)p('- Agent draft is STALE: '+Y.agent.stale.join('; '));}
+  if(typeof validationExport==='function'){const V=validationExport();p('\n## Architecture validation');if(!V.length)p('No journey has been validated yet.');for(const v of V){p('\n### '+v.journey);p('- Verdict: **'+v.verdict+'** — '+v.reasons.join('; '));p('- Decision tested: '+(v.decision||'—'));p('- Failure: '+(v.failure||'—'));p('- Measure: '+(v.measure||'—')+(v.method?' ('+v.method+')':''));p('- Result: '+v.result+(v.evidence?' · evidence: '+v.evidence:''));if(v.assumption)p('- Assumption: '+v.assumption+(v.assumptionAccepted?' (accepted)':' (not accepted)'));p('- Owners: design '+(v.owners.approvesDesign?v.owners.approvesDesign.name:'—')+' · data '+(v.owners.ownsData?v.owners.ownsData.name:'—')+' · operations '+(v.owners.operates?v.owners.operates.name:'—'));p('- Ready to launch or cut over: '+(v.readyFor.demonstrated?'demonstrated':'not yet — needs '+v.readyFor.missing.join(', ')));}}
   const pd=hldPolicyAndDecisions();p('\n## Project decisions');for(const d of pd.decisions)p('- '+d.what+': '+d.value+' ('+d.by+')');p('\n## Organization rules (policy, not project decisions)');for(const r of pd.rules)p('- '+r.area+' · '+r.option+': '+r.rule);}
  if(M.hldAi){const sw=(typeof hldStaleReasons==='function'&&M.hldAi.basis)?hldStaleReasons(M.hldAi.basis,hldBasis(m,hldComponents(m))):[];p('\n## Diagram agent review ('+(M.hldAi.model||'Claude')+', '+String(M.hldAi.at).slice(0,10)+')'+(sw.length?' — STALE':''));if(sw.length)p('Stale because: '+sw.join('; ')+'.');if(M.hldAi.summary)p(M.hldAi.summary);
   for(const x of M.hldAi.missing||[])p('- Missing: **'+x.component+'** — '+x.why);for(const x of M.hldAi.conflicts||[])p('- Conflict: '+x);}
@@ -441,6 +454,25 @@ function hldPage(){
    h('p',{class:'muted',text:'Rules are your organization\'s policy; decisions are what this project chose. A rule is never shown as a project decision.'}),
    h('div',{class:'tp-scroll'},h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['Project decision','Value','By'].map(t=>h('th',{text:t})))),h('tbody',{},pd.decisions.map(d=>h('tr',{},[h('th',{scope:'row',text:d.what}),h('td',{text:d.value}),h('td',{text:d.by})])))])),
    pd.rules.length?h('div',{class:'tp-scroll'},h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['Policy area','Option','Rule'].map(t=>h('th',{text:t})))),h('tbody',{},pd.rules.map(r=>h('tr',{},[h('th',{scope:'row',text:r.area}),h('td',{text:r.option}),h('td',{text:r.rule})])))])):h('p',{class:'muted',text:'No organization rules set.'})]);})():null,
+  typeof validationExport==='function'?(()=>{const V=validationExport();const S=valSummary();return sec('4d. Architecture validation',[
+   h('p',{class:'muted',text:V.length?S.c.enough+' with enough evidence to choose, '+S.c.assume+' proceeding under an assumption, '+(S.c.test+S.c.reopen)+' needing a test or reopening'+(S.uncovered.length?'; '+S.uncovered.length+' journeys not covered: '+S.uncovered.map(j=>j.title.slice(0,50)).join('; '):'')+'.':'No journey has been validated yet.'}),
+   V.length?h('div',{class:'tp-scroll'},h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['Journey','Failure tested','Acceptance measure','Verdict','Owners'].map(t=>h('th',{text:t})))),
+    h('tbody',{},V.map(v=>h('tr',{},[h('th',{scope:'row',text:v.journey}),h('td',{text:v.failure}),h('td',{text:v.measure}),h('td',{},[h('b',{text:v.verdict}),h('small',{class:'tp-why',text:v.reasons.join('; ')})]),
+     h('td',{text:['approvesDesign','ownsData','operates'].map(k=>v.owners[k]?v.owners[k].name+(v.owners[k].accepted?'':' (not accepted)'):'—').join(' / ')})])))])):null,
+   button('Open Architecture validation',()=>go('validation'),'btn small')]);})():null,
+  typeof dataPolicyExport==='function'?(()=>{const X=dataPolicyExport();return sec('4e. Data and caching policy',[
+   h('p',{class:'muted',text:X.objects.length?X.objects.filter(o=>o.status==='accepted').length+' of '+X.objects.length+' business objects have an accepted policy'+(X.agent&&X.agent.stale.length?'; the agent draft is out of date':'')+'.':'No business objects recorded yet.'}),
+   X.objects.length?h('div',{class:'tp-scroll'},h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['Business object','Owner','Only writer','Consistency','Caching','Status'].map(t=>h('th',{text:t})))),
+    h('tbody',{},X.objects.map(o=>h('tr',{},[h('th',{scope:'row',text:o.object}),h('td',{text:o.data?o.data.owner||'—':'—'}),h('td',{text:o.data?o.data.authoritativeWriter||'—':'—'}),h('td',{text:o.data?o.data.consistency||'—':'—'}),h('td',{text:o.cache?(o.cache.cacheable||'—')+(o.cache.maxStaleness?' · '+o.cache.maxStaleness:''):'—'}),h('td',{text:o.status==='accepted'?'Accepted'+(o.acceptedBy?' by '+o.acceptedBy:''):o.status==='draft'?'Draft':'None'})])))])):null,
+   X.conflicts.concat(X.agentConflicts).length?h('ul',{class:'plain-list'},X.conflicts.concat(X.agentConflicts).map(c=>h('li',{class:'warn-text',text:c}))):null,
+   button('Open Data and caching policy',()=>go('datapolicy'),'btn small')]);})():null,
+  typeof sessionPolicyExport==='function'?(()=>{const Y=sessionPolicyExport();const st=b=>b.status==='accepted'?'Accepted by '+b.accepted.by:b.status==='draft'?'Draft, not accepted':'Not written yet';return sec('4f. Cookie and session policy',[
+   h('p',{class:'muted',text:'Cookie policy: '+st(Y.cookies)+' · Session policy: '+st(Y.sessions)+(Y.agent&&Y.agent.stale.length?' · the agent draft is out of date':'')+'.'}),
+   Y.sessions.rules.length?h('div',{class:'tp-scroll'},h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['User type','Sessions kept','Idle / lifetime','Multi-factor','Sign in again for'].map(t=>h('th',{text:t})))),
+    h('tbody',{},Y.sessions.rules.map(s=>h('tr',{},[h('th',{scope:'row',text:s.userType}),h('td',{text:s.store||'—'}),h('td',{text:(s.idleTimeout||'—')+' / '+(s.absoluteLifetime||'—')}),h('td',{text:s.mfa||'—'}),h('td',{text:s.reauth||'—'})])))])):null,
+   Y.cookies.rules.length?h('p',{text:'Cookies: '+Y.cookies.rules.map(c=>c.category+' ('+(c.consent==='required'?'consent first':'no consent needed')+')').join(', ')}):null,
+   Y.conflicts.concat(Y.agentConflicts).length?h('ul',{class:'plain-list'},Y.conflicts.concat(Y.agentConflicts).map(c=>h('li',{class:'warn-text',text:c}))):null,
+   button('Open cookie and session policy',()=>{if(typeof DP_UI!=='undefined')DP_UI.tab='sessions';go('datapolicy');},'btn small')]);})():null,
   sec('5. Shared platform ('+m.blueprint.tier+')',h('table',{class:'tp-table sb-table'},h('tbody',{},m.blueprint.platform.map(l=>h('tr',{},[h('th',{scope:'row',text:l.label}),h('td',{},[h('div',{text:l.t}),h('small',{class:'tp-why',text:l.src+' · '+l.why})])]))))),
   sec('6. Capabilities',h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['Capability','Route','Runs on','Uses from the platform'].map(t=>h('th',{text:t})))),
    h('tbody',{},m.blueprint.capabilities.map(c=>h('tr',{},[h('th',{scope:'row',text:c.name}),h('td',{text:c.route+(c.picked!=='decided'?' (best fit)':'')}),h('td',{text:c.runsOn}),h('td',{text:c.adds.map(a=>a.label).join(' · ')||'core only'})])))])),
