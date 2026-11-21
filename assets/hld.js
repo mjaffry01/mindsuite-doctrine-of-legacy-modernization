@@ -31,7 +31,9 @@ function hldModel(){
   ['Users',I.users?tpN(I.users)+' ('+I.uSrc+')':'not given'],
   ['Peak load',I.peak?tpN(I.peak)+' requests/s ('+I.pSrc+'); sized for '+tpN(I.sized)+'/s with headroom'+(I.growth?' and '+I.growth+'% yearly growth':''):'not given'],
   ['Data after 3 years',I.dataGb?tpN(I.dataGb)+' GB ('+I.dSrc+')':'not given'],
-  ['Availability',I.avail+'% ('+I.aSrc+'), about '+tpN((100-I.avail)/100*8760)+' hours down a year; recover within '+(I.avail>=99.95?'1 hour, lose at most 5 minutes':I.avail>=99.5?'4 hours, lose at most 15 minutes':'1 day, lose at most 24 hours')],
+  ['Availability',I.avail+'% ('+I.aSrc+'), about '+tpN((100-I.avail)/100*8760)+' hours down a year'],
+  ['Recovery time (RTO)',(typeof capRecovery==='function'&&capRecovery().rto)||'Needs a decision (suggestion from availability: '+(I.avail>=99.95?'1 hour':I.avail>=99.5?'4 hours':'1 day')+')'],
+  ['Data loss allowed (RPO)',(typeof capRecovery==='function'&&capRecovery().rpo)||'Needs a decision (suggestion from availability: '+(I.avail>=99.95?'5 minutes':I.avail>=99.5?'15 minutes':'24 hours')+')'],
   ['Where it runs',D.where?lbl(typeof DEPLOY_WHERE!=='undefined'?DEPLOY_WHERE:[],D.where):'not decided'],
   ['Tenancy',D.tenancy?lbl(typeof DEPLOY_TENANCY!=='undefined'?DEPLOY_TENANCY:[],D.tenancy):'not answered'],
   ['Channels',(D.channels||[]).length?D.channels.map(x=>lbl(typeof DEPLOY_CHANNELS!=='undefined'?DEPLOY_CHANNELS:[],x)).join(', '):'not answered'],
@@ -110,7 +112,7 @@ function designJson(){
  const m=hldModel(),I=m.inputs,C=decCtxs(),P=M.product||{},product=isNewProduct();
  const pf=typeof platformEffective==='function'?platformEffective():null,R=typeof platformRec==='function'?platformRec():{};
  const layer=l=>({id:l.id,label:l.label,design:l.t,basis:l.why,source:l.src,quantities:l.q||null});
- const tiers={};for(const b of ['current','Safe','Balanced','Ambitious']){try{const x=tierCost(C,b);tiers[b==='current'?'platform':b]={tier:x.tier,monthly:Math.round(x.monthly),yearly:Math.round(x.yearly),running3Years:Math.round(x.run3),buildPersonMonths:x.pm,buildCost:x.oneOff,total3Years:x.total3,notEstimated:x.lines.filter(l=>l.monthly==null).map(l=>l.component)};}catch(e){}}
+ const tiers={};for(const b of ['current','Safe','Balanced','Ambitious']){try{const x=tierCost(C,b);tiers[b==='current'?'platform':b]={tier:x.tier,monthly:Math.round(x.monthly),yearly:Math.round(x.yearly),running3Years:Math.round(x.run3),buildPersonMonths:x.pm,buildCost:x.oneOff,total3Years:x.total3,notEstimated:x.lines.filter(l=>l.monthly==null).map(l=>l.component),partial:!!x.partial,missingInputs:x.missingInputs||[]};}catch(e){}}
  const caps=C.map(c=>{
   const d=decisionFor(c),adv=approachAdvice(c),scen=advisorScenarios(c,adv);
   const bp=m.blueprint.capabilities.find(x=>x.id===c.id)||{};
@@ -144,7 +146,12 @@ function designJson(){
   assumptions:(typeof assumptionsRegister==='function'?assumptionsRegister():[]).map(a=>({id:a.id,area:a.area,text:a.text,value:a.value,source:a.source,drives:a.drives,state:a.state,confirmedBy:a.record?personLabel(a.record.by)||a.record.by:'',at:a.record?a.record.at:''})),
   people:(M.people||[]).map(p=>({name:p.name,role:p.role})),
   components:(()=>{const cm=hldComponents(m);return {nodes:cm.nodes,flows:cm.edges};})(),
-  aiDiagram:M.hldAi?{model:M.hldAi.model,at:M.hldAi.at,summary:M.hldAi.summary,nodes:M.hldAi.nodes,flows:M.hldAi.edges,missing:M.hldAi.missing,conflicts:M.hldAi.conflicts,dropped:M.hldAi.dropped}:null,
+  componentDetails:typeof hldComponentDetails==='function'?hldComponentDetails(m,hldComponents(m)):[],
+  journeys:typeof hldJourneys==='function'?hldJourneys(m,hldComponents(m)):[],
+  policyAndDecisions:typeof hldPolicyAndDecisions==='function'?hldPolicyAndDecisions():null,
+  capabilities:typeof CAP_LIST!=='undefined'?CAP_LIST.map(c=>{const s=capStatus(c[0]);return {id:c[0],area:c[1],label:c[2],needed:s.needed,baseline:s.baseline,evidence:s.evidence,provider:s.prov,service:s.name,serviceId:s.id||'',status:s.status,note:s.note};}):[],
+  recovery:typeof capRecovery==='function'?capRecovery():null,
+  aiDiagram:M.hldAi?{stale:(typeof hldStaleReasons==='function'&&M.hldAi.basis)?hldStaleReasons(M.hldAi.basis,hldBasis(m,hldComponents(m))):null,basis:M.hldAi.basis||null,model:M.hldAi.model,at:M.hldAi.at,summary:M.hldAi.summary,nodes:M.hldAi.nodes,flows:M.hldAi.edges,missing:M.hldAi.missing,conflicts:M.hldAi.conflicts,dropped:M.hldAi.dropped}:null,
   diagrams:{architectSvg:hldDiagram(m),componentSvg:hldComponentDiagram(m)}
  };
 }
@@ -247,7 +254,11 @@ function hldComponents(m){
  if(has('ai'))edge('app','ai','HTTPS (prompts, no personal data)');
  if(has('other'))edge('app','other','APIs and files');
  for(const x of ['idstaff','idcust','vault','appconfig','metrics','logs','apm','audit'])if(has(x))edge('app',x,'',true);
- return {nodes:N,edges:E,cloud:pf.cloud||'',network:sv('network')};
+ // Capabilities marked "Not needed" on Technology rules leave the diagram (the app itself always stays).
+ const dis=(M.decide&&M.decide.capDismissed)||{},capOf=typeof HLD_NODE_CAP!=='undefined'?HLD_NODE_CAP:{};
+ const drop=new Set(N.filter(n=>n.id!=='app'&&capOf[n.id]&&dis[capOf[n.id]]).map(n=>n.id));
+ const declined=N.filter(n=>drop.has(n.id)).map(n=>({id:n.id,title:n.title,capability:capOf[n.id]}));
+ return {nodes:N.filter(n=>!drop.has(n.id)),edges:E.filter(e=>!drop.has(e.from)&&!drop.has(e.to)),declined,cloud:pf.cloud||'',network:sv('network')};
 }
 
 function hldComponentDiagram(m,cm){
@@ -333,14 +344,14 @@ async function runDiagramAgent(){
  const t0=Date.now();
  try{
   const out=await agentFetch('/api/design/diagram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});
-  M.hldAi={...out,at:new Date().toISOString(),fp:hldFingerprint(req),ms:Date.now()-t0};
+  M.hldAi={...out,at:new Date().toISOString(),fp:hldFingerprint(req),ms:Date.now()-t0,basis:typeof hldBasis==='function'?hldBasis(m,cm):null};
   logInput('hld:diagram-agent',null,out.nodes.length+' components, '+out.edges.length+' flows, '+(out.missing||[]).length+' missing, '+(out.conflicts||[]).length+' conflicts');
   HLD_AI_UI.view='ai';HLD_AI_UI.message='';persist();
  }catch(e){HLD_AI_UI.message=/404|not found/i.test(e.message)?'This backend needs the Diagram agent update. Restart the project backend with the latest build.':'The Diagram agent could not finish. '+e.message;}
  finally{HLD_AI_UI.busy=false;render();}
 }
 function hldAiBlock(m,cm){
- const ai=M.hldAi,stale=ai&&ai.fp!==hldFingerprint(diagramRequest(m,cm));
+ const ai=M.hldAi,staleWhy=ai&&ai.basis&&typeof hldStaleReasons==='function'?hldStaleReasons(ai.basis,hldBasis(m,cm)):[],stale=ai&&(staleWhy.length>0||ai.fp!==hldFingerprint(diagramRequest(m,cm)));
  const view=ai&&HLD_AI_UI.view==='ai'?'ai':'rule';
  const set=v=>{HLD_AI_UI.view=v;render();};
  const chip=(v,l)=>h('button',{type:'button',class:'type-chip'+(view===v?' on':''),onclick:()=>set(v)},[l]);
@@ -353,7 +364,8 @@ function hldAiBlock(m,cm){
  const am={nodes:ai.nodes,edges:ai.edges.map(e=>({...e,dash:e.kind==='control'||e.kind==='callback'})),cloud:cm.cloud};
  const extra=h('div',{class:'hld-ai-notes'},[
   h('small',{class:'muted',text:'Drawn by '+(ai.model||'Claude')+' on '+String(ai.at).slice(0,16).replace('T',' ')+' · '+ai.nodes.length+' components, '+ai.edges.length+' flows'+(ai.dropped?' · '+ai.dropped+' items dropped by the checks':'')+(ai.attempts>1?' · second attempt':'')}),
-  stale?h('p',{class:'input-status open',text:'The design has changed since the agent drew this. Ask again to update it.'}):null,
+  stale?h('p',{class:'input-status open',text:'Stale: '+(staleWhy.length?staleWhy.join('; '):'the design has changed')+' since the agent drew this. Ask again to update it.'}):null,
+  ai.basis?h('small',{class:'muted',text:'Based on: provider '+(ai.basis.provider||'none')+', '+(ai.basis.tier||'')+' tier, '+(ai.basis.hosting||'')+' hosting, '+(ai.basis.architecture||'')+', '+(ai.basis.database||'')+', '+ai.basis.components+' components.'}):null,
   ai.summary?h('p',{text:ai.summary}):null,
   (ai.missing||[]).length?h('div',{},[h('b',{text:'Missing from the design'}),h('ul',{class:'plain-list'},ai.missing.map(x=>h('li',{},[h('b',{text:x.component+': '}),x.why])))]):null,
   (ai.conflicts||[]).length?h('div',{},[h('b',{text:'Conflicts'}),h('ul',{class:'plain-list warn-text'},ai.conflicts.map(x=>h('li',{text:x})))]):null]);
@@ -373,13 +385,17 @@ function hldMarkdown(m){
  for(const l of m.blueprint.platform)p('| '+l.label+' | '+l.t.replace(/\|/g,'/')+' | '+l.src+': '+l.why.replace(/\|/g,'/')+' |');
  {const cm=hldComponents(m);p('\n## Components');p('| Component | Zone | Service and size |');p('|---|---|---|');for(const n of cm.nodes)p('| '+n.title+' | '+n.zone+' | '+n.sub.replace(/\|/g,'/')+' |');
   p('\n### Flows');for(const e of cm.edges){const a=cm.nodes.find(x=>x.id===e.from),b=cm.nodes.find(x=>x.id===e.to);if(a&&b)p('- '+a.title+' → '+b.title+(e.label?': '+e.label:''));}}
- if(M.hldAi){p('\n## Diagram agent review ('+(M.hldAi.model||'Claude')+', '+String(M.hldAi.at).slice(0,10)+')');if(M.hldAi.summary)p(M.hldAi.summary);
+ if(typeof hldJourneys==='function'){const cm2=hldComponents(m);p('\n## Business journeys');for(const j of hldJourneys(m,cm2)){p('\n### '+j.actor+': '+j.goal);p('Enters through '+j.entry+'. Source: '+j.source+'.');j.steps.forEach((x,i)=>p((i+1)+'. **'+x.component+'**: '+x.action));p('- Authorization: '+j.authorization);p('- Failure handling: '+j.failure.join('; '));p('- Signals: '+j.signals.join('; '));}
+  p('\n## Components explained');p('| Component | Need it serves | Technology | Status | Owner | Open questions |');p('|---|---|---|---|---|---|');for(const d of hldComponentDetails(m,cm2))p('| '+d.title+' | '+(d.serves||'').replace(/\|/g,'/')+' | '+d.technology.replace(/\|/g,'/')+' | '+d.statusLabel+' | '+d.owner+' | '+(d.open.join('; ')||'—')+' |');
+  const pd=hldPolicyAndDecisions();p('\n## Project decisions');for(const d of pd.decisions)p('- '+d.what+': '+d.value+' ('+d.by+')');p('\n## Organization rules (policy, not project decisions)');for(const r of pd.rules)p('- '+r.area+' · '+r.option+': '+r.rule);}
+ if(M.hldAi){const sw=(typeof hldStaleReasons==='function'&&M.hldAi.basis)?hldStaleReasons(M.hldAi.basis,hldBasis(m,hldComponents(m))):[];p('\n## Diagram agent review ('+(M.hldAi.model||'Claude')+', '+String(M.hldAi.at).slice(0,10)+')'+(sw.length?' — STALE':''));if(sw.length)p('Stale because: '+sw.join('; ')+'.');if(M.hldAi.summary)p(M.hldAi.summary);
   for(const x of M.hldAi.missing||[])p('- Missing: **'+x.component+'** — '+x.why);for(const x of M.hldAi.conflicts||[])p('- Conflict: '+x);}
  p('\n## Capabilities');p('| Capability | Route | Runs on | Uses from the platform |');p('|---|---|---|---|');
  for(const c of m.blueprint.capabilities)p('| '+c.name+' | '+c.route+(c.picked!=='decided'?' (best fit)':'')+' | '+c.runsOn+' | '+(c.adds.map(a=>a.label).join(', ')||'core only')+' |');
  if(x){p('\n## Cost (rough planning figures, not quotes)');p('| Component | Sizing | Per month |');p('|---|---|---|');
   for(const l of x.lines)p('| '+l.component+' | '+l.sizing+' | '+(l.monthly==null?'not estimated':fmt(l.monthly))+' |');
-  p('| **Total per month** | | **'+fmt(x.monthly)+'** |');
+  p('| **Total per month'+(x.partial?' (partial)':'')+'** | | **'+fmt(x.monthly)+'** |');
+  if(x.partial)p('\n**Partial estimate.** Not priced yet: '+x.missingInputs.join('; ')+'.');
   p('\nRunning for 3 years: '+fmt(x.run3)+(x.oneOff?' · build: '+fmt(x.oneOff[0])+' – '+fmt(x.oneOff[1]):' · build: '+x.pm[0]+'–'+x.pm[1]+' person-months')+'. Not included: video delivery traffic, network egress, staff, support contracts.');}
  p('\n## Decisions');for(const d of m.decisions)p('- '+d.name+': '+d.status+(d.approach?' — '+d.approach:'')+(d.by?' ('+d.by+(d.at?', '+d.at:'')+')':''));
  p('\n## Open assumptions and risks');if(!m.assumptions.length)p('None open.');for(const a of m.assumptions)p('- ['+a.area+'] '+a.text+' — drives: '+a.drives);
@@ -413,15 +429,24 @@ function hldPage(){
   sec('2. Quality targets',dl(m.nfr)),
   sec('3. Architecture diagram',[holder,h('small',{class:'muted',text:'Users → entry (north–south) → shared platform and the capabilities built on it → data. On the right: identity (dashed), bought products, partner platforms and other systems. Basis: '+m.meta.basis+'.'})]),
   sec('4. Component diagram',[aib.head,aib.status,cholder,aib.extra,h('small',{class:'muted',text:'Every running component with its service and size on '+(cm.cloud?((optOf('cloud',cm.cloud)||[,cm.cloud])[1]):'the chosen cloud')+'. Solid arrows carry requests and data; dashed arrows are sign-in, secrets, monitoring, releases and callbacks.'}),
-   h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['Component','Zone','Service and size','Talks to'].map(t=>h('th',{text:t})))),
-    h('tbody',{},shown.nodes.map(n=>h('tr',{},[h('th',{scope:'row',text:n.title}),h('td',{text:zoneName[n.zone]||n.zone}),h('td',{text:n.sub+(n.why?' — '+n.why:'')}),
-     h('td',{text:shown.edges.filter(e=>e.from===n.id).map(e=>((shown.nodes.find(x=>x.id===e.to)||{}).title||e.to)+(e.label?' ('+e.label+')':'')).join('; ')||'—'})])))])]),
+   typeof hldComponentDetails==='function'?h('div',{class:'tp-scroll'},h('table',{class:'tp-table sb-table hld-comp'},[h('thead',{},h('tr',{},['Component','What it does','Need it serves','Technology and provider','Status','Why','Owner','Connects to','Open questions'].map(t=>h('th',{text:t})))),
+    h('tbody',{},hldComponentDetails(m,cm).map(d=>h('tr',{id:'comp-'+d.id},[h('th',{scope:'row',text:d.title}),h('td',{text:d.purpose||'—'}),h('td',{text:d.serves||'—'}),h('td',{text:d.technology+(d.provider&&d.provider!=='external'?' · '+d.provider:'')}),
+     h('td',{},[h('span',{class:'cap-st '+d.status,text:d.statusLabel})]),h('td',{class:'muted',text:d.why||'—'}),h('td',{text:d.owner}),h('td',{class:'muted',text:d.connects.join('; ')||'—'}),
+     h('td',{class:d.open.length?'warn-text':'muted',text:d.open.join('; ')||'—'})])))])):null]),
+  typeof hldJourneys==='function'?sec('4b. Business journeys',[h('p',{class:'muted',text:'Two journeys from the brief, end to end: who, where they enter, which components they touch, what is read or written, how access is checked, how failures are handled and what is measured.'}),
+   ...hldJourneys(m,cm).map(j=>h('div',{class:'hld-journey'},[h('h3',{text:j.actor+': '+j.goal}),h('small',{class:'muted',text:'Source: '+j.source+' · enters through '+j.entry}),
+    h('ol',{},j.steps.map(s=>h('li',{},[h('b',{text:s.component+': '}),s.action]))),
+    h('dl',{class:'inv-meta'},[h('dt',{text:'Authorization'}),h('dd',{text:j.authorization}),h('dt',{text:'Failure handling'}),h('dd',{text:j.failure.join('; ')}),h('dt',{text:'Signals'}),h('dd',{text:j.signals.join('; ')})])]))]):null,
+  typeof hldPolicyAndDecisions==='function'?(()=>{const pd=hldPolicyAndDecisions();return sec('4c. Organization rules and project decisions',[
+   h('p',{class:'muted',text:'Rules are your organization\'s policy; decisions are what this project chose. A rule is never shown as a project decision.'}),
+   h('div',{class:'tp-scroll'},h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['Project decision','Value','By'].map(t=>h('th',{text:t})))),h('tbody',{},pd.decisions.map(d=>h('tr',{},[h('th',{scope:'row',text:d.what}),h('td',{text:d.value}),h('td',{text:d.by})])))])),
+   pd.rules.length?h('div',{class:'tp-scroll'},h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['Policy area','Option','Rule'].map(t=>h('th',{text:t})))),h('tbody',{},pd.rules.map(r=>h('tr',{},[h('th',{scope:'row',text:r.area}),h('td',{text:r.option}),h('td',{text:r.rule})])))])):h('p',{class:'muted',text:'No organization rules set.'})]);})():null,
   sec('5. Shared platform ('+m.blueprint.tier+')',h('table',{class:'tp-table sb-table'},h('tbody',{},m.blueprint.platform.map(l=>h('tr',{},[h('th',{scope:'row',text:l.label}),h('td',{},[h('div',{text:l.t}),h('small',{class:'tp-why',text:l.src+' · '+l.why})])]))))),
   sec('6. Capabilities',h('table',{class:'tp-table sb-table'},[h('thead',{},h('tr',{},['Capability','Route','Runs on','Uses from the platform'].map(t=>h('th',{text:t})))),
    h('tbody',{},m.blueprint.capabilities.map(c=>h('tr',{},[h('th',{scope:'row',text:c.name}),h('td',{text:c.route+(c.picked!=='decided'?' (best fit)':'')}),h('td',{text:c.runsOn}),h('td',{text:c.adds.map(a=>a.label).join(' · ')||'core only'})])))])),
-  x?sec('7. Cost (rough planning figures, not quotes)',[h('table',{class:'tp-table cost-lines'},[h('thead',{},h('tr',{},['Component','Sizing','Per month'].map(t=>h('th',{text:t})))),
+  x?sec('7. Cost (rough planning figures, not quotes)'+(x.partial?' — partial estimate':''),[x.partial?h('p',{class:'warn-text',text:'Partial estimate: these items are not priced yet — '+x.missingInputs.join('; ')}):null,h('table',{class:'tp-table cost-lines'},[h('thead',{},h('tr',{},['Component','Sizing','Per month'].map(t=>h('th',{text:t})))),
    h('tbody',{},[...x.lines.map(l=>h('tr',{},[h('th',{scope:'row',text:l.component}),h('td',{text:l.sizing}),h('td',{class:'num',text:l.monthly==null?'not estimated':fmt(l.monthly)})])),
-    h('tr',{class:'total'},[h('th',{scope:'row',text:'Total per month'}),h('td',{text:''}),h('td',{class:'num'},[h('b',{text:fmt(x.monthly)})])])])]),
+    h('tr',{class:'total'},[h('th',{scope:'row',text:'Total per month'+(x.partial?' (partial)':'')}),h('td',{text:''}),h('td',{class:'num'},[h('b',{text:fmt(x.monthly)})])])])]),
    h('p',{class:'muted',text:'Running for 3 years: '+fmt(x.run3)+(x.oneOff?' · build: '+fmt(x.oneOff[0])+' – '+fmt(x.oneOff[1]):' · build: '+x.pm[0]+'–'+x.pm[1]+' person-months')+'. Not included: video delivery traffic, network egress, staff, support contracts.'})]):null,
   sec('8. Decisions',h('ul',{class:'plain-list'},m.decisions.map(d=>h('li',{text:d.name+': '+d.status+(d.approach?' — '+d.approach:'')+(d.by?' ('+d.by+(d.at?', '+d.at:'')+')':'')})))),
   sec('9. Open assumptions and risks',m.assumptions.length?h('ul',{class:'plain-list'},m.assumptions.map(a=>h('li',{text:'['+a.area+'] '+a.text+' — drives: '+a.drives}))):h('p',{class:'muted',text:'None open.'}))]);

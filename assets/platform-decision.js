@@ -140,7 +140,9 @@ function platformChoicesFor(approach){
 function platformPanel(){
  const R=platformRec(),S=platformSuggest(),E=platformEffective(),product=isNewProduct();
  const vals=R.values,decided=R.status==='decided';
- const set=k=>v=>{const b=vals[k];vals[k]=v;if(decided){R.status='open';R.reopened=true;}logInput('platform:'+k,b,v);persist();render();};
+ const apply=(k,v)=>{const V=platformRec().values;const b=V[k];V[k]=v;if(decided){R.status='open';R.reopened=true;}logInput('platform:'+k,b,v);persist();render();};
+ // Significant choices first show their impact; Cancel leaves everything as it was.
+ const set=k=>v=>{if(['cloud','hosting','architecture','database','language','tier'].includes(k)&&typeof platformImpactDialog==='function'&&(vals[k]||'')!==(v||''))platformImpactDialog(k,v,()=>apply(k,v),()=>render());else apply(k,v);};
  const optLabel=(dim,id)=>id?((optOf(dim,id)||[,id])[1]):'';
  const recal=k=>/^Recalibrated|; confirmed because|Recalibrated:/.test(S.why[k]||'');
  const sugg=(k,lab)=>h('small',{class:'muted pf-sugg'+(recal(k)?' pf-recal':''),text:(recal(k)?'↻ ':'')+'Suggested: '+lab+(S.why[k]?' — '+S.why[k]:'')});
@@ -191,3 +193,44 @@ function platformStep2Head(){
 @media(max-width:900px){.pf-tiers{grid-template-columns:1fr}}`;
  document.head.append(Object.assign(document.createElement('style'),{id:'pf-style',textContent:css}));
 })();
+
+
+/* ---- Impact of a significant platform choice, shown before it is applied ---- */
+function platformImpact(k,v){
+ const R=platformRec(),saved=JSON.parse(JSON.stringify(R.values||{}));
+ const lab=(dim,id)=>!id?'(suggestion)':dim==='tier'?id+' tier':dim==='hosting'?(((typeof HOSTING_MODELS!=='undefined'?HOSTING_MODELS:[]).find(m=>m.id===id)||{}).name||id):((optOf(dim,id)||[,id])[1]);
+ const caps=typeof CAP_LIST!=='undefined'?CAP_LIST.map(c=>c[0]):[];
+ const snap=()=>{const p=platformEffective();const st={};for(const id of caps){const x=capStatus(id);if(x&&x.needed)st[id]={name:x.name,status:x.status,note:x.note};}return {p,st};};
+ let before,after;
+ const orig=R.values;try{before=snap();R.values={...saved};if(v)R.values[k]=v;else delete R.values[k];after=snap();}finally{R.values=orig;}
+ const dims=['tier','cloud','hosting','architecture','language','database'];
+ const changes=dims.filter(d=>d!==k&&String(before.p[d]||'')!==String(after.p[d]||'')).map(d=>({d,from:lab(d,before.p[d]),to:lab(d,after.p[d]),why:(after.p.suggested&&after.p.suggested.why[d])||''}));
+ const ib=[].concat(before.p.integration||[]),ia=[].concat(after.p.integration||[]);
+ if(JSON.stringify(ib)!==JSON.stringify(ia))changes.push({d:'integration',from:ib.map(x=>lab('integration',x)).join(', '),to:ia.map(x=>lab('integration',x)).join(', '),why:(after.p.suggested&&after.p.suggested.why.integration)||''});
+ const fixed=Object.entries(saved).filter(([d,x])=>d!==k&&x!=null&&x!==''&&!(Array.isArray(x)&&!x.length)).map(([d,x])=>TARGETS[d]?TARGETS[d].title+': '+[].concat(x).map(y=>lab(d,y)).join(', '):d==='hosting'?'Hosting: '+lab('hosting',x):d==='tier'?'Tier: '+x:d+': '+x);
+ try{const B=systemBlueprint(decCtxs(),'current');for(const o of B.owners||[])if(o.owner)fixed.push(o.label+': '+(o.owner.by==='partner'?'partner platform':'bought product')+' for “'+o.owner.name+'” (kept)');}catch(e){}
+ const capChanges=Object.keys(after.st).filter(id=>!before.st[id]||before.st[id].name!==after.st[id].name||before.st[id].status!==after.st[id].status).map(id=>({id,label:CAP_BY_ID[id][2],from:before.st[id]?((before.st[id].name||'—')+' · '+CAP_STATUS_LABEL[before.st[id].status]):'—',to:(after.st[id].name||'—')+' · '+CAP_STATUS_LABEL[after.st[id].status]+(after.st[id].note?' ('+after.st[id].note+')':''),bad:['unresolved','conflict','approval','needs-partner'].includes(after.st[id].status)}));
+ const conflicts=[];
+ const RR=M.decide.rules;
+ if(TARGETS[k]&&v){const st=(RR.stance[k]||{})[v];if(st&&['excluded','approval','retiring'].includes(st))conflicts.push(lab(k,v)+' is '+RULE_STATE[st][1]+' in your rules'+(st==='excluded'?': it cannot be chosen until the rule changes':''));
+  const std=TARGETS[k].opts.filter(([o])=>RR.stance[k][o]==='standard'&&o!==v);if(std.length)conflicts.push('Your organization standard for '+TARGETS[k].title+' is '+std.map(o=>o[1]).join(', '));}
+ const viaProvider=capChanges.filter(c=>/chosen provider needs approval/.test(c.to)).length;
+ if(viaProvider)conflicts.push(viaProvider+' services would need approval because the provider does');
+ for(const c of capChanges)if(c.bad&&!/chosen provider needs approval/.test(c.to))conflicts.push(c.label+': '+c.to);
+ return {changes,fixed,capChanges,conflicts,label:lab(k,v),field:TARGETS[k]?TARGETS[k].title:k==='tier'?'Tier':'Hosting model'};
+}
+function platformImpactDialog(k,v,onApply,onCancel){
+ let x;try{x=platformImpact(k,v);}catch(e){console.error('Impact',e);onApply();return;}
+ const dialog=dialogShell('Change '+x.field+' to '+x.label+'?','What would change, what stays fixed and what needs attention. Cancel leaves everything as it is.');
+ const list=(title,items,cls)=>items.length?h('div',{class:'impact-block'},[h('b',{text:title}),h('ul',{class:'plain-list '+(cls||'')},items.map(t=>h('li',{text:t})))]):null;
+ const blocked=TARGETS[k]&&v&&((M.decide.rules.stance[k]||{})[v]==='excluded');
+ dialog.append(h('div',{class:'drawer-content'},[
+  h('p',{},[h('b',{text:'Trigger: '}),'you choose '+x.label+' for '+x.field+'.']),
+  list('Related suggestions that recalibrate',x.changes.map(c=>c.d+': '+c.from+' → '+c.to+(c.why?' — '+c.why:''))),
+  list('Services and statuses that change',x.capChanges.map(c=>c.label+': '+c.from+' → '+c.to)),
+  list('Stays fixed (your explicit decisions)',x.fixed),
+  list('Needs attention',x.conflicts,'warn-text'),
+  !x.changes.length&&!x.capChanges.length?h('p',{class:'muted',text:'Nothing else changes.'}):null]));
+ dialog.append(h('div',{class:'drawer-footer'},[button('Cancel',()=>{dialog.close();onCancel&&onCancel();},'btn'),blocked?h('span',{class:'warn-text',text:'Excluded by your rules'}):button('Apply this change',()=>{dialog.close();onApply();},'btn primary')]));
+ dialog.showModal();
+}

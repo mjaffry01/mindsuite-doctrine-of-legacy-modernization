@@ -30,7 +30,7 @@ function costRates(){
 
 function tierCost(C,basis){
  const B=systemBlueprint(C,basis),R=costRates(),bc=M.decide.businessCase||{};
- const q=id=>((B.platform.find(l=>l.id===id)||{}).q)||null;
+ const q=id=>{if(((M.decide&&M.decide.capDismissed)||{})[id])return null;const l=B.platform.find(x=>x.id===id)||{};return /Open decision/.test(l.t||'')?null:(l.q||null);};
  const host=q('hosting')||{kind:'ctr',pub:true},priv=host.pub?1:(R.privatePct||75)/100;
  const lines=[];const add=(component,sizing,rate,monthly,note)=>lines.push({component,sizing,rate,monthly:monthly==null?null:Math.round(monthly*100)/100,note:note||''});
  const money=n=>(Math.round(n*100)/100).toLocaleString();
@@ -66,13 +66,17 @@ function tierCost(C,basis){
  const vendorCaps=B.capabilities.filter(x=>/Vendor product/.test(x.runsOn)).length,partnerCaps=B.capabilities.filter(x=>/Partner/.test(x.runsOn)).length;
  if(vendorCaps)add('Bought products (licences)',vendorCaps+' capabilit'+(vendorCaps>1?'ies':'y')+(users?' × '+tpN(users)+' users':''),R.saasUser!=null?money(R.saasUser)+' per user':'enter a price',R.saasUser!=null&&users?vendorCaps*users*R.saasUser:null,R.saasUser==null?'ask the vendors for a price per user':'');
  if(partnerCaps)add('Partner platform (licences)',(users?tpN(users)+' users, ':'')+'one platform for '+partnerCaps+' capabilit'+(partnerCaps>1?'ies':'y'),R.partnerUser!=null?money(R.partnerUser)+' per user':'enter a price',R.partnerUser!=null&&users?users*R.partnerUser:null,R.partnerUser==null?'ask the partner for a price per user':'');
+ for(const l of B.platform)if(/Open decision/.test(l.t||''))add(l.label,'open decision','',null,'not priced until a service is chosen');
+ {let I={f:{}};try{I=techPlanInputs({id:'system'});}catch(e){}
+  if(I.f.video)add('Video delivery traffic and egress','viewing hours × bitrate × delivery geography','provider price per GB',null,'not included: viewing hours, average bitrate, delivery geography and CDN pricing are unknown');
+  else if(I.f.customers)add('Network egress to users','data sent to users per month','provider price per GB',null,'not included: monthly traffic unknown');}
  const monthly=lines.reduce((a,l)=>a+(l.monthly||0),0),missing=lines.filter(l=>l.monthly==null).length;
  // One-off: effort size per capability for this basis.
  const pm=[0,0];
  for(const cap of C){const sc=sbScenarioFor(cap,basis);if(!sc)continue;const size=autoSize(cap,sc.d);const r=PERSON_MONTHS[size];if(r){pm[0]+=r[0];pm[1]+=r[1];}}
  const rate=num(bc.personMonth);
  const oneOff=rate?[pm[0]*rate,pm[1]*rate]:null;
- return {basis,tier:B.tier,lines,monthly,yearly:monthly*12,run3:monthly*36,missing,pm,oneOff,total3:oneOff?[oneOff[0]+monthly*36,oneOff[1]+monthly*36]:null,currency:bc.currency||'USD',priv:!host.pub};
+ return {partial:lines.some(l=>l.monthly==null),missingInputs:lines.filter(l=>l.monthly==null).map(l=>l.component+': '+l.note),basis,tier:B.tier,lines,monthly,yearly:monthly*12,run3:monthly*36,missing,pm,oneOff,total3:oneOff?[oneOff[0]+monthly*36,oneOff[1]+monthly*36]:null,currency:bc.currency||'USD',priv:!host.pub};
 }
 
 function tierCostSection(C){

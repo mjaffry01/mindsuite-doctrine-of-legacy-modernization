@@ -156,13 +156,7 @@ function presetPreview(key){
  return Object.entries(p[2]).flatMap(([dim,rules])=>Object.entries(rules).filter(([id])=>optOf(dim,id)).map(([id,st])=>h('span',{class:'stance-chip '+st,text:(RULE_STATE[st][2]?RULE_STATE[st][2]+' ':'')+optOf(dim,id)[1]})));
 }
 function rulesToolbar(){
- const preview=h('div',{class:'preset-preview',hidden:''});
- const applyBtn=button('Apply preset',()=>apply(),'btn small primary');applyBtn.disabled=true;
- const pick=h('select',{class:'field compact','aria-label':'Preset',onchange:()=>{const chips=presetPreview(pick.value);applyBtn.disabled=!pick.value;
-  preview.hidden=!pick.value;preview.replaceChildren(...(pick.value?[h('small',{class:'muted',text:'Rules to apply'}),...chips]:[]));}},[h('option',{value:'',text:'Start from a preset…'}),...rulePresets().map(p=>h('option',{value:p[0],text:p[1]}))]);
- const apply=()=>{if(!pick.value)return;const had=Object.entries(TARGETS).some(([dim,t])=>t.opts.some(([id])=>M.decide.rules.stance[dim][id]||M.decide.rules.ruleInfo[dim][id]));
-  const replace=had?confirm('Replace your current rules with the preset? Choose Cancel to add the preset on top of them.'):false;
-  const k=applyRulePreset(pick.value,replace);persist();render();notice(k+' rules set from the preset. Click any option to adjust it.');};
+ // Presets moved to presetPanel() (rules-overview.js): explained, previewed per rule, with a real Cancel.
  const file=h('input',{type:'file',accept:'.csv,.txt,text/csv',hidden:'',onchange:async e=>{const f=e.target.files[0];if(!f)return;const res=importRuleCsv(await f.text());e.target.value='';
   if(res.error){alert(res.error);return;}persist();render();
   const msg=[res.applied+' rules imported'+(res.added?' ('+res.added+' new options added)':'')+'.'];
@@ -170,9 +164,9 @@ function rulesToolbar(){
   if(res.unmatched.length)msg.push(res.unmatched.length+' not in the list (add an "area" column to add them as your own options): '+res.unmatched.slice(0,8).join(', ')+(res.unmatched.length>8?'…':''));
   if(res.unknownRing.length)msg.push(res.unknownRing.length+' with an unknown ring or status: '+res.unknownRing.slice(0,5).join(', '));
   alert(msg.join('\n\n'));}});
- return h('div',{class:'rules-toolbar'},[pick,applyBtn,h('span',{class:'rules-toolbar-sep'}),
+ return h('div',{class:'rules-toolbar'},[
   button('Import tech radar (CSV)',()=>file.click(),'btn small'),button('Export rules (CSV)',()=>downloadText('technology-rules.csv',exportRuleCsv()),'btn small'),file,
-  h('details',{class:'rules-csv-help'},[h('summary',{text:'CSV format'}),h('p',{class:'muted',text:'Columns: name, ring (or status), and optionally area, reason, owner, review_by, exit_by. Ring Adopt / Trial / Assess / Hold becomes Preferred / Allowed / Needs approval / Retiring; Standard and Excluded are accepted too. Area is architecture, language, database, integration or cloud; with it, names that are not in the list are added as your own options. Export gives the same format, so you can edit it in a spreadsheet and import it back.'})]),preview]);
+  h('details',{class:'rules-csv-help'},[h('summary',{text:'CSV format'}),h('p',{class:'muted',text:'Columns: name, ring (or status), and optionally area, reason, owner, review_by, exit_by. Ring Adopt / Trial / Assess / Hold becomes Preferred / Allowed / Needs approval / Retiring; Standard and Excluded are accepted too. Area is architecture, language, database, integration or cloud; with it, names that are not in the list are added as your own options. Export gives the same format, so you can edit it in a spreadsheet and import it back.'})])]);
 }
 
 /* 3. Every rule in force in one table, with its reason, owner and review date. */
@@ -234,12 +228,15 @@ function rulesTabsPage(){
  }else if(cur[0]==='tech'){
   body=[h('section',{class:'summary-section'},[
    h('h2',{text:product?'Technology choices for the first release':'Technology rules'}),
-   h('p',{class:'muted rules-why',text:product?'Which technologies should your team use or avoid? Choose an option or apply a starter preset. Design options uses these rules alongside your product brief.':'Optional. Everything is allowed unless you set a rule. Click an option to set its rule, with a reason, an owner and a review date. Start from a preset or import your technology radar to save clicks.'}),
-   rulesToolbar(),
+   h('p',{class:'muted rules-why',text:product?'What your product needs, why, and what your organization allows. Start from the decisions below; presets and the full option list are further down. Design options uses these rules alongside your product brief.':'Optional. Everything is allowed unless you set a rule. Click an option to set its rule, with a reason, an owner and a review date. Start from a preset or import your technology radar to save clicks.'}),
+   typeof rulesOverview==='function'?rulesOverview():null,
+   typeof presetPanel==='function'?presetPanel():null,
    rulesInForce(),
-   h('div',{class:'rules-browse'},[rulesFilterBar(),h('div',{class:'stance-legend'},RULE_STATES.map(([v,label,icon,help])=>h('span',{class:'legend-item '+v,title:help},[(icon?icon+' ':'')+label])))]),
-   ...Object.keys(TARGETS).map(stanceChips),
-   typeof cloudServicesPanel==='function'?cloudServicesPanel():null
+   h('details',{class:'compare rules-all'},[h('summary',{text:'Browse all categories and options (rule chips, CSV import and export)'}),
+    rulesToolbar(),
+    h('div',{class:'rules-browse'},[rulesFilterBar(),h('div',{class:'stance-legend'},RULE_STATES.map(([v,label,icon,help])=>h('span',{class:'legend-item '+v,title:help},[(icon?icon+' ':'')+label])))]),
+    ...Object.keys(TARGETS).map(stanceChips),
+    typeof cloudServicesPanel==='function'?cloudServicesPanel():null])
   ])];
   queueMicrotask(()=>applyRulesFilter(document.getElementById('main')));
  }else{

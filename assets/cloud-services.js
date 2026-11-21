@@ -216,26 +216,40 @@ function csRules(){ensureDecide();const R=M.decide.rules;R.services=R.services||
 function csProvider(cloud){return ['azure','aws','gcp','ibm','oci'].includes(cloud)?cloud:'private';}
 /* The service the plan should use for one role on one provider, following the service rules. */
 function cloudServiceFor(role,cloud,fallback){
- const prov=csProvider(cloud),list=(CLOUD_SERVICES[prov]||[]).filter(s=>s[3].split(',').includes(role));
- if(!list.length)return fallback;
- let rules={};try{rules=csRules()[prov]||{};}catch(e){return fallback;}
- const st=s=>(rules[s[0]]||{}).state||'allowed';
- const pick=list.find(s=>st(s)==='standard')||list.find(s=>st(s)==='preferred');
- if(pick)return pick[1];
- const fb=String(fallback||'');
- const excludedHit=list.find(s=>st(s)==='excluded'&&fb.toLowerCase().includes(s[1].toLowerCase().split(' (')[0]));
- if(excludedHit){const alt=list.find(s=>!['excluded','approval','retiring'].includes(st(s)));return alt?alt[1]+' (your rules exclude '+excludedHit[1]+')':fb+' (excluded by your rules: choose another)';}
- return fallback;
+ const prov=csProvider(cloud);
+ if(typeof capResolveService!=='function')return fallback;
+ const r=capResolveService(role,prov,fallback);
+ // Excluded default: the plan's default names a service your rules exclude.
+ let rules={};try{rules=csRules()[prov]||{};}catch(e){}
+ const fb=String(fallback||'').toLowerCase();
+ const exHit=(CLOUD_SERVICES[prov]||[]).find(sv=>sv[3].split(',').includes(role)&&((rules[sv[0]]||{}).state==='excluded')&&fb.includes(sv[1].toLowerCase().split(' (')[0].split(' + ')[0]));
+ const rec={...r,shown:''};
+ let out;
+ if(r.status==='unresolved')out='Open decision: '+r.note;
+ else if(r.status==='conflict')out=(r.name||fallback)+' (needs a decision: '+r.note+')';
+ else if(r.status==='approval')out=r.name+' (needs approval)';
+ else if(exHit)out=r.name+' (your rules exclude '+exHit[1]+')';
+ else if(r.state==='standard'||r.state==='preferred')out=r.name;
+ else out=fallback;
+ rec.shown=out;
+ try{(window.TP_USED=window.TP_USED||new Map()).set(prov+':'+role,rec);}catch(e){}
+ return out;
 }
 
 function cloudServicesPanel(){
  const R=M.decide.rules,S=csRules();
  const pf=typeof platformEffective==='function'?platformEffective():{};
  const ruled=Object.entries(R.stance.cloud||{}).filter(([,v])=>v==='standard'||v==='preferred').map(([k])=>k).filter(k=>CLOUD_SERVICES[csProvider(k)]);
- const prov=CS_UI.provider||csProvider(ruled[0]||pf.cloud||'azure');
+ const ap=typeof capApprovedProvider==='function'?capApprovedProvider():{id:csProvider(ruled[0]||'')};
+ const prov=CS_UI.provider||ap.id||'';
+ if(!prov)return h('div',{class:'stance-group cloud-services','data-area':'cloud-services'},[
+  h('div',{class:'stance-group-head'},[h('b',{text:'Cloud services'}),h('small',{class:'muted',text:'No provider approved for this project yet ('+(ap.why||'')+'). Pick one to browse its services; browsing does not change your project.'})]),
+  h('div',{class:'type-chips cs-providers'},CLOUD_PROVIDERS.map(([id,l])=>h('button',{type:'button',class:'type-chip',onclick:()=>{CS_UI.provider=id;render();}},[l])))]);
  const rules=S[prov]=S[prov]||{};
- let planText='';try{const B=systemBlueprint(decCtxs(),'current');planText=B.platform.map(l=>l.t).join(' ').toLowerCase();}catch(e){}
- const usedIn=name=>planText&&planText.includes(name.toLowerCase().split(' (')[0].split(' + ')[0]);
+ // "In your plan": services the current plan resolved, by stable id (no text matching).
+ try{window.TP_USED=new Map();systemBlueprint(decCtxs(),'current');}catch(e){}
+ const usedIds=new Set([...((window.TP_USED&&window.TP_USED.values())||[])].filter(r=>r.prov===prov&&r.id&&r.status!=='unresolved').map(r=>r.id));
+ const usedIn=id=>usedIds.has(id);
  const cnt=Object.values(rules).filter(r=>r&&r.state&&r.state!=='allowed').length;
  const setRule=(id,name)=>{const cur=rules[id]||{};const dialog=dialogShell('Cloud service · '+name,'Set your organization\'s rule for this service.');
   let state=cur.state||'allowed';const reason=h('input',{class:'field',placeholder:'Why (optional)',value:cur.reason||'',maxlength:'240'});
@@ -245,10 +259,11 @@ function cloudServicesPanel(){
   dialog.showModal();};
  return h('div',{class:'stance-group cloud-services','data-area':'cloud-services'},[
   h('div',{class:'stance-group-head'},[h('b',{text:'Cloud services'}),h('small',{class:'muted',text:'Rules for individual services, not just the provider. The plan uses your Standard service first, then Preferred, and replaces an Excluded one.'+(cnt?' · '+cnt+' rule'+(cnt>1?'s':''):'')})]),
+  h('p',{class:'cs-browsing'},[h('b',{text:'Browsing: '}),(CLOUD_PROVIDERS.find(p=>p[0]===prov)||[,prov])[1],h('span',{class:'muted',text:' · approved for the project: '+(ap.id?(CLOUD_PROVIDERS.find(p=>p[0]===ap.id)||[,ap.id])[1]+' ('+ap.why+')':'none yet')+(prov!==ap.id?' · browsing does not change it':'')})]),
   h('div',{class:'type-chips cs-providers'},CLOUD_PROVIDERS.map(([id,l])=>h('button',{type:'button',class:'type-chip'+(prov===id?' on':''),onclick:()=>{CS_UI.provider=id;render();}},[l]))),
   ...CLOUD_CATS.map(([cat,title])=>{const list=(CLOUD_SERVICES[prov]||[]).filter(s=>s[2]===cat);if(!list.length)return null;
-   return h('div',{class:'cs-cat'},[h('span',{class:'cs-cat-title',text:title}),h('div',{class:'stance-chips'},list.map(([id,name,,,desc])=>{const st=(rules[id]||{}).state||'allowed',used=usedIn(name);
-    return h('button',{type:'button',class:'stance-chip '+st+(used?' cs-used':''),title:desc+(used?' · used in your plan':'')+((rules[id]||{}).reason?' · '+rules[id].reason:''),onclick:()=>setRule(id,name)},[(RULE_STATE[st]&&RULE_STATE[st][2]?RULE_STATE[st][2]+' ':'')+name,used?h('span',{class:'cs-dot',text:' • in your plan'}):null]);}))]);}),
+   return h('div',{class:'cs-cat'},[h('span',{class:'cs-cat-title',text:title}),h('div',{class:'stance-chips'},list.map(([id,name,,,desc])=>{const st=(rules[id]||{}).state||'allowed',used=usedIn(id);
+    return h('button',{type:'button',class:'stance-chip '+st+(used?' cs-used':''),title:desc+(used?' · used in your plan':'')+((rules[id]||{}).reason?' · '+rules[id].reason:''),'aria-label':name+': '+desc+'. Rule: '+(RULE_STATE[st]?RULE_STATE[st][1]:st)+(used?'. Used in your plan':'')+'. Click to set the rule.',onclick:()=>setRule(id,name)},[(RULE_STATE[st]&&RULE_STATE[st][2]?RULE_STATE[st][2]+' ':'')+name,used?h('span',{class:'cs-dot',text:' • in your plan'}):null,h('small',{class:'cs-desc',text:desc})]);}))]);}),
   h('small',{class:'muted',text:'"In your plan" = named by the System blueprint for this project (Design options). Change the platform there; set rules here.'})]);
 }
 
@@ -256,6 +271,6 @@ function cloudServicesPanel(){
  if(document.getElementById('cs-style'))return;
  const css=`.cloud-services{margin-top:14px;padding-top:12px;border-top:1px dashed #d9e1f2}.cs-providers{margin:6px 0 8px}
 .cs-cat{margin:6px 0}.cs-cat-title{display:block;font-size:12.5px;font-weight:600;color:#5d6377;text-transform:uppercase;letter-spacing:.05em;margin:6px 0 4px}
-.stance-chip.cs-used{border-color:#7a6ae0;box-shadow:0 0 0 1px #cfc6ff inset}.cs-dot{color:#5a46c8;font-weight:600;font-size:12px}`;
+.stance-chip.cs-used{border-color:#7a6ae0;box-shadow:0 0 0 1px #cfc6ff inset}.cloud-services .stance-chip{display:inline-flex;flex-direction:column;align-items:flex-start;text-align:left}.cs-desc{font-size:12px;color:#5d6377;font-weight:400}.cs-browsing{margin:4px 0 8px;font-size:14px}.cs-dot{color:#5a46c8;font-weight:600;font-size:12px}`;
  document.head.append(Object.assign(document.createElement('style'),{id:'cs-style',textContent:css}));
 })();

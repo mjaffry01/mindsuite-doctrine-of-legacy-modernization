@@ -196,6 +196,10 @@ function importRuleCsv(text){
  for(const r of rows.slice(1)){
   const name=(r[ci.name]||'').trim();if(!name)continue;
   const state=RING_MAP[normRule(r[ci.ring])];if(!state){out.unknownRing.push(name+' ('+(r[ci.ring]||'blank')+')');continue;}
+  const rawArea=ci.area>=0?String(r[ci.area]||'').trim().toLowerCase():'';
+  if(rawArea.startsWith('service:')){const prov=rawArea.slice(8);const known=((typeof CLOUD_SERVICES!=='undefined'?CLOUD_SERVICES[prov]:null)||[]).some(x=>x[0]===name);
+   if(!known){out.unmatched.push(prov+'/'+name);continue;}
+   const S=M.decide.rules.services=M.decide.rules.services||{};S[prov]=S[prov]||{};S[prov][name]={state,reason:(ci.reason>=0?String(r[ci.reason]||'').replace(/\s*\[[^\]]*\]\s*$/,'').trim():'')};out.applied++;continue;}
   let area=ci.area>=0?normRule(r[ci.area]).replace(/ \/.*$/,''):'';
   area=area?Object.keys(TARGETS).find(k=>k===area||normRule(TARGETS[k].title).startsWith(area))||'':'';
   let hit=matchRuleOption(name,area);
@@ -222,5 +226,9 @@ function exportRuleCsv(){
   const st=R.stance[dim][id]||'allowed',i=(R.ruleInfo[dim]||{})[id]||{};
   lines.push([dim,label,RULE_STATE[st][1],i.reason||'',person(i.owner)?.name||'',i.reviewBy||'',i.exitBy||''].map(esc).join(','));
  }
+ // Cloud-service rules with stable ids: area "service:<provider>", name = service id.
+ for(const [prov,svcs] of Object.entries(R.services||{}))for(const [id,r] of Object.entries(svcs||{})){if(!r||!r.state||r.state==='allowed')continue;
+  const sv=((typeof CLOUD_SERVICES!=='undefined'?CLOUD_SERVICES[prov]:[])||[]).find(x=>x[0]===id);
+  lines.push(['service:'+prov,id,RULE_STATE[r.state][1],(r.reason||'')+(sv?' ['+sv[1]+']':''),'','',''].map(esc).join(','));}
  return lines.join('\n')+'\n';
 }

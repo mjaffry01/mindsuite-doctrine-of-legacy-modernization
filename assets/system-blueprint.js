@@ -53,6 +53,7 @@ const sbMost=list=>{const n={};for(const x of list)if(x)n[x]=(n[x]||0)+1;return 
 
 function systemBlueprint(C,basis){
  basis=basis||SB_UI.basis;
+ try{window.TP_USED=new Map();}catch(e){}
  const rows=C.map(c=>({c,s:sbScenarioFor(c,basis)})).filter(r=>r.s);
  const on=rows.filter(r=>SB_ON_PLATFORM.includes(r.s.a.id));
  const P=typeof platformEffective==='function'?platformEffective():{tier:'Balanced'};

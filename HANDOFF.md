@@ -124,6 +124,64 @@ Launch approval covers first-release capabilities. Later capabilities can stay u
 
 ## 6. Change log (newest first)
 
+### 2026-11-21 — "On this page" index in the left rail (Claude, NOT pushed)
+
+Owner: "every page has got multiple indexes; divide the left hand pane into page and its index like the MindSuite website". New `assets/page-index.js` (`pi-3`, loaded after `agents-page.js`):
+- After every render (a MutationObserver on `#main`, debounced), it puts a small "On this page" list under the active page in `#phaseNav`. Entries are the page's tabs (`[role=tab]`, e.g. Rules & people's three steps) and its sections (`h2`). Sub-sections (`h3`) show under the section you are reading. A page with one `h2` uses its `h3`s; a page with fewer than two entries shows no index. Hidden headings, headings inside dialogs and headings inside closed `<details>` are skipped.
+- Click or Enter jumps smoothly (headings get `scroll-margin-top:90px` and focus for screen readers). A tab entry clicks the tab. The section in view is highlighted while scrolling (`aria-current`). On mobile the drawer closes after a jump. Long labels wrap to two lines, the rail scrolls, and the index is hidden in print.
+- No page code changed: every page gets the index automatically, and new sections appear in it without extra work.
+- Verified on 127.0.0.1: HLD (13 entries, including the two journeys), Design options (4 sections, with capabilities and blueprint parts nested), Assumptions (7), Release plan, Rules tabs (switching tab updates the highlight), and a mobile drawer at 390 px. No console errors.
+- Noticed but not changed: at 390 px the Assumptions table (`.asm-table`) is wider than the screen (existing behaviour).
+
+### 2026-11-21 — Fix: changing a platform choice on Design options did not save (Claude, NOT pushed)
+
+Owner: "when I change the decision it does not accept". The impact preview's Apply ran, but nothing was saved. `platformImpact()` swapped `R.values` for a what-if copy and then restored a *copy* (`R.values=saved`), so `apply()` wrote into the old object, which was no longer in the workspace. Fix (`platform-decision.js`, `impact-3`): the original object is restored by reference, and `apply()` reads `platformRec().values` fresh. Verified on 127.0.0.1: Database → MySQL → Apply is saved and survives a reload; Cloud → Google → Cancel leaves it unchanged. The test copy was reset afterwards.
+
+### 2026-11-21 — Technology rules explainable end to end: capabilities, presets with real Cancel, provider-neutral comparison, impact preview, HLD explanations (Claude, NOT pushed)
+
+Owner's spec: every technology choice on Rules & people → Technology rules should be explainable and traceable through Design options, the system blueprint, the diagram and the HLD. Local only; waiting for "push it".
+- **Capability engine** (new `assets/capabilities.js`, `cap-7`): `CAP_LIST` has about 45 capabilities in 9 areas. Each has its job, search words, the plan role it maps to, a `needWhen(brief)` rule that quotes its evidence, and Azure/AWS/Google detail (service, operating model, limitation, and `check:true` where it needs confirming). Other helpers:
+  - `capStatus(id)` returns needed/baseline/dismissed, evidence, the provider, and a status: suggested, selected, required (Standard), needs approval, conflict (two standards), unresolved (no mapping, or every candidate excluded), partner needed, or design work.
+  - `capApprovedProvider()` uses this order: a recorded platform cloud; then a cloud chosen on Design options but not yet recorded, which marks services "needs approval" if that cloud's rule says so; then a single Standard cloud rule; then a conflict; otherwise none.
+  - `capResolveService()` picks a Standard service, then a Preferred one, then the allowed service the plan names first (AWS email resolves to SES, not SNS). It never fills a gap with another provider's service or a generic on-premises stand-in.
+  - "Selected" is used only where the recorded decision names the choice: hosting → runtime, database → relational.
+- **Overview** (new `assets/rules-overview.js`, `ro-3`) at the top of Technology rules:
+  - Preset, Rule and Decision explained; counts for "decisions for this project (from your brief + N baseline)", "rules already set" and "decisions needing attention", plus an attention list.
+  - Search by business need, area tiles, and links to the brief answers instead of asking again.
+  - Capability cards show why each one appears, the project's service, and "Compare providers" (Azure/AWS/Google; Oracle, IBM and private on demand; "No verified equivalent"). They also have "Not needed" / "Add to this project" (stored in `M.decide.capDismissed` and `capAdded`).
+- **Presets** (`presetPanel`, `presetDialog`):
+  - Each card shows who it suits, what it changes, a trade-off and what is still to decide. Compatible presets combine, and the preview lists current rule → proposed rule with per-row checkboxes and overlaps.
+  - Open-source first's private-cloud row can be unticked on its own.
+  - **Bug fixed:** Cancel used to apply the preset anyway. The confirm-based selector is gone from `rulesToolbar` (`rules-page.js`, `ro-2`); Cancel now leaves rules, history and decisions untouched (verified).
+- **Cloud services panel** (`cloud-services.js`, `ro-1`): no default to Azure. It says "Browsing: X · approved for the project: Y", marks "in your plan" by service id, and `cloudServiceFor()` returns "Open decision: …", "(needs a decision: …)" or "(needs approval)".
+- **Impact preview before an override** (`platform-decision.js`, `impact-2`): changing cloud, hosting, architecture, database, language or tier opens a dialog. It shows the trigger, recalibrated suggestions, the services and statuses that change, what stays fixed (explicit values and bought or partner owners, e.g. an external payment provider), and what needs attention. "N services would need approval because the provider does" is collapsed into one line. Cancel changes nothing, and an excluded option cannot be applied.
+- **HLD** (`hld.js` `hx-4`, new `hld-explain.js` `hx-3`):
+  - Section 4 explains each component: purpose, the need it serves (with the brief quote), technology and provider, status, why, owner (with a suggested person) and open questions.
+  - New sections: 4b Business journeys (two end to end from the brief; video projects get "editor publishes" and "subscriber proves entitlement and plays") with actor, entry, components, the actor's own role, authorization, failure handling and signals; and 4c Organization rules (policy) vs project decisions. Policy is never shown as a signed decision; declined capabilities are listed.
+  - RTO and RPO are separate answers (`P.recovery`, inputs under availability in `project-mode.js` `hx-2`, not sent to the Formfiller); without them the HLD says "Needs a decision (suggestion from availability …)".
+  - Cost is labelled **partial estimate** with the missing inputs (video delivery or egress, licences, open decisions), in the page, Markdown and JSON (`perTier.*.partial`, `missingInputs`) (`tier-cost.js` `hx-2`).
+  - The AI diagram review saves its `basis`. If the provider, hosting, tier, architecture, database, rules, network or declined capabilities change, the UI, Markdown and JSON mark it **stale** with reasons.
+  - JSON adds `componentDetails`, `journeys`, `policyAndDecisions`, `capabilities` (ids and statuses), `recovery` and `aiDiagram.stale`.
+- **Declined suggestions propagate:** a capability marked "Not needed" leaves the diagram (edges too; the app box always stays), drops its cost line (e.g. Search −550 USD a month on the food copy) and appears under decisions as declined.
+- **Stable ids:** the CSV export and import carry `service:<provider>` rows keyed by service id; the round trip was verified identical.
+- **Plan fixes found while testing** (`tech-plan.js` `hx-3`):
+  - Named clouds never fall back to the on-premises column.
+  - The DR layer uses the RTO/RPO answers.
+  - "web form" no longer triggers AI document extraction (only paper, scanned, printed or PDF forms do).
+  - An integration list that is only single sign-on no longer implies webhooks.
+- **Verified on 127.0.0.1:8768 only:**
+  - A copy of the owner's "food aggregate website" (`aaaaaaaa-…f00d`, titled "COPY ·"): 24 from the brief + 11 baseline, 7 rules, 3 needing attention.
+  - OTT parity test (`eedadb42-…`): 34 components on AWS, Azure and Google, with no leakage between providers. Google needs a partner for email and SMS; Azure needs one for video processing.
+  - Small internal leave-request app: 4 capabilities from the brief, 18 components, about 88 USD a month (partial: licences); the test workspace was removed.
+  - Older CardDemo and VB.NET workspaces from the backup open and render (removed afterwards).
+  - 390 px width has no horizontal scroll; tiles are buttons and the comparison is a `<details>`; no console errors.
+  - The two copies (f00d and OTT) are kept on 127.0.0.1 for review; delete them when done.
+- **Not verified:**
+  - Service names were not re-checked against live provider documentation in this round; items marked `check:true` (regions, AI model availability, SMS) need confirming.
+  - No live Diagram agent call was made, and 8090 was not restarted.
+  - The Safe-tier scenario suggests "buy" for commodity capabilities (e.g. leave requests), so the host line reads "vendor hosts the product (SaaS)". This is existing behaviour and was left as is.
+  - The agents page has been updated (`agents-page.js`).
+
 ### 2026-11-21 — Pathfinder catch-up and Formfiller request counts
 
 Local and GitHub main were at `4736068` at this check. The local preview served Pathfinder and port 8090 reported sequential Formfiller, capability and diagram support. Formfiller uses confirmed answers and earlier drafts for its next prediction. The form now describes the backend's one retry after an unusable answer and includes that retry in the displayed upper limit for a sequence. This wording change is local.

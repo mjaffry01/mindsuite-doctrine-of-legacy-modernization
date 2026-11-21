@@ -85,7 +85,7 @@ function tpServer(role,cloud,vcpu){
  const n=[2,4,8,16,32].find(x=>x>=(vcpu||2))||32;
  return t.replace(/\{n\}/g,n).replace(/\{m\}/g,n*4).replace(/\{m2\}/g,n*8).replace(/\{m1\}/g,n*2).replace(/\{o\}/g,Math.max(1,n/2));
 }
-function tpSvc(key,cloud){const i={azure:0,aws:1,gcp:2,ibm:4,oci:5}[cloud];const row=TP_SVC[key]||TP_DB[key];if(!row)return '';const base=i==null||!row[i]?row[3]:row[i];
+function tpSvc(key,cloud){const i={azure:0,aws:1,gcp:2,ibm:4,oci:5}[cloud];const row=TP_SVC[key]||TP_DB[key];if(!row)return '';const base=i==null?row[3]:(row[i]||'');
  // The organization's service rules (assets/cloud-services.js) pick or replace the service for this role.
  return typeof cloudServiceFor==='function'?cloudServiceFor(key,cloud,base):base;}
 /* Role names from the brief's "Users and their jobs" (the words before each colon). */
@@ -285,7 +285,7 @@ function techPlan(c,s,I){
  const txt=tpText(c),hasT=re=>re.test(txt),ai=[];
  if(I.f.search)ai.push('semantic search and recommendations ("more like this") over the catalogue or records');
  if(hasT(/\b(support|help|questions?|faq|problems?|escalat\w*|tickets?|complaints?)\b/))ai.push('a support assistant that answers from your help content and records, and hands over to a person');
- if(hasT(/\b(documents?|invoices?|forms?|contracts?|receipts?|pdfs?|scanned|photos?|photograph\w*)\b/))ai.push('document and photo extraction (fields from invoices, forms or photos, checked by a person)');
+ if(hasT(/\b(documents?|invoices?|(?:paper|scanned|printed|pdf) forms?|contracts?|receipts?|pdfs?|scanned|photos?|photograph\w*)\b/))ai.push('document and photo extraction (fields from invoices, forms or photos, checked by a person)');
  if(I.f.iot||hasT(/\b(readings?|sensors?|anomal\w*|predict\w*|maintenance|failures?)\b/))ai.push('anomaly detection and failure prediction on readings (a trained model on the time-series data)');
  if(I.f.reports)ai.push('questions in plain language over reports, limited to data the user may see');
  if(hasT(/\b(content|titles?|videos?|articles?|publish\w*|upload\w*)\b/))ai.push('automatic tags, summaries and subtitles for uploaded content, reviewed before publishing');
@@ -381,8 +381,9 @@ function techPlan(c,s,I){
    :(a>=99.95||(T===2&&a>=99.9))?['warm standby','a smaller copy runs in the second region and is scaled up on failover']
    :(a>=99.5||T===1)?['pilot light','the data is replicated to the second region; the rest is started from infrastructure as code on failover']
    :['backup and restore','backups are copied to a second region and the system is rebuilt from them'];
-  const rto=a>=99.99?'a few minutes':a>=99.95?'1 hour':a>=99.5?'4 hours':'24 hours';
-  const rpo=a>=99.99?'near zero':a>=99.95?'5 minutes':a>=99.5?'15 minutes':'24 hours';
+  const recA=typeof capRecovery==='function'?capRecovery():{};
+  const rto=recA.rto||((a>=99.99?'a few minutes':a>=99.95?'1 hour':a>=99.5?'4 hours':'24 hours')+' [suggested from availability — needs a decision]');
+  const rpo=recA.rpo||((a>=99.99?'near zero':a>=99.95?'5 minutes':a>=99.5?'15 minutes':'24 hours')+' [suggested — needs a decision]');
   const extra={'active-active':'about 100% more running cost','warm standby':'about 30–50% more running cost','pilot light':'about 10–20% more running cost','backup and restore':'only backup storage'}[strat[0]];
   const rep=[];
   if(saas||platform)rep.push('the '+(platform?'partner platform':'vendor product')+'’s own recovery plan (ask for its RTO and RPO in the contract)');

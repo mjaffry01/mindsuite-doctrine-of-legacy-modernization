@@ -125,6 +125,8 @@ function productBriefSection(){
   h('div',{class:'scope-grid'},numFields(['dataGb'])),
   typeof dataCalcPanel==='function'?dataCalcPanel():null,
   h('div',{class:'scope-grid'},numFields(['availability'])),
+  (()=>{const PB=productBrief();const R=PB.recovery=PB.recovery||{};const f=(k,label,ph)=>inputControl(label,R[k]||'',v=>{const b=R[k];R[k]=String(v||'').trim();logInput('product:recovery:'+k,b,R[k]);persist();},'text',ph);
+   return h('div',{class:'scope-grid recovery-grid'},[f('rto','Recovery time (RTO): how long may the service be down after an outage?','e.g. 4 hours'),f('rpo','Data loss allowed (RPO): how much recent data may be lost?','e.g. 15 minutes')]);})(),
   h('div',{class:'deploy-block'},[h('h3',{text:'Deployment type'}),h('p',{class:'muted',text:'Where it runs, who it serves, how it reaches users and how it is hosted.'}),
    h('div',{class:'scope-grid'},[
     pick('where','Where it runs *',DEPLOY_WHERE),pick('tenancy','Tenancy',DEPLOY_TENANCY),
