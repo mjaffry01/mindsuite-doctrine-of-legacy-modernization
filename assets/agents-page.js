@@ -26,7 +26,7 @@ const AGENT_DESIGN=[
  ['Decision reviewer','Design options / Target decisions','POST /api/decide/review','Strong model','Challenges one decision before it is recorded, from the approach, choices, reasons and verified claims only.']];
 const AGENT_LOCAL=[
  ['Decision advisor','Scores routes against the evidence, your rules and priorities; confidence; one deciding question'],
- ['Platform decision suggester','Suggests the shared platform (tier, cloud, hosting, architecture, database); the same recommendation, with its reasons, points and the options it beat, appears on Rules & people → Technology rules'],
+ ['Platform decision suggester','Suggests the shared platform (tier, cloud, hosting, architecture, database); the same recommendation, with its reasons, points and the options it beat, appears on Rules & people → Technology rules. When you choose something yourself, linked areas are recalibrated (e.g. microservices → Kubernetes, Ambitious tier, event streaming) and say why'],
  ['Cloud service rules','Your Standard / Preferred / Needs approval / Excluded rules for about 250 individual services on Azure, AWS, Google Cloud, IBM Cloud, Oracle Cloud and private platforms; the plan uses a Standard service first, then Preferred, replaces an Excluded one, and a Standard compute service sets the hosting model'],
  ['Load and data calculators','Peak load and 3-year data volume from users, predicted from the brief'],
  ['Technical plan and System blueprint','Layer-by-layer plan (hosting, traffic, compute and server types, data, messaging, files, search, IoT, AI, payments, sign-in, permissions, security, availability, disaster recovery plan, monitoring and observability, delivery, cloud design patterns), shared platform, owners of shared concerns'],

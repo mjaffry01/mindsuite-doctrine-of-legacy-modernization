@@ -63,8 +63,68 @@ function platformSuggest(){
    const hm=hit&&roleHost[hit[3].split(',')[0]];
    if(hm){v.hosting=hm;why.hosting='your rules make '+hit[1]+' the '+(st(hit)==='standard'?'standard':'preferred')+' compute service';}
   }}
- return {v,why};
+ // Recalibration: what you chose yourself (a platform value you set, or a single Standard rule in an area)
+ // pulls the related areas. Only your own choices act as anchors, so recalibrated areas do not cascade.
+ const R=platformRec(),anchors={};
+ for(const [k,x] of Object.entries(R.values||{}))if(x!=null&&x!==''&&!(Array.isArray(x)&&!x.length))anchors[k]=x;
+ const stc=(M.decide.rules&&M.decide.rules.stance)||{};
+ for(const dim of ['language','database','cloud','architecture']){if(anchors[dim]!=null)continue;const std=Object.entries(stc[dim]||{}).filter(([,x])=>x==='standard').map(([id])=>id);if(std.length===1)anchors[dim]=std[0];}
+ const lab=(dim,id)=>dim==='tier'?id+' tier':dim==='hosting'?(((typeof HOSTING_MODELS!=='undefined'?HOSTING_MODELS:[]).find(m=>m.id===id)||{}).name||id):((optOf(dim,id)||[,id])[1]);
+ const bonus={};
+ for(const [da,va,db,vb,pts,reason] of PLATFORM_AFFINITY){
+  const a=anchors[da];if(a==null||anchors[db]!=null)continue;
+  if(!(Array.isArray(a)?a.includes(va):a===va))continue;
+  const b=((bonus[db]=bonus[db]||{})[vb]=bonus[db][vb]||{pts:0,why:[]});b.pts+=pts;b.why.push('you chose '+lab(da,va)+' ('+reason+')');
+ }
+ for(const [dim,skip] of [['database',['sqlite','keep']],['architecture',['clientapi','keep']],['language',['keep']],['cloud',['keep']]]){
+  if(!bonus[dim])continue;const r=rank(dim,skip);if(!r.length)continue;
+  const best=r.map(o=>({id:o.id,s:o.score+((bonus[dim][o.id]||{}).pts||0)*3})).sort((x,y)=>y.s-x.s)[0].id;
+  if(best!==v[dim]&&bonus[dim][best]){v[dim]=best;why[dim]='Recalibrated because '+bonus[dim][best].why.join('; ');}
+  else if(best===v[dim]&&bonus[dim][best])why[dim]=(why[dim]?why[dim]+'; ':'')+'confirmed because '+bonus[dim][best].why.join('; ');
+ }
+ if(bonus.integration)for(const [id,b] of Object.entries(bonus.integration))if(b.pts>=2&&!(v.integration||[]).includes(id)){v.integration=[...(v.integration||[]),id];why.integration=(why.integration?why.integration+'; ':'')+'Recalibrated: added '+lab('integration',id)+' because '+b.why.join('; ');}
+ if(bonus.hosting&&!Dp.hosting&&!/your rules make/.test(why.hosting||'')){const top=Object.entries(bonus.hosting).sort((x,y)=>y[1].pts-x[1].pts)[0];if(top&&top[1].pts>=2&&top[0]!==v.hosting){v.hosting=top[0];why.hosting='Recalibrated because '+top[1].why.join('; ');}}
+ if(bonus.tier){const top=Object.entries(bonus.tier).sort((x,y)=>y[1].pts-x[1].pts)[0];if(top&&top[1].pts>=2&&top[0]!==v.tier){v.tier=top[0];why.tier='Recalibrated because '+top[1].why.join('; ');}}
+ return {v,why,anchors};
 }
+/* Links between choices: [area A, choice A, area B, choice B, points, why]. When you choose A yourself,
+   choice B in area B gains the points (× 3 like a rule), and its suggestion says "Recalibrated because …". */
+const PLATFORM_AFFINITY=[
+ ['language','dotnet','database','sqlserver',2,'.NET works best with SQL Server: Entity Framework, tooling and skills'],
+ ['language','java','database','postgres',1,'a common, well-supported pair'],
+ ['language','python','database','postgres',1,'a common, well-supported pair'],
+ ['language','node','database','nosql',1,'Node.js fits document databases well'],
+ ['language','node','database','postgres',1,'a common, well-supported pair'],
+ ['database','sqlserver','language','dotnet',2,'SQL Server is best supported from .NET'],
+ ['database','oracle','cloud','oci',2,'Oracle Database is most managed on Oracle Cloud'],
+ ['database','sqlserver','cloud','azure',1,'Azure SQL is the most managed SQL Server'],
+ ['cloud','azure','database','sqlserver',1,'Azure SQL is Azure\'s most managed relational database'],
+ ['cloud','azure','language','dotnet',1,'.NET has first-class support on Azure'],
+ ['cloud','aws','database','postgres',1,'Aurora and RDS PostgreSQL are the most managed options on AWS'],
+ ['cloud','gcp','database','postgres',1,'Cloud SQL and AlloyDB for PostgreSQL'],
+ ['cloud','oci','database','oracle',2,'Autonomous Database is Oracle Cloud\'s flagship'],
+ ['cloud','ibm','hosting','kubernetes',1,'Red Hat OpenShift on IBM Cloud is the main platform'],
+ ['architecture','microservices','integration','events',2,'microservices talk through events'],
+ ['architecture','microservices','integration','api',1,'each service exposes an API'],
+ ['architecture','microservices','hosting','kubernetes',2,'many services need an orchestrator'],
+ ['architecture','microservices','tier','Ambitious',2,'many services need a platform team'],
+ ['architecture','events','integration','events',3,'event-driven services need event streaming'],
+ ['architecture','events','integration','queue',1,'some work still goes through queues'],
+ ['architecture','events','hosting','containers',2,'services that scale on events'],
+ ['architecture','serverless','hosting','serverless',3,'a serverless architecture runs as functions'],
+ ['architecture','serverless','integration','queue',2,'functions are triggered by queues and events'],
+ ['architecture','modular','hosting','containers',1,'one app in a container'],
+ ['architecture','modular','integration','api',1,'one API for web and mobile clients'],
+ ['hosting','kubernetes','tier','Ambitious',2,'Kubernetes needs a platform team'],
+ ['hosting','kubernetes','architecture','microservices',1,'Kubernetes pays off with several services'],
+ ['hosting','serverless','architecture','serverless',2,'functions need a serverless design'],
+ ['hosting','paas','tier','Safe',2,'a managed app platform is the least to run'],
+ ['hosting','vm','tier','Safe',2,'a few fixed servers are the least to learn'],
+ ['hosting','paas','architecture','modular',1,'one app fits an app platform'],
+ ['tier','Ambitious','architecture','microservices',1,'room to split into services'],
+ ['tier','Ambitious','integration','events',2,'Ambitious platforms use event streaming'],
+ ['tier','Safe','architecture','modular',2,'one app is the least to run'],
+ ['tier','Safe','hosting','paas',2,'a managed app platform is the least to run']];
 function platformEffective(){
  const R=platformRec(),S=platformSuggest();
  const v={...S.v};for(const [k,x] of Object.entries(R.values))if(x!=null&&x!==''&&!(Array.isArray(x)&&!x.length))v[k]=x;
@@ -82,7 +142,8 @@ function platformPanel(){
  const vals=R.values,decided=R.status==='decided';
  const set=k=>v=>{const b=vals[k];vals[k]=v;if(decided){R.status='open';R.reopened=true;}logInput('platform:'+k,b,v);persist();render();};
  const optLabel=(dim,id)=>id?((optOf(dim,id)||[,id])[1]):'';
- const sugg=(k,lab)=>h('small',{class:'muted pf-sugg',text:'Suggested: '+lab+(S.why[k]?' — '+S.why[k]:'')});
+ const recal=k=>/^Recalibrated|; confirmed because|Recalibrated:/.test(S.why[k]||'');
+ const sugg=(k,lab)=>h('small',{class:'muted pf-sugg'+(recal(k)?' pf-recal':''),text:(recal(k)?'↻ ':'')+'Suggested: '+lab+(S.why[k]?' — '+S.why[k]:'')});
  const sel=(dim)=>{const cur=vals[dim]||'';return h('label',{class:'context-control'},[h('span',{text:TARGETS[dim].title}),
   h('select',{class:'field',onchange:e=>set(dim)(e.target.value)},[h('option',{value:'',text:'Use suggestion ('+(optLabel(dim,S.v[dim])||'none')+')'}),...TARGETS[dim].opts.map(([id,l])=>h('option',{value:id,text:l,selected:cur===id?'':null}))]),
   sugg(dim,optLabel(dim,S.v[dim])||'none')]);};
@@ -124,7 +185,7 @@ function platformStep2Head(){
  const css=`.platform-step{border:2px solid #cfc6ff}.pf-tiers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0}
 .pf-tier{display:flex;flex-direction:column;text-align:left;font:inherit;color:inherit;padding:10px 12px;border:1px solid #d9e1f2;border-radius:10px;background:#fff;cursor:pointer}
 .pf-tier.on{border:2px solid var(--accent);background:#f6f4ff}.pf-tier p{margin:6px 0 0;font-size:13px}
-.pf-grid{margin:8px 0}.pf-sugg{display:block;margin-top:3px;font-size:11px}.pf-integ{margin:8px 0}
+.pf-grid{margin:8px 0}.pf-sugg{display:block;margin-top:3px;font-size:11px}.pf-sugg.pf-recal{color:#5a46c8;font-weight:600}.pf-integ{margin:8px 0}
 .platform-step .cost-actions select.field{width:220px;flex:none}.platform-step .cost-actions input.field{flex:1 1 260px;width:auto;margin:0}
 .platform-step2{margin:18px 0 8px}.platform-step2 h2{margin:2px 0}.platform-step2 p{margin:4px 0 0}
 @media(max-width:900px){.pf-tiers{grid-template-columns:1fr}}`;
