@@ -15,10 +15,30 @@ const optionsUI={consent:{},busy:{},error:{},areas:{},started:{},exploring:{},ex
 
 /* ---- 1. Evidence brief ---- */
 const maskPaths=s=>String(s||'').replace(/(?:[A-Za-z]:)?[\w.\-]*[\\/][\w.\-\\/]+(?::\d+)?/g,'[file]').replace(/\b[\w\-]+\.(?:cs|vb|java|cbl|cob|sql|py|js|ts|xml|config|json|ya?ml)(?::\d+)?\b/gi,'[file]');
+// Feedback stays with this capability in this workspace. Only the reviewed option and preference travel.
+function optionLessons(c){return M.decide?.decisions?.[c.id]?.optionFeedback||[];}
+function feedbackKey(o){return JSON.stringify([o.area,normRule(o.vendor),normRule(o.name)]);}
+function saveOptionFeedback(c,d,o,preference){
+ const key=feedbackKey(o),old=optionLessons(c),rows=old.filter(x=>feedbackKey(x)!==key);
+ if(preference&&rows.length>=12){notice('Forget a saved preference before adding another.');return;}
+ if(preference)rows.push({area:o.area,name:o.name,vendor:o.vendor||'',preference});
+ d.optionFeedback=rows;
+ delete optionsUI.consent[c.id];
+ logInput('options-feedback:'+c.id,old,rows);
+ persist();render();
+}
+function optionFeedbackSummary(c,d){
+ const rows=optionLessons(c);
+ if(!rows.length)return null;
+ return h('details',{class:'compare'},[h('summary',{text:'Saved design feedback · '+rows.length}),
+  h('p',{class:'muted',text:'The next options run receives these preferences for this capability. Organization rules still apply.'}),
+  ...rows.map(o=>h('p',{},[(o.preference==='prefer'?'Prefer ':'Seek alternatives to ')+o.name+' ',button('Forget',()=>saveOptionFeedback(c,d,o,''),'linkbtn')]))]);
+}
 function optionsBrief(c){
  const product=isNewProduct(),S=ctxSignals(c),I=advisorInputs(c),R=M.decide.rules,inv=M.inventory,all=c.virtual;const facts=[];
  const add=(area,text)=>{text=String(text||'').trim();if(text&&facts.length<150)facts.push({id:'F'+(facts.length+1),area,text:text.slice(0,300)});};
  const lbl=(list,id)=>((list||[]).find(x=>x[0]===id)||[,id])[1];
+ for(const o of optionLessons(c))add('review preference','For '+o.area+', the reviewer '+(o.preference==='prefer'?'prefers ':'requests alternatives to ')+o.name+(o.vendor?' ('+o.vendor+')':'')+'. Subject to project requirements and technology rules.');
  if(typeof productFacts==='function')productFacts(add);
  if(product&&!c.virtual){
   add('product','Capability: '+maskPaths(c.name)+(c.description?' · '+maskPaths(c.description):''));
@@ -81,13 +101,14 @@ function optionsPayload(c,d){
 /* ---- Run ---- */
 async function runOptionsTeam(c,d){
  if(!optionsUI.consent[c.id]||optionsUI.busy[c.id])return;
- const body=optionsPayload(c,d);
+ const body=optionsPayload(c,d),feedback=optionLessons(c).map(o=>({...o}));
  delete optionsUI.consent[c.id];optionsUI.busy[c.id]=true;optionsUI.started[c.id]=Date.now();delete optionsUI.error[c.id];render();
  const tick=setInterval(()=>{const el=document.getElementById('opt-elapsed-'+c.id);if(el)el.textContent=Math.round((Date.now()-optionsUI.started[c.id])/1000)+' s';},1000);
  try{
   const out=await agentFetch('/api/decide/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  d.optionsRun={at:new Date().toISOString(),areas:body.areas,facts:body.facts,result:out,ms:Date.now()-optionsUI.started[c.id]};
-  M.history.push({field:'decision:'+c.id,at:d.optionsRun.at,actor:actorName(),action:'ai-options',reason:body.facts.length+' facts and '+body.rules.length+' rules sent to the Target options team ('+(out.requests||0)+' model requests)',before:null,after:{options:(out.options||[]).length,blueprints:(out.blueprints||[]).length}});
+  const repeated=(out.options||[]).filter(o=>feedback.some(x=>x.preference==='avoid'&&feedbackKey(x)===feedbackKey(o))).map(o=>o.name);
+  d.optionsRun={feedbackCount:feedback.length,repeated,at:new Date().toISOString(),areas:body.areas,facts:body.facts,result:out,ms:Date.now()-optionsUI.started[c.id]};
+  M.history.push({field:'decision:'+c.id,at:d.optionsRun.at,actor:actorName(),action:'ai-options',reason:body.facts.length+' facts and '+body.rules.length+' rules sent to the Target options team ('+(out.requests||0)+' model requests)',before:null,after:{feedbackCount:feedback.length,repeated,options:(out.options||[]).length,blueprints:(out.blueprints||[]).length}});
   persist();
  }catch(e){optionsUI.error[c.id]=/404|not found/i.test(e.message)?'This backend has no options team yet. Restart it from the latest code.':e.message;}
  finally{clearInterval(tick);delete optionsUI.busy[c.id];render();}
@@ -104,7 +125,7 @@ async function exploreOption(c,d,o){
  try{
   const out=await agentFetch('/api/decide/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   d.optionsRun.explore=d.optionsRun.explore||{};
-  d.optionsRun.explore[key]={at:new Date().toISOString(),result:out,ms:Date.now()-t0};
+  d.optionsRun.explore[key]={at:new Date().toISOString(),facts:body.facts,result:out,ms:Date.now()-t0};
   M.history.push({field:'decision:'+c.id,at:new Date().toISOString(),actor:actorName(),action:'ai-explore',reason:'Explored '+o.name+': '+body.facts.length+' facts and '+body.rules.length+' rules sent ('+(out.requests||1)+' model request)',before:null,after:{choices:(out.options||[]).length}});
   persist();
  }catch(e){optionsUI.exploreError[key]=/404|not found/i.test(e.message)?'This backend has no Explore yet. Restart it from the latest code.':e.message;}
@@ -115,6 +136,7 @@ function exploredChoices(c,d,o,run){
  const btn=button(busy?'Exploring…':ex?'Explore again':'Explore inside '+o.name,()=>exploreOption(c,d,o),'btn small');if(busy)btn.disabled=true;
  const head=h('div',{class:'explore-actions'},[btn,err?h('span',{class:'conflict-note',text:' '+err}):null]);
  if(!ex)return head;
+ if(ex.facts)run=ex;
  const list=(ex.result.options||[]);
  return h('div',{class:'explore'},[head,
   h('small',{class:'muted',text:list.length+' choices inside '+o.name+' · '+new Date(ex.at).toLocaleString()+' · '+Math.round(ex.ms/1000)+' s'}),
@@ -177,7 +199,7 @@ async function designBlueprint(c,d,b,opts){
  try{
   const out=await agentFetch('/api/decide/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   d.optionsRun.designs=d.optionsRun.designs||{};
-  d.optionsRun.designs[key]={at:new Date().toISOString(),design:out.design,steps:out.steps,ms:Date.now()-t0,blueprint:b.name};
+  d.optionsRun.designs[key]={at:new Date().toISOString(),facts:body.facts,design:out.design,steps:out.steps,ms:Date.now()-t0,blueprint:b.name};
   M.history.push({field:'decision:'+c.id,at:new Date().toISOString(),actor:actorName(),action:'ai-design',reason:'Designed the '+key+' blueprint: '+body.facts.length+' facts and '+body.rules.length+' rules sent (1 model request)',before:null,after:{blueprint:b.name}});
   persist();
  }catch(e){optionsUI.exploreError['design:'+key]=/404|not found/i.test(e.message)?'This backend has no solution designer yet. Restart it from the latest code.':e.message;}
@@ -186,6 +208,7 @@ async function designBlueprint(c,d,b,opts){
 const DESIGN_CATS={identity:'Identity and sign-in',secrets:'Secrets and keys',monitoring:'Monitoring and alerts','backup-recovery':'Backup and recovery',
  delivery:'Build and release',security:'Security',configuration:'Configuration',messaging:'Messaging',other:'Other'};
 function designSection(run,key,entry){
+ if(entry.facts)run=entry;
  const D=entry.design||{};
  const items=(title,list,empty)=>h('div',{class:'design-block'},[h('b',{text:title}),list&&list.length?h('ul',{class:'plain-list design-list'},list.map(x=>h('li',{},[
   h('div',{class:'opt-title'},[h('b',{text:x.name}),x.catalogue==='known'?catBadge(x):null]),x.detail?h('div',{text:x.detail}):null,
@@ -247,6 +270,7 @@ function optionsResults(c,d){
  const stale=JSON.stringify((optionsBrief(c).facts||[]).map(f=>f.text))!==JSON.stringify((run.facts||[]).map(f=>f.text));
  return h('div',{class:'options-results'},[
   h('p',{class:'muted',text:'Generated '+new Date(run.at).toLocaleString()+' from '+(run.facts||[]).length+' facts · '+(out.requests||0)+' model requests · '+Math.round((run.ms||0)/1000)+' s.'}),
+  run.feedbackCount?h('p',{class:'muted',text:run.feedbackCount+' saved preferences sent. Previously discouraged options returned by the team: '+(run.repeated?.join(', ')||'none')+'.'}):null,
   stale?h('p',{class:'input-status open',text:'Discovery facts changed since this run. Generate again to use the current ones.'}):null,
   h('details',{class:'compare'},[h('summary',{text:'Agent steps'}),h('table',{class:'scan-table'},[h('thead',{},[h('tr',{},['Agent','Model','Requests','Time','Result'].map(t=>h('th',{text:t})))]),
    h('tbody',{},(out.steps||[]).map(s=>h('tr',{},[h('td',{text:s.agent}),h('td',{text:s.model||'rules'}),h('td',{text:String(s.requests||0)}),h('td',{text:s.ms?(s.ms/1000).toFixed(1)+' s':'—'}),h('td',{text:s.note||''})])))])]),
@@ -271,6 +295,9 @@ function optionsResults(c,d){
      h('div',{class:'opt-title'},[h('b',{text:o.name}),o.vendor?h('small',{class:'muted',text:' · '+o.vendor}):null,
       h('span',{class:'stance-chip '+g[1],text:g[0],title:o.guardReason||''}),
       catBadge(o)]),
+     h('div',{class:'report-reader-actions'},[
+      button('Prefer in future runs',()=>saveOptionFeedback(c,d,o,'prefer'),'btn small'),
+      button('Seek alternatives next time',()=>saveOptionFeedback(c,d,o,'avoid'),'btn small')]),
      o.summary?h('p',{class:'opt-summary',text:o.summary}):null,
      h('ul',{class:'plain-list opt-why'},(o.fit||[]).map(r=>h('li',{},['+ '+r.text,factRef(run,r.facts)]))),
      h('p',{class:'muted opt-meta',text:[o.lifecycle&&'Lifecycle: '+o.lifecycle,o.licence&&'Licence: '+o.licence,(o.skills||[]).length&&'Skills: '+o.skills.join(', ')].filter(Boolean).join(' · ')}),
@@ -289,6 +316,7 @@ function optionsPanel(c,d){
  const body=optionsPayload(c,d);const busy=!!optionsUI.busy[c.id];const sel=new Set(body.areas);
  return h('section',{class:'options-team'},[
   h('div',{class:'dim-head'},[h('b',{text:'Technical options from the AI agent team'}),h('small',{text:'Scouts propose, a verifier and your rules check, an architect builds blueprints, a challenger tests them. People decide.'})]),
+  optionFeedbackSummary(c,d),
   h('div',{class:'type-chips opt-areas'},availableOptionAreas().map(([id,label])=>h('label',{class:'type-chip'+(sel.has(id)?' on':'')},[h('input',{type:'checkbox',checked:sel.has(id)?'':null,disabled:busy?'':null,
    onchange:e=>{const s=new Set(optionsUI.areas[c.id]||defaultOptionAreas(c,d));e.target.checked?s.add(id):s.delete(id);optionsUI.areas[c.id]=availableOptionAreas().map(x=>x[0]).filter(x=>s.has(x));render();}}),label]))),
   h('div',{class:'type-chips'},[agentChip('Allow '+body.facts.length+(isNewProduct()?' product facts and ':' discovery facts and ')+body.rules.length+' technology rules to be sent to Claude for one run of '+(body.areas.length+2)+' requests',!!optionsUI.consent[c.id],v=>{optionsUI.consent[c.id]=v;render();})]),

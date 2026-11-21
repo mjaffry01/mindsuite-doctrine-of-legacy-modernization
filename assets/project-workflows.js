@@ -91,7 +91,7 @@ const PRODUCT_CAPABILITY={
 
 function productStartPage(){
  const timeline=brief();
- const name=h('input',{id:'product-project-name',class:'field',required:'',maxlength:'180',value:M.project,placeholder:'e.g. Stock tracking portal'});
+ const name=h('input',{id:'product-project-name',class:'field',required:'',maxlength:'180',value:M.project,placeholder:'Example: Stock tracking portal'});
  const saveName=()=>{
   const next=name.value.trim();
   if(next===M.project)return;

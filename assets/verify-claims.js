@@ -221,10 +221,23 @@ function downloadFile(name, text, type) {
 }
 
 // Makes a form with every claim this person still has to answer, and marks those claims as waiting.
+function prioritizeClaimReview(claims){
+ const counts=new Map(),key=c=>JSON.stringify([c.team,c.kind]);
+ for(const c of Object.values(ensureVerify().claims)){
+  if(!['confirmed','corrected','rejected'].includes(c.status))continue;
+  const k=key(c),s=counts.get(k)||{reviewed:0,changed:0};
+  s.reviewed++;if(c.status!=='confirmed')s.changed++;counts.set(k,s);
+ }
+ const score=c=>{
+  const s=counts.get(key(c));
+  return ['open','proposed'].includes(c.status)&&s?s.changed/(s.reviewed+2):0;
+ };
+ return claims.slice().sort((a,b)=>score(b)-score(a));
+}
 function makeVerificationForm(personId) {
   const p = person(personId);
   if (!p) return;
-  const claims = liveClaims().filter(c => claimPerson(c) === personId && (c.status === 'proposed' || c.status === 'open'));
+  const claims = prioritizeClaimReview(liveClaims().filter(c => claimPerson(c) === personId && (c.status === 'proposed' || c.status === 'open')));
   if (!claims.length) { notice(p.name + ' has no claims to verify.'); return; }
   const V = ensureVerify();
   const form = {id:crypto.randomUUID(), person:personId, claimIds:claims.map(c => c.id), made:new Date().toISOString()};
@@ -326,7 +339,7 @@ function verifyPage() {
   const roleSel = h('select', {class:'field compact', 'aria-label':'Show claims by role', onchange:e => { verifyUI.role = e.target.value; render(); }},
     [['all', 'All roles'], ...VERIFY_ROLES.map(r => [r.id, r.title])].map(([v, t]) => h('option', {value:v, text:t})));
   roleSel.value = verifyUI.role;
-  const shown = L.filter(c => (verifyUI.status === 'all' || c.status === verifyUI.status) && (verifyUI.role === 'all' || c.role === verifyUI.role));
+  const shown = prioritizeClaimReview(L).filter(c => (verifyUI.status === 'all' || c.status === verifyUI.status) && (verifyUI.role === 'all' || c.role === verifyUI.role));
 
   const answerText = c => {
     if (c.answer) {
@@ -362,6 +375,7 @@ function verifyPage() {
     h('div', {class:'report-reader-actions'}, [button('Import answers file', importVerificationAnswers, 'btn')]),
 
     h('h2', {text:'Claims'}),
+    h('p',{class:'muted',text:'Unreviewed findings are prioritized using past corrections and rejections for the same team and finding type in this project. Each finding still needs its own evidence.'}),
     h('div', {class:'report-reader-actions'}, [statusSel, roleSel]),
     shown.length ? h('table', {class:'scan-table verify-table'}, [
       h('thead', {}, [h('tr', {}, [h('th', {text:'Claim'}), h('th', {text:'Role'}), h('th', {text:'Person'}), h('th', {text:'Status'})])]),

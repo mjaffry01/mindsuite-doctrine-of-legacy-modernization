@@ -124,6 +124,37 @@ Launch approval covers first-release capabilities. Later capabilities can stay u
 
 ## 6. Change log (newest first)
 
+### Permanent home for Pathfinder agent sources
+
+The owner keeps the full agent and backend source in the existing Legecy Modernization folder in Downloads. Use backend/internal/teams for discovery agents, backend/internal/agents for shared and planning logic, backend/internal/server for HTTP endpoints, and teams and assets for browser controls. Keep these sources synchronized with the Git working copy when changing agents. bin and runs contain local executables and project results.
+
+
+### Project-scoped feedback for subsequent runs (local)
+
+Design options stores up to twelve explicit technology preferences per capability, includes them in the next consented options payload, and records repeated discouraged names per run. Formfiller supports reversible field skips. Review forms and the claims list prioritize pending claims using reviewed outcomes for the same discovery team and finding kind. Model weights and raw discovery reports are unaffected. No backend deployment is required.
+
+### 2026-11-21 — "New project keeps real answers": not reproduced; sources checked (Claude, NOT pushed)
+
+- The owner says real answers (not grey examples) showed in the Product brief after New project.
+- **Localhost storage, read only:** I read it from a plain file page (`/HANDOFF.md`, so the app didn't run) and wrote nothing. There are four workspaces: "food aggregate website" and three new ones (12:29, 12:42, 13:01). Each new one stores **no brief answers**, only `project:mode`. So the answers were shown, not saved. `__bk_harvestlink` is an old test backup that no code reads.
+- **127.0.0.1 repro of the exact flow** (food copy → Product brief → New project → Project from scratch): no visible field has a value. The test projects were removed.
+- **Still open:** what exactly the owner sees (a screenshot or the field and value). One thing to check is the browser's own autofill drop-down offering earlier entries when a field is clicked.
+- **Where the agents live:** the git working copy is `%TEMP%\lm-repo` (pushed to GitHub `mjaffry01/mindsuite-pathfinder`). The permanent copy is `Downloads\Legecy Modernization`; all `backend/` and `assets/` sources there match the working copy (ignoring line endings). The running binary is `bin\mindsuite-agents-policy16k.exe`.
+
+### 2026-11-21 — Product brief examples look like examples (Claude, NOT pushed)
+
+Owner: after New project, the Product brief "does not reset". On 127.0.0.1 a new project's brief is empty: every field's value is blank and the stored state is a fresh `emptyMock()`. The only text shown is the grey example text, which describes a stock-tracking product ("e.g. Stock tracking portal", "Store staff track stock on paper…", "e.g. 400", "e.g. 99.9") and can look like a previous project's answers. Changes:
+- The brief, deployment and recovery examples now start with **"Example:"** instead of "e.g." (`assets/project-mode.js` `ex-1`, and the project-name field in `assets/project-workflows.js` `ex-1`).
+- Any `[placeholder^="Example:"]` is shown in lighter italics (style injected by `project-mode.js`; the shared CSS files were not touched).
+- Verified on 127.0.0.1: 14 example fields, none prefilled. The test project was removed.
+- **If the owner still sees real answers** (not grey examples) in a new project on localhost, the cause is something else; ask for the field and value. Their localhost storage was not opened.
+
+### 2026-11-21 — Pushed b00d498 (Claude)
+
+- **Pushed as b00d498** at the owner's "push it". It includes HLD icons, plan approval covering dates, Architecture validation, the Data policy and Session policy agents (backend and web app) and drop reasons. Before pushing: the remote had no new commits, no secrets, all JS parsed, and `go vet` and `go test ./...` passed. Pages built b00d498; the live index carries `ic-3`, `val-2` and `sp-3`, and the new assets return 200.
+- **Not included:** `assets/legibility.css` (the main session's unfinished legibility work; `index.html` does not link it yet).
+- **Owner report, same time:** "new project does not reset everything". I couldn't reproduce it on 127.0.0.1. New project → Project from scratch gave an empty brief, no people, rules or platform values, no validation rows or policies, and no text from the previous project on any page; the only "carry-over" was the generic baseline (14 baseline capabilities, 18 default assumptions, one whole-product capability). The test project was removed. I'm waiting for the owner to say which page or value still showed old data; their own localhost storage was not opened.
+
 ### 2026-11-21 — 8090 on the 16k policy build; session rerun succeeds (Claude, NOT pushed)
 
 - **Restart** (owner: "Yes, restart again"): stopped PID 45548 (`mindsuite-agents-dropnotes.exe`). 8090 now runs `bin\mindsuite-agents-policy16k.exe` (PID 78288, same arguments, cwd `bin`, stderr to `backend-policy16k.log`). Health shows `dataPolicyAgent` and `sessionPolicyAgent`; the older builds are kept for rollback.

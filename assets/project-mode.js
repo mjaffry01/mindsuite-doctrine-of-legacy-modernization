@@ -72,15 +72,16 @@ const DEPLOY_TENANCY=[['internal','Internal use only (one organization)'],['saas
  ['saas-single','SaaS, single-tenant (one deployment per customer)'],['customer-hosted','Installed and run by each customer'],['undecided','Not decided yet']];
 const DEPLOY_CHANNELS=[['web','Web browser'],['mobile','Mobile apps (app stores)'],['desktop','Desktop installer'],['api','API only (no user interface)'],['embedded','Device or embedded']];
 const BRIEF_TEXT=[
- ['problem','Problem and opportunity *','What is wrong or missing today, and for whom','e.g. Store staff track stock on paper; counts are wrong and orders arrive late'],
- ['users','Users and their jobs *','User groups and the jobs they need done','e.g. Store staff: count and move stock; buyers: reorder; managers: see stock value'],
- ['journeys','Key journeys','The few journeys that must work end to end','e.g. Receive a delivery; count a shelf; raise a purchase order'],
- ['mvp','First release (MVP) *','The must-have capabilities, and what is deliberately left out','e.g. Stock in/out, counts, low-stock alerts. Not yet: forecasting, supplier portal'],
- ['success','Success measures','How success is measured and by when','e.g. Stock accuracy above 98% within 3 months of launch'],
- ['integrations','Integrations','Systems it must connect to','e.g. Accounting (Xero), supplier EDI, single sign-on with Microsoft Entra ID'],
- ['buyPref','Build, buy or partner: known preferences','Existing products, contracts or preferences','e.g. We already pay for Dynamics 365; prefer not to build accounting']];
-const BRIEF_NUM=[['users_count','Expected users','number','e.g. 400'],['peak','Peak requests per second (estimate)','number','e.g. 30'],
- ['dataGb','Data volume after 3 years (GB)','number','e.g. 200'],['availability','Availability target (%)','number','e.g. 99.9']];
+ ['problem','Problem and opportunity *','What is wrong or missing today, and for whom','Example: Store staff track stock on paper; counts are wrong and orders arrive late'],
+ ['users','Users and their jobs *','User groups and the jobs they need done','Example: Store staff: count and move stock; buyers: reorder; managers: see stock value'],
+ ['journeys','Key journeys','The few journeys that must work end to end','Example: Receive a delivery; count a shelf; raise a purchase order'],
+ ['mvp','First release (MVP) *','The must-have capabilities, and what is deliberately left out','Example: Stock in/out, counts, low-stock alerts. Not yet: forecasting, supplier portal'],
+ ['success','Success measures','How success is measured and by when','Example: Stock accuracy above 98% within 3 months of launch'],
+ ['integrations','Integrations','Systems it must connect to','Example: Accounting (Xero), supplier EDI, single sign-on with Microsoft Entra ID'],
+ ['buyPref','Build, buy or partner: known preferences','Existing products, contracts or preferences','Example: We already pay for Dynamics 365; prefer not to build accounting']];
+const BRIEF_NUM=[['users_count','Expected users','number','Example: 400'],['peak','Peak requests per second (estimate)','number','Example: 30'],
+ ['dataGb','Data volume after 3 years (GB)','number','Example: 200'],['availability','Availability target (%)','number','Example: 99.9']];
+(function(){try{const st=document.createElement('style');st.textContent='[placeholder^="Example:"]::placeholder{font-style:italic;color:#9a9cb0;opacity:1}';document.head.append(st);}catch(e){}})();
 function productBrief(){M.product=M.product||{};const P=M.product;P.deploy=P.deploy||{channels:[]};return P;}
 function productBriefSection(){
  const numFields=keys=>BRIEF_NUM.filter(([k])=>keys.includes(k)).map(([k,label,type,ph])=>editable(k,inputControl(label,visibleBriefValue(k),v=>{writeBriefAnswer(k,v);if(typeof refreshLoadCalc==='function'&&(k==='users_count'||k==='peak'))refreshLoadCalc();if(typeof refreshDataCalc==='function'&&(k==='users_count'||k==='dataGb'))refreshDataCalc();},type,ph)));
@@ -126,11 +127,11 @@ function productBriefSection(){
   typeof dataCalcPanel==='function'?dataCalcPanel():null,
   h('div',{class:'scope-grid'},numFields(['availability'])),
   (()=>{const PB=productBrief();const R=PB.recovery=PB.recovery||{};const f=(k,label,ph)=>inputControl(label,R[k]||'',v=>{const b=R[k];R[k]=String(v||'').trim();logInput('product:recovery:'+k,b,R[k]);persist();},'text',ph);
-   return h('div',{class:'scope-grid recovery-grid'},[f('rto','Recovery time (RTO): how long may the service be down after an outage?','e.g. 4 hours'),f('rpo','Data loss allowed (RPO): how much recent data may be lost?','e.g. 15 minutes')]);})(),
+   return h('div',{class:'scope-grid recovery-grid'},[f('rto','Recovery time (RTO): how long may the service be down after an outage?','Example: 4 hours'),f('rpo','Data loss allowed (RPO): how much recent data may be lost?','Example: 15 minutes')]);})(),
   h('div',{class:'deploy-block'},[h('h3',{text:'Deployment type'}),h('p',{class:'muted',text:'Where it runs, who it serves, how it reaches users and how it is hosted.'}),
    h('div',{class:'scope-grid'},[
     pick('where','Where it runs *',DEPLOY_WHERE),pick('tenancy','Tenancy',DEPLOY_TENANCY),
-    ['public','multicloud','hybrid'].includes(where)||visibleBriefValue('regions')?editable('regions',inputControl('Regions or countries the data must stay in',visibleBriefValue('regions'),v=>writeBriefAnswer('regions',v),'text','e.g. EU only; India (data residency)')):null]),
+    ['public','multicloud','hybrid'].includes(where)||visibleBriefValue('regions')?editable('regions',inputControl('Regions or countries the data must stay in',visibleBriefValue('regions'),v=>writeBriefAnswer('regions',v),'text','Example: EU only; India (data residency)')):null]),
    briefField('channels',h('div',{class:'type-chips'},[h('span',{class:'type-label',text:'How it reaches users'}),...DEPLOY_CHANNELS.map(([id,label])=>h('label',{class:'type-chip'+(channels.includes(id)?' on':'')},[
     h('input',{type:'checkbox',checked:channels.includes(id)?'':null,onchange:e=>{const next=new Set(channels);if(e.target.checked)next.add(id);else next.delete(id);saveChoice('channels',[...next]);}}),label]))])),
    typeof hostingModelPicker==='function'?hostingModelPicker():null])

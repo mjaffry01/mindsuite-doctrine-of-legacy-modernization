@@ -88,6 +88,8 @@ function agentsPage(){
  const live=AGENT_UI.loaded;
  return h('div',{},[
   pageHeader('ⓘ / AI AGENT TEAMS','AI agent teams and how they communicate','Every agent the software uses, what it does, which model it uses, and how messages flow. Agents suggest and check; people decide.',[]),
+  h('section',{class:'summary-section'},[h('h2',{text:'How agents use your feedback'}),
+   h('p',{text:'Design options remembers preferred technologies and requests for alternatives per capability. Each new run reports whether a discouraged option returned. Formfiller remembers fields you explicitly skip. Discovery review puts finding types with past corrections or rejections earlier in the review queue. These lessons stay in this workspace. You can forget a design preference or allow a skipped field again.'})]),
   h('section',{class:'summary-section'},[h('h2',{text:'How they communicate'}),holder,
    h('ul',{class:'plain-list'},[
     h('li',{text:'Browser → project backend: one request per action you take. Requests that use Claude say so and need your consent each time.'}),

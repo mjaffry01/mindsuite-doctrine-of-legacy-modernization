@@ -22,7 +22,7 @@ function briefFillRequest(){
  for(const key of briefKeys()){
   const value=briefAnswer(key);
   if(value)answers[key]=value;
-  else if(!briefDrafts()[key])missing.push(key);
+  else if(!briefDrafts()[key]&&!(M.formfillSkipped||[]).includes(key))missing.push(key);
  }
  return {mode:modeOf(),project:M.project.trim(),deadline:brief().deadline||'',answers,previous,missing,next:true};
 }
@@ -60,7 +60,7 @@ async function runFormfiller(all=false){
   refreshFormfillPanel();return;
  }
  if(!input.missing.length){
-  formfillUI.message='Every field has an answer or a suggestion to review.';refreshFormfillPanel();return;
+  formfillUI.message='Every available field is answered, suggested or skipped.';refreshFormfillPanel();return;
  }
  formfillUI.afterEdit=false;
  const started=Date.now(),revision=formfillUI.revision;
@@ -116,6 +116,11 @@ function discardDependentDrafts(key){
  }
  return removed;
 }
+function skipBriefField(key){
+ M.formfillSkipped=[...new Set([...(M.formfillSkipped||[]),key])];
+ recordFormfill('skip-future-predictions',{key});
+ dismissBriefDraft(key);
+}
 function dismissBriefDraft(key){
  formfillUI.revision++;
  delete briefDrafts()[key];
@@ -127,6 +132,9 @@ function formfillerPanel(){
  return h('section',{id:'formfiller-panel',class:'formfiller-panel','aria-label':'Formfiller agent'},[
   h('div',{},[h('h3',{text:'Formfiller agent'}),
    h('p',{text:'Each prediction uses your project name, target date, brief answers and earlier suggestions. You can edit any answer. If Claude returns no usable suggestion, Formfiller tries once more.'}),
+   ...(M.formfillSkipped||[]).map(key=>h('div',{},['Skipping '+briefFieldName(key)+' ',button('Allow predictions again',()=>{
+    M.formfillSkipped=M.formfillSkipped.filter(k=>k!==key);formfillUI.revision++;recordFormfill('resume-predictions',{key});render();
+   },'linkbtn')])),
    h('label',{class:'formfiller-auto'},[
     h('input',{type:'checkbox',checked:formfillUI.afterEdit?'':null,disabled:formfillUI.busy?'':null,onchange:e=>{formfillUI.afterEdit=e.target.checked;}}),
     'Predict one answer after my next edit'
@@ -149,7 +157,7 @@ function briefField(key,control){
   h('div',{class:'brief-proposal-note'},[
    h('strong',{text:'AI suggestion'}),h('span',{text:draft.reason}),
    h('small',{text:(draft.quoteFrom?(briefDrafts()[draft.quoteFrom]&&!briefAnswer(draft.quoteFrom)?'From an earlier AI suggestion · ':'From ')+briefFieldName(draft.quoteFrom):'From your brief')+' · “'+draft.quote+'”'}),
-   h('div',{class:'formfiller-actions'},[button('Use answer',()=>acceptBriefDrafts([key]),'btn small'),button('Dismiss',()=>dismissBriefDraft(key),'linkbtn')])
+   h('div',{class:'formfiller-actions'},[button('Use answer',()=>acceptBriefDrafts([key]),'btn small'),button('Dismiss',()=>dismissBriefDraft(key),'linkbtn'),button('Skip this field in future runs',()=>skipBriefField(key),'linkbtn')])
   ])
  ]);
 }
