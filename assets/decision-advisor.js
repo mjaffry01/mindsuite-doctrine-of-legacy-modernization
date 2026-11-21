@@ -34,7 +34,25 @@ function advisorInputs(c){
  const strategic=c.strategic&&c.strategic!=='unsure'?c.strategic:'';
  const P=M.product||{},Dp=P.deploy||{};
  return {S,drivers,P,deploy:Dp,mode:typeof modeOf==='function'?modeOf():'modernize',months,deadlineText,deadlinePassed,hasDeadline:!!((b.deadline&&!deadlinePassed)||A.horizon),strategic,crit:c.criticality||'',
+  pref:product||(typeof modeOf==='function'&&modeOf()==='extend')?buyPrefFor(c,P.buyPref):null,
   knowledge:M.values.knowledge||'',risk:K.risk||'',downtime:K.downtime||'',retireSignal:why.includes('retirement')||why.includes('consolidation')||drivers.has('retire')};
+}
+
+/* The brief's "Build, buy or partner" answer, read per capability: each clause that starts with Build, Buy or
+   Partner is matched to the capability by shared words (name and description). Returns {route,clause} or null. */
+const BP_STOP=new Set(['the','and','for','with','from','that','this','what','where','when','their','them','they','every','business','businesses','needs','need','makes','product','products','different','starting','point','suggested','confirm','speed','existing','platform','gives']);
+function bpWords(t){return new Set(String(t||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').split(/\s+/).filter(w=>w.length>=4&&!BP_STOP.has(w)).map(w=>w.slice(0,5)));}
+function buyPrefFor(c,text){
+ text=String(text||'').replace(/^[^:]*suggest[^:]*:/i,'');
+ const want=bpWords(c.name+' '+(c.description||''));if(!want.size)return null;
+ let best=null,route=null;
+ for(const part of text.split(/[;.\n]+/)){
+  const m=part.match(/\b(build|buy|partner)\b/i);if(m)route=m[1].toLowerCase();
+  if(!route)continue;
+  const words=bpWords(part.replace(/\([^)]*\)/g,' '));let n=0;for(const w of words)if(want.has(w))n++;
+  if(n&&(!best||n>best.n))best={route,clause:part.trim().replace(/\s*\([^)]*\)\s*$/,'').slice(0,90),n};
+ }
+ return best;
 }
 
 /* ---- 1. Approach scoring ---- */
@@ -100,7 +118,9 @@ function approachAdvice(c){
    if(R_skills_has_lang())add(1,'The team already has the skills for custom development','skills');else add(-1,'No team skills recorded for custom development','skills');
    if(soon)add(-2,'A custom build is unlikely to reach a first release by '+I.deadlineText,'effort');
    if(I.risk==='low')add(-1,'Low risk appetite: custom builds carry more delivery risk','risk');
-   if(String(I.P.buyPref||'').match(/prefer not to build|avoid custom|buy/i))add(-1,'The brief prefers not to build','fit');
+   if(String(I.P.buyPref||'').match(/prefer not to build|avoid (?:custom|building)|do not want to build|don't want to build/i))add(-1,'The brief prefers not to build','fit');
+   if(I.pref&&I.pref.route==='build')add(2,'The brief suggests building this: "'+I.pref.clause+'"','fit');
+   if(I.pref&&I.pref.route!=='build')add(-1,'The brief suggests '+I.pref.route+' for this','fit');
   }
   if(id==='buy'){
    if(I.strategic==='generic')add(3,'Generic capability: a product or SaaS already does this','fit');
@@ -108,13 +128,16 @@ function approachAdvice(c){
    if(soon)add(2,'Fastest route to a first release by '+I.deadlineText,'effort');
    if(I.deploy.where==='onprem'||I.deploy.where==='edge')add(-1,'Deployment is '+(I.deploy.where==='edge'?'on-site':'on-premises')+': fewer products fit','fit');
    if(I.deploy.tenancy==='saas-multi'||I.deploy.tenancy==='saas-single'||I.deploy.tenancy==='customer-hosted')add(-1,'You sell this capability to customers: a bought product limits how you differentiate','fit');
-   if(String(I.P.buyPref||'').trim())add(1,'The brief names existing products or contracts','cost');
+   if(String(I.P.buyPref||'').match(/already (?:pay|use|have|own|license)|contracts?\b|licen[cs]es? for|we (?:pay|use) [A-Z]/))add(1,'The brief names existing products or contracts','cost');
+   if(I.pref&&I.pref.route==='buy')add(2,'The brief suggests buying this: "'+I.pref.clause+'"','fit');
+   if(I.pref&&I.pref.route!=='buy')add(-1,'The brief suggests '+I.pref.route+' for this','fit');
   }
   if(id==='partner'){
    if(I.strategic==='supporting')add(2,'Supporting capability: extending a platform or partner product balances fit and speed','fit');
    if(I.months!=null&&I.months<12)add(1,'Faster than a custom build for '+I.deadlineText,'effort');
    if(I.strategic==='core')add(-1,'Core capability: a platform limits how far it can differ','fit');
    add(-1,'Ties the capability to the platform\'s roadmap and licence','cost');
+   if(I.pref&&I.pref.route==='partner')add(2,'The brief suggests a partner for this: "'+I.pref.clause+'"','fit');
   }
   if(id==='retire'){
    if(I.retireSignal)add(3,'The interview says the process is retiring or systems are being consolidated','fit');
@@ -172,18 +195,15 @@ function scenarioRisk(c,approach,I){
  if(I.crit==='mission'&&r>=1)r++;
  return ['Low','Medium','High'][Math.min(2,r)];
 }
+/* Step 2: route options for one capability or context. The technology tier and stack come from the platform
+   decision (assets/platform-decision.js); here only the route differs (build / buy / partner, or the 7 Rs). */
 function advisorScenarios(c,adv){
- const rk=adv.ranked,pick=ids=>rk.filter(a=>ids.includes(a.id))[0];
- const safe=pick(['rehost','encapsulate','replatform','buy']),bold=pick(['rebuild','refactor','replace','build']);
- // Balanced: the overall best when it is a middle option, otherwise the best remaining middle option.
- const middle=['replatform','refactor','encapsulate','replace','partner','buy'];
- const bal=(middle.includes(rk[0].id)&&rk[0]!==safe&&rk[0]!==bold?rk[0]:null)||rk.find(a=>middle.includes(a.id)&&a!==safe&&a!==bold)||rk.find(a=>a!==safe&&a!==bold&&a.id!=='retire');
- const list=[['Safe','Least change and risk',safe],['Balanced','Best overall fit',bal],['Ambitious','Most long-term benefit',bold]];
- if(rk[0].id==='retire'&&rk[0].score>0)list.unshift(['Retire','The evidence points to switching it off',rk[0]]);
- const top=rk[0].id;
- return list.filter(x=>x[2]).map(([name,tag,a])=>{
-  const d=buildScenario(c,a.id);
-  return {name,tag,a,d,best:a.id===top&&a.score>0,size:autoSize(c,d),risk:scenarioRisk(c,a.id,adv.inputs),checks:crossChecks(c,d,adv.inputs)};
+ const rk=adv.ranked.filter(a=>a.id!=='retire'||a.score>0);
+ const tier=typeof platformEffective==='function'?platformEffective().tier:'Balanced';
+ const one=isNewProduct()?'capability':'context';
+ return rk.slice(0,3).map((a,i)=>{
+  const d=typeof platformChoicesFor==='function'?{approach:a.id,choices:platformChoicesFor(a.id)}:buildScenario(c,a.id);
+  return {name:i===0?'Best fit':'Option '+(i+1),tag:i===0?'Highest score for this '+one:'Alternative route',tier,a,d,best:i===0&&a.score>0,size:autoSize(c,d),risk:scenarioRisk(c,a.id,adv.inputs),checks:crossChecks(c,d,adv.inputs)};
  });
 }
 function scenarioSummary(d){
@@ -277,6 +297,7 @@ function advisorPanel(c,d){
     adv.close&&adv.ranked[1]?h('p',{class:'muted',text:'Close call with '+adv.ranked[1].label+' ('+adv.ranked[1].score+' against '+top.score+').'}):null]),
    h('div',{class:'advisor-conf '+conf.level,title:conf.have+' of '+conf.total+' key inputs known'},[h('b',{text:conf.level[0].toUpperCase()+conf.level.slice(1)+' confidence'}),h('small',{text:conf.have+' of '+conf.total+' key inputs'})])]),
   conf.missing.length?h('div',{class:'advisor-missing'},[h('span',{class:'muted',text:'Would make this surer: '}),...conf.missing.map(m=>button(m.label,m.go,'linkbtn'))]):null,
+  typeof platformEffective==='function'&&!platformEffective().decided?h('p',{class:'pf-note muted',text:'The platform is not decided yet: these routes use the suggested platform. Record it in step 1 at the top of this page.'}):null,
   q?h('div',{class:'advisor-question'},[h('b',{text:q.q}),h('small',{class:'muted',text:q.why}),h('div',{class:'advisor-answers'},q.a.map(([t,fn])=>button(t,fn,'btn small')))]):null,
   h('div',{class:'scenario-grid'},scen.map(s=>{const on=chosen&&d.approach===s.a.id&&JSON.stringify(s.d.choices.cloud||'')===JSON.stringify(d.choices.cloud||'');
    const blocks=s.checks.filter(x=>x[0]==='block').length,warns=s.checks.filter(x=>x[0]==='warn').length;
@@ -288,7 +309,8 @@ function advisorPanel(c,d){
     h('dl',{class:'scenario-facts'},[h('dt',{text:'Fit'}),h('dd',{text:(s.a.score>0?'+':'')+(Number.isInteger(s.a.score)?s.a.score:s.a.score.toFixed(1))}),h('dt',{text:'Effort'}),h('dd',{text:s.size}),h('dt',{text:'Risk'}),h('dd',{text:s.risk}),
      h('dt',{text:'Checks'}),h('dd',{class:blocks?'bad':warns?'warn':'ok',text:blocks?blocks+' breaks rules':warns?warns+' to watch':'none'})]),
     h('div',{class:'reason-chips'},s.a.reasons.slice(0,3).map(reasonChip)),
-    on?h('span',{class:'badge confirmed',text:'Current target'}):button('Use this scenario',()=>useScenario(c,d,s),'btn small'+(s.best?' primary':''))]);})),
+    on?h('span',{class:'badge confirmed',text:'Current target'}):button('Use this route',()=>useScenario(c,d,s),'btn small'+(s.best?' primary':''))]);})),
+  typeof techPlanTable==='function'?techPlanTable(c,scen):null,
   chosen?h('div',{class:'advisor-current'},[
    h('b',{text:'Current target: '+apprLabel(d.approach)}),h('span',{class:'muted',text:' · '+scenarioSummary(d)}),
    checks.length?h('ul',{class:'advisor-checks'},checks.map(([lvl,t])=>h('li',{class:lvl,text:(lvl==='block'?'✕ ':lvl==='warn'?'! ':'i ')+t}))):h('p',{class:'muted',text:'No conflicts found with your rules, deadline or other contexts.'}),

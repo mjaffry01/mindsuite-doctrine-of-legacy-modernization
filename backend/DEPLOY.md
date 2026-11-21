@@ -2,7 +2,7 @@
 
 This is for DevOps. It explains how to run the MindSuite agent backend on a server and how to give it the Anthropic (Claude) API key.
 
-The web app is static and is already hosted on GitHub Pages: <https://mjaffry01.github.io/mindsuite-doctrine-of-legacy-modernization/>. The backend is a separate Go program that the web app calls.
+The web app is static and is already hosted on GitHub Pages: <https://mjaffry01.github.io/mindsuite-pathfinder/>. The backend is a separate Go program that the web app calls.
 
 ## 1. The Claude API key
 

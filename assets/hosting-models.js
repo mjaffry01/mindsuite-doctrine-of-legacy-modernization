@@ -2,7 +2,7 @@
    The ways an application can be hosted (virtual machines, managed web app platform, managed containers,
    Kubernetes, serverless functions, static web app + API, low-code platform, on-site servers), each explained
    in plain words with what it is good for, what to watch, what you still run, how it scales, how it is billed
-   and the matching service on Azure, AWS, Google Cloud and on-premises.
+   and the matching service on Azure, AWS, Google Cloud, IBM Cloud, Oracle Cloud and on-premises.
    hostingSuggest(P) ranks them from the brief with local rules (where it runs, tenancy, channels, load, wording)
    and gives the reasons; the owner picks one (stored as productBrief().deploy.hosting, an id, so later
    diagrams and the agents can use it). Nothing is chosen automatically.
@@ -15,49 +15,49 @@ const HOSTING_MODELS=[
   good:'Moving an existing app as it is; software that needs full control of the server or a licence tied to a machine.',
   watch:'You patch and secure the operating system; scaling is slower and you pay while servers sit idle.',
   run:'Operating system, runtime, app, scaling',scale:'Add bigger or more machines (scale sets)',bill:'Per server-hour, running or idle',
-  azure:'Azure Virtual Machines, VM Scale Sets',aws:'Amazon EC2, Auto Scaling groups',gcp:'Compute Engine, managed instance groups',onprem:'VMware vSphere, Hyper-V, Nutanix'},
+  azure:'Azure Virtual Machines, VM Scale Sets',aws:'Amazon EC2, Auto Scaling groups',gcp:'Compute Engine, managed instance groups',onprem:'VMware vSphere, Hyper-V, Nutanix',ibm:'IBM Cloud Virtual Servers for VPC',oci:'OCI Compute (VMs, instance pools)'},
  {id:'paas',name:'Managed web app platform',kind:'PaaS',
   what:'Upload the code; the platform runs it with the web server, certificates, scaling and patching handled for you.',
   good:'Standard web apps and APIs, small teams, getting live quickly.',
   watch:'Only the languages and versions the platform supports; less control; costs rise at very large scale.',
   run:'App code and settings',scale:'Automatic or by schedule, more instances of a plan',bill:'Per plan size × instances',
-  azure:'Azure App Service',aws:'AWS Elastic Beanstalk, AWS App Runner',gcp:'Google App Engine',onprem:'Not usually available (consider containers on OpenShift)'},
+  azure:'Azure App Service',aws:'AWS Elastic Beanstalk, AWS App Runner',gcp:'Google App Engine',onprem:'Not usually available (consider containers on OpenShift)',ibm:'IBM Cloud Code Engine (apps)',oci:'OCI Container Instances (no classic app platform)'},
  {id:'containers',name:'Managed containers',kind:'Serverless containers',
   what:'Package each part of the app as a container; the cloud runs and scales the containers without you managing servers or a cluster.',
   good:'Several services or APIs, steady or variable traffic, teams already using Docker.',
   watch:'Needs container skills and an image registry; a short delay when a service scaled to zero wakes up.',
   run:'Container images and their settings',scale:'Automatic by requests or events, can scale to zero',bill:'Per vCPU-second and GB-second used',
-  azure:'Azure Container Apps',aws:'Amazon ECS on AWS Fargate',gcp:'Google Cloud Run',onprem:'Docker hosts, Podman'},
+  azure:'Azure Container Apps',aws:'Amazon ECS on AWS Fargate',gcp:'Google Cloud Run',onprem:'Docker hosts, Podman',ibm:'IBM Cloud Code Engine',oci:'OCI Container Instances'},
  {id:'kubernetes',name:'Kubernetes',kind:'Container orchestration',
   what:'A cluster that runs many containers with fine control over networking, scaling and roll-outs.',
   good:'Many services, a platform team, running the same way across clouds or on-premises, products installed by customers.',
   watch:'The most moving parts: needs people who run Kubernetes; overkill for one small app.',
   run:'Cluster add-ons, workloads, upgrades (the cloud runs the control plane)',scale:'Pods and nodes scale automatically',bill:'Per node (server) plus a cluster fee',
-  azure:'Azure Kubernetes Service (AKS)',aws:'Amazon EKS',gcp:'Google Kubernetes Engine (GKE)',onprem:'Red Hat OpenShift, Rancher, VMware Tanzu'},
+  azure:'Azure Kubernetes Service (AKS)',aws:'Amazon EKS',gcp:'Google Kubernetes Engine (GKE)',onprem:'Red Hat OpenShift, Rancher, VMware Tanzu',ibm:'IBM Cloud Kubernetes Service, Red Hat OpenShift on IBM Cloud',oci:'OCI Kubernetes Engine (OKE)'},
  {id:'serverless',name:'Serverless functions',kind:'FaaS',
   what:'Small pieces of code that run only when something happens (a request, a file, a message, a timer).',
   good:'Spiky or low traffic, background jobs, scheduled tasks, reacting to events and webhooks.',
   watch:'Time limits per run, a delay on the first call, and code shaped around one provider.',
   run:'Function code and triggers',scale:'Per event, automatically, to zero',bill:'Per call and run time; almost nothing when idle',
-  azure:'Azure Functions',aws:'AWS Lambda',gcp:'Cloud Run functions',onprem:'OpenFaaS, Knative'},
+  azure:'Azure Functions',aws:'AWS Lambda',gcp:'Cloud Run functions',onprem:'OpenFaaS, Knative',ibm:'IBM Cloud Code Engine functions',oci:'OCI Functions'},
  {id:'static',name:'Static web app + API',kind:'Front end on a CDN',
   what:'The browser app is served as files from a global content network; the data comes from a separate API.',
   good:'Single-page web apps, content and marketing sites, fast pages worldwide.',
   watch:'Only the front end: the API still needs one of the other models (functions, platform or containers).',
   run:'Front-end build and the chosen API',scale:'The content network scales on its own',bill:'Per GB served, often free to start',
-  azure:'Azure Static Web Apps',aws:'AWS Amplify Hosting, S3 + CloudFront',gcp:'Firebase Hosting',onprem:'Nginx or IIS behind a CDN'},
+  azure:'Azure Static Web Apps',aws:'AWS Amplify Hosting, S3 + CloudFront',gcp:'Firebase Hosting',onprem:'Nginx or IIS behind a CDN',ibm:'IBM Cloud Object Storage website + IBM Cloud Internet Services',oci:'OCI Object Storage + a partner CDN'},
  {id:'lowcode',name:'Low-code or SaaS platform',kind:'aPaaS',
   what:'Build screens, forms and workflows on a platform the organization already uses, with little code.',
   good:'Internal forms, approvals and workflows; data already in that platform.',
   watch:'Per-user licences, platform limits, and moving off it later is hard.',
   run:'Apps and flows built on the platform',scale:'The vendor scales it within licence limits',bill:'Per user or per app licence',
-  azure:'Microsoft Power Apps (Power Platform)',aws:'Amazon Honeycode was retired; use a partner platform',gcp:'AppSheet',onprem:'Mendix, OutSystems (self-managed)'},
+  azure:'Microsoft Power Apps (Power Platform)',aws:'Amazon Honeycode was retired; use a partner platform',gcp:'AppSheet',onprem:'Mendix, OutSystems (self-managed)',ibm:'IBM watsonx Orchestrate or a partner platform',oci:'Oracle APEX'},
  {id:'onsite',name:'On-site servers or edge devices',kind:'Edge',
   what:'Run the app on servers or devices at the site itself (plant, branch, shop, vehicle), syncing with the centre when possible.',
   good:'Unreliable internet, data that must stay on site, machines and sensors, very low delay.',
   watch:'You look after hardware in many places; updates and backups across sites need planning.',
   run:'Hardware, operating system, app, sync',scale:'More or bigger devices per site',bill:'Hardware bought plus support',
-  azure:'Azure Local (Azure Stack HCI), Azure IoT Edge',aws:'AWS Outposts, AWS IoT Greengrass',gcp:'Google Distributed Cloud',onprem:'Industrial PCs, branch servers'}];
+  azure:'Azure Local (Azure Stack HCI), Azure IoT Edge',aws:'AWS Outposts, AWS IoT Greengrass',gcp:'Google Distributed Cloud',onprem:'Industrial PCs, branch servers',ibm:'IBM Cloud Satellite',oci:'Oracle Compute Cloud@Customer, Roving Edge'}];
 
 function hostingSuggest(P){
  const D=P.deploy||{},ch=D.channels||[],where=D.where||'',ten=D.tenancy||'';
@@ -96,7 +96,7 @@ function hostingModelPicker(){
  const chosen=HOSTING_MODELS.find(m=>m.id===D.hosting);
  const order=[...HOSTING_MODELS].sort((a,b)=>{const ra=rank(a.id),rb=rank(b.id);return (ra<0?9:ra)-(rb<0?9:rb);});
  return h('div',{class:'hosting-models'},[
-  h('div',{class:'hosting-head'},[h('b',{text:'Hosting model'}),
+  h('div',{class:'hosting-head'},[h('b',{text:'Hosting preference'}),
    h('small',{class:'muted',text:chosen?'Chosen: '+chosen.name+'. Click it again to clear.':sug.length?'Suggested from your brief: '+sug.map(x=>HOSTING_MODELS.find(m=>m.id===x.id).name).join(', ')+'. Pick one, or leave it for the design options to decide.':'Answer where it runs, tenancy and how it reaches users to get a suggestion. Pick one, or leave it for the design options to decide.'})]),
   h('div',{class:'hosting-grid'},order.map(m=>{const r=rank(m.id),on=D.hosting===m.id;
    return h('button',{type:'button',class:'hosting-card'+(on?' on':'')+(r===0?' top':''),'aria-pressed':on?'true':'false',onclick:()=>set(m.id)},[
@@ -105,7 +105,7 @@ function hostingModelPicker(){
     r>=0&&sug[r].why.length?h('p',{class:'hosting-why',text:'Why: '+sug[r].why.slice(0,3).join('; ')+'.'}):null,
     h('dl',{},[h('dt',{text:'Good for'}),h('dd',{text:m.good}),h('dt',{text:'Watch'}),h('dd',{text:m.watch}),
      h('dt',{text:'You still run'}),h('dd',{text:m.run}),h('dt',{text:'Scales'}),h('dd',{text:m.scale}),h('dt',{text:'Billed'}),h('dd',{text:m.bill}),
-     h('dt',{text:'Azure'}),h('dd',{text:m.azure}),h('dt',{text:'AWS'}),h('dd',{text:m.aws}),h('dt',{text:'Google'}),h('dd',{text:m.gcp}),h('dt',{text:'On-premises'}),h('dd',{text:m.onprem})])]);}))]);
+     h('dt',{text:'Azure'}),h('dd',{text:m.azure}),h('dt',{text:'AWS'}),h('dd',{text:m.aws}),h('dt',{text:'Google'}),h('dd',{text:m.gcp}),h('dt',{text:'IBM Cloud'}),h('dd',{text:m.ibm||'—'}),h('dt',{text:'Oracle Cloud'}),h('dd',{text:m.oci||'—'}),h('dt',{text:'On-premises'}),h('dd',{text:m.onprem})])]);}))]);
 }
 
 function hostingFacts(add){

@@ -1,4 +1,6 @@
 /* Project-specific steps. Shared design and planning screens use the active workflow. */
+function hldStatus(){if(typeof hldModel!=='function')return '';try{const m=hldModel();return m.meta.draft?'Draft':'Ready for review';}catch(e){return 'Draft';}}
+function assumptionStatus(){if(typeof assumptionsRegister!=='function')return '';try{const l=assumptionsRegister(),o=l.filter(a=>a.state==='open'||a.state==='changed').length;return o?o+' of '+l.length+' to confirm':'All '+l.length+' confirmed or accepted';}catch(e){return '';}}
 function workflowGroups(){
  const people=(M.people||[]).length+' people';
  const approvals=M.plan.signoff;
@@ -12,12 +14,15 @@ function workflowGroups(){
   ]},
   {title:'Design',steps:[
    ['rules','03','Rules & people',people],
-   ['decide','04','Design options',decisions]
+   ['decide','04','Design options',decisions],
+   ['assumptions','✓','Assumptions',assumptionStatus()],
+   ['hld','✓','Architecture (HLD)',hldStatus()]
   ]},
   {title:'Deliver',steps:[
    ['roadmap','05','Release plan','Pilot, first release and later releases'],
    ['signoff','06','Launch approval',approvalStatus]
-  ]}
+  ]},
+  {title:'About',steps:[['agents','ⓘ','AI agent teams','Who does what, and how they talk']]}
  ];
  const s=stats(),iv=invStats(),verification=verifyStats();
  return [
@@ -30,12 +35,15 @@ function workflowGroups(){
   ]},
   {title:'Decide',steps:[
    ['rules','05','Rules & people',people],
-   ['decide','06','Target decisions',decisions]
+   ['decide','06','Target decisions',decisions],
+   ['assumptions','✓','Assumptions',assumptionStatus()],
+   ['hld','✓','Architecture (HLD)',hldStatus()]
   ]},
   {title:'Migrate',steps:[
    ['roadmap','07','Migration roadmap',contexts.filter(c=>planOf(c).wave).length+' of '+contexts.length+' planned'],
    ['signoff','08','Sign-off & export',approvalStatus]
-  ]}
+  ]},
+  {title:'About',steps:[['agents','ⓘ','AI agent teams','Who does what, and how they talk']]}
  ];
 }
 

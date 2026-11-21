@@ -1,4 +1,6 @@
-# MindSuite Doctrine of Legacy Modernization and Product Development
+# MindSuite Pathfinder
+
+*The doctrine of legacy modernization and product development: from evidence to architecture — modernize what you have, or design what's next.*
 
 ## Purpose
 

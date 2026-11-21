@@ -57,7 +57,7 @@ function enhanceWorkspace(groups){
 function enhanceContemporaryUI(groups){
  const navPaths=[['M3 5h18v15H3zM7 3v4M17 3v4M3 10h18M7 14h4'],['M8 6 2 12l6 6M16 6l6 6-6 6M14 4l-4 16'],['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'],['M5 3h14v18H5zM8 8h8M8 12h5M8 16h6'],['M12 3 2 21h20zM12 9v5M12 17h.01'],['M5 3h10l4 4v14H5zM14 3v5h5M8 12h8M8 16h6'],['M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M2 21v-3a7 7 0 0 1 14 0v3M17 4a3 3 0 0 1 0 6M22 21v-3a6 6 0 0 0-4-5'],['M4 4h6v6H4zM14 14h6v6h-6zM10 7h7v7M4 18h6M7 15v6'],['M4 4v16M4 7h13M4 13h9M4 19h16M17 5v4M13 11v4M20 17v4'],['M4 3h11l4 4v5M4 3v18h8M14 3v5h5M14 18l3 3 5-7']];
  const nav=[...document.querySelectorAll('#phaseNav .phase')];
- const iconIndex={upload:0,analysis:1,validate:2,summary:3,verify:4,rules:6,decide:7,roadmap:8,signoff:9,'release-scope':5};
+ const iconIndex={upload:0,analysis:1,validate:2,summary:3,verify:4,rules:6,decide:7,roadmap:8,signoff:9,'release-scope':5,assumptions:4,hld:3,agents:1};
  for(const button of nav){
   if(button.querySelector('.nav-icon'))continue;
   const icon=document.createElement('span');icon.className='nav-icon';

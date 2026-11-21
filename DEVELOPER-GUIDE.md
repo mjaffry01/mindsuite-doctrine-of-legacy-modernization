@@ -3,7 +3,7 @@
 This guide is for any developer or coding agent (Claude Code, Codex, etc.) continuing this project.
 Read it before changing `index.html`. For the current state, recent changes and next steps, read `HANDOFF.md` first.
 
-- **Live site:** https://mjaffry01.github.io/mindsuite-doctrine-of-legacy-modernization/ (GitHub Pages, `main` branch, repo root)
+- **Live site:** https://mjaffry01.github.io/mindsuite-pathfinder/ (GitHub Pages, `main` branch, repo root; repo `mjaffry01/mindsuite-pathfinder`, renamed 2026-11-21 from `mindsuite-doctrine-of-legacy-modernization`)
 - **Doctrine:** `README.md` (the 8 legacy-system categories). Do not overwrite it.
 - **App:** `index.html`, a single static file: plain HTML, CSS and JavaScript. No build step, no framework, no backend.
 
@@ -177,7 +177,7 @@ Everything lives in one object `M`, saved by `persist()` to `localStorage`. Call
 
 **Discovery inputs** (code block `// Discovery inputs`): `INPUT_GUIDE` says who provides each evidence view, in which formats, and whether it is Required or Recommended. `discoveryInputs()` builds the "What we need from you" checklist on step 01 (scope, code, 7 evidence views, capacity, business answers, stakeholders) with live status and a button that jumps to each input. When adding a new input type, add a row there so it stays visible.
 
-**Product framing:** the app is positioned as *scan the current state → decide the target → plan the modernization* (product name "Legacy Modernization Advisor"). When selling, keep the claims accurate: the code scan is real, target ranking is rule-based and explainable, and AI-agent analysis is on the roadmap.
+**Product framing:** the app is positioned as *scan the current state → decide the target → plan the modernization* (product name "MindSuite Pathfinder", renamed 2026-11-21 from "Legacy Modernization Advisor"). When selling, keep the claims accurate: the code scan is real, target ranking is rule-based and explainable, and AI-agent analysis is on the roadmap.
 
 **Statuses** (labels in `statusLabel`):
 - `suggested`, `inferred`: from the synthetic reference scenario ("· demo").

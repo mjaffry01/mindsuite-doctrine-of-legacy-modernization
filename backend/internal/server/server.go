@@ -78,6 +78,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/runs/{id}/rerun", s.rerunAgent)
 	mux.HandleFunc("POST /api/brief/formfill", s.fillProductBrief)
 	mux.HandleFunc("POST /api/brief/capabilities", s.suggestCapabilities)
+	mux.HandleFunc("POST /api/design/diagram", s.designDiagram)
 	mux.HandleFunc("POST /api/decide/suggest", s.suggestApproaches)
 	mux.HandleFunc("POST /api/decide/review", s.reviewDecision)
 	mux.HandleFunc("POST /api/decide/options", s.targetOptions)
@@ -137,7 +138,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"ok": true, "version": s.cfg.Version, "teams": agents.TeamIDs(), "modelAvailable": s.llm != nil, "allowLocalPath": s.cfg.AllowLocalPath,
 		"projectWorkspaces": true, "projectFolders": true, "agentRerun": true, "interviewCodeReview": true, "databaseBusinessReview": true, "batchReview": true, "agentTelemetry": true, "approachSuggest": true, "decisionReview": true, "targetOptions": true, "formfiller": true, "evidenceIntake": s.cfg.RunsDir != "",
-		"formfillerSequence": true, "capabilityAgent": true,
+		"formfillerSequence": true, "capabilityAgent": true, "diagramAgent": true,
 		"models": map[string]string{"strong": agents.Resolve(agents.ModelStrong), "balanced": agents.Resolve(agents.ModelBalanced), "fast": agents.Resolve(agents.ModelFast)},
 	})
 }
