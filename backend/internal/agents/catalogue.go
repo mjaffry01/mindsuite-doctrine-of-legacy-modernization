@@ -58,7 +58,7 @@ var productCatalogue = []string{
 	"sap s 4hana", "s 4hana", "sap", "oracle fusion", "oracle netsuite", "netsuite", "microsoft dynamics 365", "dynamics 365",
 	"dynamics 365 business central", "business central", "salesforce", "salesforce sales cloud", "salesforce service cloud", "workday",
 	"servicenow", "odoo", "sage", "sage intacct", "xero", "quickbooks", "infor", "epicor", "ifs", "zoho", "zoho inventory",
-	"freshservice", "jira", "zendesk", "hubspot", "guidewire", "duck creek", "temenos", "finastra", "oracle flexcube", "infosys finacle", "finacle",
+	"freshservice", "jira", "stripe", "razorpay", "paytm", "phonepe", "paypal", "adyen", "square", "braintree", "twilio", "sendgrid", "mailchimp", "shopify", "woocommerce", "tally", "tallyprime", "whatsapp business", "slack", "microsoft teams", "okta", "auth0", "google workspace", "zendesk", "hubspot", "guidewire", "duck creek", "temenos", "finastra", "oracle flexcube", "infosys finacle", "finacle",
 }
 
 var catalogueSet = func() map[string]bool {

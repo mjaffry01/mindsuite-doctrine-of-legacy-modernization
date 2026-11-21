@@ -15,16 +15,16 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 | GitHub repo | `mjaffry01/mindsuite-doctrine-of-legacy-modernization` (branch `main`) |
 | Live site (GitHub Pages) | https://mjaffry01.github.io/mindsuite-doctrine-of-legacy-modernization/ |
 | Working copy (temporary!) | `%TEMP%\lm-repo` (= `C:\Users\X1CARB~1\AppData\Local\Temp\lm-repo`) |
-| Permanent backup of the working files | `C:\Users\X1 CARBON\Downloads\Legecy Modernization\` (a copy of `index.html`, the `.md` files; refreshed with each log entry) |
+| Permanent backup of the working files | `C:\Users\X1 CARBON\Downloads\Legecy Modernization\` includes the handoff, app entry point and workflow assets. |
 | Local preview | `python -m http.server 8768` in the working copy → http://localhost:8768/ (also the `legacy-modernization` entry in `.claude/launch.json`) |
-| The app | `index.html`: a single static file, plain JS, no build, project state in `localStorage` keys `mindsuite-workspace-v1:<id>` (previous draft migrated on first open) |
+| The app | `index.html` loads plain JavaScript and CSS from `assets/` and the team panels from `teams/`. Each workspace has a browser record under `mindsuite-workspace-v1:<id>`. |
 | Agent teams | **One folder per team**, backend and web app alike. Backend: shared core `backend/internal/agents/`, teams in `backend/internal/teams/{code,database,infrastructure,messaging,identity,telemetry,batch,network,documents,incidents}`: all ten evidence teams implemented. Web app: `teams/shared/` (backend connection, explanation-page engine), `teams/<team>/panel.js` (the panel in the app) and `teams/<team>/agents.html` (the explanation page). See `backend/README.md`. |
-| Decision and product assets | `assets/project-mode.js` (start screen, product brief, deployment type), `assets/validate-page.js` (03 Validate), `assets/rules-page.js` + `assets/rule-catalog.js` (05 Rules & people, technology rules), `assets/decision-advisor.js` (advisor, robustness, portfolio, Claude review), `assets/target-options.js` (Target options team panel, Explore matrix, solution design). Each is loaded before the main script and hooked in with a few `typeof … === 'function'` checks in `index.html`. |
+| Workflow and decision assets | `assets/project-workspaces.js` opens and saves workspaces. `assets/project-mode.js` owns the two opening cards and product brief fields. `assets/project-workflows.js` defines the steps, first-release scope, launch checks and product export. `assets/workspace.js` renders navigation. Shared design tools live in `assets/rules-page.js`, `assets/rule-catalog.js`, `assets/decision-advisor.js` and `assets/target-options.js`; `assets/compliance.js` holds the compliance catalogue, explainers and suggestions. |
 | Agent backend (Go) | `backend/`: runs the code (15), database (14), infrastructure (13), messaging & caching (12), identity & access (12) telemetry (11), batch (10), network (11), documents (12) and incidents (11) teams. `cd backend && go run ./cmd/mindsuite-agents serve` → http://127.0.0.1:8090 (also `mindsuite-agents-backend` in `.claude/launch.json`). `go test ./...` must pass. See `backend/README.md`. Decision endpoints (Claude, consent per request): `POST /api/decide/suggest`, `/api/decide/review`, `/api/decide/options` (team run, `explore`, `design`). |
-| Running backends (2026-11-20) | **:8091** = Claude's test backend built from the latest code (`<scratchpad>\mindsuite-agents.exe serve -addr 127.0.0.1:8091`), runs saved in the session scratchpad; has every endpoint. **:8090** = the shared backend started from `Downloads\Legecy Modernization\bin`; it predates the review and options endpoints and **must be rebuilt from `main`** before projects on the default address can use them. A project chooses its backend on Record evidence → Source code → Agent backend address. |
+| Backend (one server, 2026-11-21) | **Only :8090.** Every project uses `http://127.0.0.1:8090`. It runs `Downloads\Legecy Modernization\bin\mindsuite-agents-cap.exe serve -config mindsuite.json -runs "C:/Users/X1 CARBON/Downloads/Legecy Modernization/runs"` from that `bin` folder (log `backend-cap.log`); runs are saved in `Downloads\Legecy Modernization\runs`. Older builds in `bin` are kept for rollback. **After any Go change in `backend/`:** `go test ./...`, build a new versioned exe into `bin` (the running exe is locked), check `/api/runs` has no run in progress, stop :8090 and start the new exe with the same arguments, then check `/api/health`. Until it is restarted the web app may get 400 "Invalid …request" for new fields. The former test copy on :8091 was retired; do not start a second backend. Restarting :8090 needs the owner's OK. |
 | Claude API key | Console key **L2M** (`sk-ant-usr-…`), saved DPAPI-encrypted in `~/.mindsuite/claude-key.xml`; checked working with billing on 2026-11-20. Never put it in code, config or chat. |
 
-**Git baseline (2026-11-20):** `main` = `origin/main` at `76f2833` (modernization and new products, decision advisor, Target options team). See the change log for anything after that.
+**Local checkpoint, 2026-11-21.** Local `main` and its `origin/main` tracking reference both point to `b59b025`. The two-path opening screen and workflow changes are uncommitted in this checkout. Include the untracked workflow, dictation and Formfiller files in assets/ and backend/ when the owner authorizes publication.
 
 ---
 
@@ -42,21 +42,36 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 
 ## 3. Current product (as of the latest entry)
 
-**Start:** a new, empty project opens on *What are you working on?*: **Modernize an existing system**, **Build a new product**, or **Modernize and extend** (`M.mode`; older projects count as modernize; changeable with the Project type switch on the interview step). The mode changes only discovery (scans vs product brief), the approaches offered (7 Rs vs build / buy / partner) and the sidebar label; everything else is shared.
+Open [the local preview](http://localhost:8768/) to choose **Project from scratch** or **Legacy modernization**. Selecting a card creates a workspace. **Projects** opens saved workspaces, and a direct workspace URL reopens that project.
 
-**Phase 1 · Discovery**
-- **Project → Evidence → Reports** (for a new product, "01 Product brief")
+| Starting choice | Workflow in the app | Result |
+| --- | --- | --- |
+| Project from scratch | **Define** the product brief and first-release scope → **Design** with rules, people and build, buy or partner decisions → **Deliver** through a pilot, first release and later releases | Launch approval and a product-plan export |
+| Legacy modernization | **Discover** through the interview, evidence cards, agent reports and validation → **Decide** the target for each business area → **Migrate** using a roadmap with migration waves | Signed modernization plan and full record export |
+
+**Modernize and extend** is available through the Project type selector inside a workspace. It follows the modernization workflow with an additional brief for new capabilities. Older projects without a stored mode use modernization.
+
+### New development
+
+The brief records the problem, users, journeys, MVP, success measures, expected load and deployment requirements. The Formfiller agent drafts unanswered fields from the project description and existing answers. Use or edit a suggestion to include it in downstream design and planning. First-release scope carries the MVP and success measures into planning. Each named capability has its own design decision and release assignment. A project can also use a single whole-product decision. Design options uses the brief and selected capability when preparing facts for the agent team.
+
+Launch approval covers first-release capabilities. Later capabilities can stay undecided. Changing the approved launch scope or schedule flags the approval for review. The product-plan export includes the brief, capability assignments, design decisions, rollout, dates and review history.
+
+### Legacy modernization
+
+**Discover**
+- **Project → Evidence → Reports**
   1. **Project interview:** enter the project name first. Ask for modernization reasons, the current problem and what success looks like. Deadline, system type and scope are also available. Interview answers are saved with the project.
   2. **Evidence:** add files by source. Each card explains its team, runs analysis for that card’s staged files, and shows progress and completed reports. An optional Claude setting under More evidence options applies to the next team launch.
   3. **Reports:** workspace runs and team results, with advanced settings for one team at a time.
-  - **Product brief** (new and extend projects): problem, users and jobs, journeys, first release (MVP), success, integrations, preferences, expected users, peak load, data volume, availability, and **deployment type** (where it runs, tenancy, data residency, channels). Modernize projects get a short *Target deployment type*.
+  - The interview includes target deployment questions. Projects marked **Modernize and extend** also capture the new capabilities in a product brief.
 - **03 Validate** (one page, three tabs: System inventory · Field findings · Gaps) and 04 Discovery summary. The old page ids `inventory`, `review` and `gaps` still work in `go()` and open Validate on that tab.
 
-**Phase 2 · Deciding**
+**Decide**
 - 05 Rules & people, in three tabs (`assets/rules-page.js`): 1 Who decides (people) · 2 Technology rules (chips that open a rule editor: Standard, Preferred, Allowed, Needs approval, Retiring, Excluded, each with reason, owner and review date; presets; tech-radar CSV import and export; your own options) · 3 Priorities & limits (weights first, then risk/budget/standards, team skills/data/contracts, and a collapsible Money section with the current run cost).
 - 06 Target decisions opens with a **Portfolio view** (all contexts, platforms, skills gaps, effort, 3-year cost against today with payback). Each card opens with the **decision advisor** (`assets/decision-advisor.js`): recommended approach with reasons, confidence and missing inputs, one deciding question, three scenarios (Safe / Balanced / Ambitious) with effort, risk and checks, cross-checks on the current target, Draft rationale, a robustness check against the priority weights, and a **Second opinion from Claude**; the detailed choices fold under "Adjust in detail". Under it, **Technical options from the AI agent team**: scouts per area, verifier with a product catalogue, rules guard, three blueprints (Safe / Balanced / Ambitious) with a challenger verdict, **Explore** (a comparison matrix per option: compute, SKU, scaling, network, SLA, DR, deployment, limits, cost model, compliance, operations, lock-in, north/south traffic; CSV download) and **Design this blueprint** (database and caching strategy, patterns, traffic, cross-cutting components, sizes, missing facts). Approaches: the 7 Rs, build / buy / partner, or both, by project type. Per context, the approach plus architecture, language, database, integration and cloud. Options are ranked with reasons, cloud services are mapped, and each card shows a hosting estimate and the CAP trade-off.
 
-**Phase 3 · Plan**
+**Migrate**
 - 07 Roadmap: foundations, calendar & capacity, 3 waves, freeze windows.
 - 08 Sign-off & export: what the plan must achieve, readiness, approval, print, JSON export.
 
@@ -67,13 +82,14 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
   - collector-bundle import (format defined);
   - all forms, decisions, roadmap and sign-off.
   - Claude decision features (suggest, review, options, explore, design): tested with a real key on :8091 with the VB.NET sample and a test product.
-- **Not built yet:** the Discovery Collector itself; real-key validation of the code-team Claude agents on a large real codebase; the :8090 backend rebuild (see §1). The other six non-code/database teams have backend export parsers.
+- **Not built yet:** the Discovery Collector itself; real-key validation of the code-team Claude agents on a large real codebase. The other six non-code/database teams have backend export parsers.
 - **Sample data:** "Load reference scenario" (HarvestLink) and the sample collector bundle.
 
 ---
 
 ## 4. Next steps / backlog (agreed with the owner, not built yet)
 
+0. **End goal: four high-level diagrams** from the project data: for architects, project managers, the deployment team and the product team. Everything built should feed them (see the 2026-11-21 entry on predicted sizing).
 1. ~~Merge 03 System inventory + 04 Review findings + 05 Resolve gaps into one "Validate" page~~ done 2026-11-20 as three tabs (see the change log). Still open: group the records by the 9 evidence views instead of by record type.
 2. **Parsers for the other source exports**, in the browser, like the database parser: RVTools/PowerCLI CSV, `kubectl` JSON, cloud inventory CSV, scheduler exports (Control-M JSON, AutoSys JIL, crontab, `schtasks` CSV), Jira/ServiceNow CSV, monitoring CSV (requests per hour → capacity).
 3. **Build the Discovery Collector** per `COLLECTOR-SPEC.md` (separate `collector/` folder, read-only CLI).
@@ -85,9 +101,9 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 9. **Technology rules, step 2 (agreed direction, not built):** new decision areas (hosting model, user interface, packaged/SaaS products, mainframe path, batch and scheduling, identity, reporting and analytics) and missing options (Kotlin, PHP, low-code; Db2, MariaDB, MongoDB, Redis, warehouse; GraphQL, gRPC, existing ESB, EDI; Alibaba, Huawei, in-country and sovereign clouds, hybrid). Each needs its own scoring reasons in `SCORE_RULES` and a `CLOUD_SVC` mapping, otherwise it ranks on rules and skills only.
 11. ~~Decision advisor Phases B and C~~ built 2026-11-20 (see the change log). Still open: replace the effort rule of thumb with the roadmap's own estimates once they exist.
 10. **Technology rules, step 3:** rules scoped to one business area or to regulated data, and version limits ("Java 21 or later").
-12. **Rebuild the :8090 backend** from `main` so every project gets the review and options endpoints (needs the owner's OK; another session started it).
+12. ~~Rebuild the :8090 backend from main~~ done 2026-11-21. The default backend now serves the review and options endpoints.
 13. **Product naming:** the app title still says "Legacy Modernization Advisor"; the doctrine is now "Legacy Modernization and Product Development". Rename on the owner's word.
-14. **New-product depth:** capture several capabilities per product (each decided build / buy / partner) instead of one "Whole system" context; link the product brief MVP to the roadmap's first release.
+14. **Completed 2026-11-21.** First-release scope supports multiple capabilities, individual build, buy or partner decisions, and release planning from the MVP. See the workflow entry in the change log.
 15. **Projects list badge** showing each project's type.
 
 ---
@@ -103,6 +119,108 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 ---
 
 ## 6. Change log (newest first)
+
+### 2026-11-21 — Predicted sizing, data volume, hosting models and Capability agent (Claude)
+
+- **End goal stated by the owner:** four high-level diagrams generated from the project — for architects, project managers, the deployment team and the product team. Not built yet; keep new features as structured data (ids, numbers with their basis) so the diagrams can draw from them.
+- **Peak load is now predicted, not just typical** (`assets/load-calculator.js`, cache key `load-2`): `loadPredict(P)` picks the profile and adjusts assumptions from the brief with local rules (who the users are, tenancy, channels, rushes such as campaigns or shift starts, heavy screens such as reports, scanning), with one reason per changed value; chips switch between "Predicted from the brief" and the three typical profiles; each input shows predicted / typical / you set this. Two new assumptions: **busiest minute vs hour average** (burst, default 1.5–2×) and **requests one vCPU handles** (default 25; 10 for reports, 50 for cacheable reads). Steps: active → concurrent → average in that hour → peak (busiest minute) → sized ÷ per-vCPU. `peakCalc` keeps the basis and vCPU; the agents' fact note says so. Modernization suggestion and check rows include the burst.
+- **Layout:** the brief's numbers are now "Load" (expected users, peak, then the peak calculator right under them) and "Data and availability" (data volume, then the data calculator, then availability) (`assets/project-mode.js`, cache key `prediction-chain-hosting-1`).
+- **Data volume after 3 years** (new `assets/data-calculator.js`, cache key `data-3`): daily active users = users × daily %; records per day; records in 3 years = per day × days in use × (1 + (1+g) + (1+g)²); × KB per record; × (1 + indexes and history %); plus files per day × MB × days. Predicted from the brief by `dataPredict(P)` (scans/orders/transactions, sensors, photos/documents/videos, audit/retention, notes); "Use N GB as the data volume" sets `dataBasis: estimated-from-users` and `dataCalc`; `dataFactNote()` tells the agents; 3× mismatch warning; note that backups and copies are extra (plan 2–3×).
+- **Hosting models to choose from** (new `assets/hosting-models.js`, cache key `hosting-2`): virtual machines, managed web app platform, managed containers, Kubernetes, serverless functions, static web app + API, low-code or SaaS platform, on-site servers or edge — each with what it is, good for, watch, what you still run, how it scales, how it is billed, and the Azure / AWS / Google / on-premises services. `hostingSuggest(P)` ranks the best three from where it runs, tenancy, channels, load and wording, with reasons ("Best fit", "Also fits"). The owner's pick is stored as `M.product.deploy.hosting` (an id; not sent to the Formfiller). Shown in the brief's Deployment type block and in the modernization target deployment section; `hostingFacts()` adds the choice (or the suggestion, labelled as not a decision) to the agents' facts.
+- **Capability agent** (backend `internal/agents/capabilities.go`, `internal/server/capabilities.go`, route `POST /api/brief/capabilities`, health flag `capabilityAgent`; web `assets/capability-agent.js`, cache key `cap-1`, hooked in `releaseScopePage()`): drafts First-release scope capabilities from the brief's written answers and the names already listed. Pressing "Suggest capabilities" is the consent for one request; the panel states what is sent. Each draft needs an exact quote from one brief answer (or the project name); drafts that repeat an existing capability, name an unstated product, or have a bad scope are dropped; one retry when none survive. Drafts wait in `M.capabilityDrafts`; **Add** creates a capability record (`origin: agent`, cite "Product brief · field: quote"), **Dismiss** drops it.
+- Checked: Go vet clean, all packages pass (new `TestCapabilityValidate`, `TestCapabilityDraftsAreGrounded`, `TestCapabilityRetriesOnce`, `TestCapabilityRefusals`); gofmt clean apart from CRLF. In Chrome with storage backed up: prediction reasons, layout order, data steps (400 users → 114 GB incl. 82 GB of photos), hosting suggestion and choice in the facts, capability Add/Dismiss with sample drafts, the "backend needs the update" message from the old :8090; no console errors. Storage restored (2 of 2), test projects removed.
+- **Live on :8090** (owner OK, 2026-11-21): restarted on `bin\mindsuite-agents-cap.exe`, stderr to `backend-cap.log`; health shows `capabilityAgent: true`. Live check with a sample brief (no project data): 8 grounded drafts on the first attempt, first/later scopes right ("Forecast stock demand" later from "Not yet: forecasting"), the existing "Count a shelf" not repeated.
+
+### 2026-11-21 — Suggested peak-load calculation (Claude)
+
+- The owner noticed nothing turned expected users into peak load. New `assets/load-calculator.js` (cache key `load-1`): users × active share in the busiest hour = active; × session minutes ÷ 60 = concurrent; × actions per minute × requests per action ÷ 60 = peak requests/s; × 1.3 headroom × (1 + yearly growth)^3 = sized load, ≈ vCPU at 25 requests/s per vCPU (same rule as the hosting estimate). Starting profiles: internal business tool (30%, 30 min, 3, 3), consumer web or mobile app (10%, 10 min, 6, 4), shop counter / checkout (50%, 45 min, 2, 4); every assumption editable and stored in `M.product.loadCalc`.
+- **Product brief:** `loadCalcPanel()` under the number fields (hooked in `assets/project-mode.js`, redrawn by `refreshLoadCalc()` when users or peak change). "Use … as the peak" writes the peak through `writeBriefAnswer`, sets `peakBasis: estimated-from-users` and `peakCalc`, and logs `product:peak-estimated`; the agent facts then say "(estimated from N users: …)" via `peakFactNote()`. Typing a different peak drops the mark. A warning appears when an entered peak is more than 2× above or below the estimate.
+- **Modernization:** the hosting estimate uses `capLoadSuggestion(cp)` when a capacity profile has users or concurrent users but no peak, and adds a **Check** row from `capLoadCheck(cp)` when recorded users and peak differ by more than 5× from a typical internal tool.
+- Checked: the maths reproduces the owner's table (2,000 users × 30% = 600; × 20 min ÷ 60 = 200; × 4 × 3 ÷ 60 = 40 requests/s; × 1.3 = 52). In Chrome with storage backed up: empty state, profile and assumption edits, Use as the peak, the agent fact note, the 10× mismatch warning, the modernization suggestion and check texts; no console errors. Storage restored (16 of 16), test project removed.
+
+### 2026-11-21 — One backend: :8091 retired (Claude)
+
+- The owner asked why there were two servers for one backend. :8091 was Claude's test copy, started so as not to disturb the :8090 process another session had started; fixes landed on :8091 while projects used :8090, which caused the prediction confusion. With the owner's OK: :8090 was restarted on `bin\mindsuite-agents-retry.exe` (all current backend code, including the Formfiller retry); the only project pointing at :8091 (the VB.NET sample) now points at :8090 (logged in its history; storage backed up first); :8091 was stopped. Its runs folder had already gone in the overnight Temp cleanup, so the VB.NET code-team report (run 20261118-155750-a5fee92919ea) is no longer on any backend; rerun the code team if it is needed.
+- Checked: :8090 health shows formfiller, targetOptions, decisionReview and Claude available; :8091 is off; the VB.NET project opens on :8090 with no console errors.
+
+### 2026-11-21 — Formfiller asks once more when it returns nothing (Claude)
+
+- On a thin brief the model sometimes returned no usable suggestion. `formfiller.go`: `FillProductBrief` now calls `RunFillProductBrief(ctx, in, call)`, which retries **once** with a short note (`briefFillRetry`) when the first answer has no verified suggestion; every check still applies. The response carries `attempts` (1 or 2). New `TestFormfillRetriesOnce` (retry on empty, no retry when usable, never more than one retry); all 12 packages pass.
+- Tested on the former :8091 copy (a real thin-brief call returned a build / buy / partner starting point), then deployed to :8090 (see the entry above).
+
+### 2026-11-21 — Formfiller suggests a build, buy or partner starting point (Claude)
+
+- The owner reported no prediction for "Build, buy or partner: known preferences" (`buyPref`). Same cause as Integrations: only preferences already stated in confirmed answers could be proposed.
+- `formfiller.go`: buyPref is now drafted as a **suggested starting point per capability, to confirm** (build what makes the business different, buy what every business needs, partner where a platform gives speed), from the answers and earlier narrative or integrations drafts; it must not name an unmentioned product or vendor (`namesUnstatedProduct`) or state a purchase, contract or budget as decided. New `TestFormfillBuyPreference`; all 12 packages pass.
+- A real call on :8091 returned "Suggested starting point (to confirm): Build the stock in/out workflow and low-stock alerts…; Buy card payments… and accounting…; Partner for barcode scanner hardware…" with reasons and no vendor names. With the owner's OK, :8090 was restarted on `bin\mindsuite-agents-buypref.exe` (log `backend-buypref.log`); with only a problem and a first-release draft, the first :8090 call returned no suggestion (the model held back on thin evidence) and the identical second call on :8090 and :8091 returned a build / buy / partner starting point. A thin brief can occasionally give an empty answer; asking again or adding answers helps.
+
+### 2026-11-21 — Formfiller now predicts Integrations (Claude)
+
+- The owner reported no predictions for Integrations. Cause: the agent could only propose integrations already stated in the brief, quoted from a confirmed answer; its own drafts (journeys, first release) could not support them, so the field stayed empty and the sequence skipped it.
+- `backend/internal/agents/formfiller.go`: integrations are now predicted as the **kinds of systems** the product needs, by role ("Accounting system: post daily sales", "Card payment provider"), inferred from the answers and earlier narrative drafts (`quoteSource` accepts drafts for integrations). New `namesUnstatedProduct` rejects an integrations draft that names a catalogue product or vendor the owner's own answers or project name do not mention. Prompt updated in both the single and the sequence modes. `catalogue.go` gained common payment, messaging and identity vendors (Stripe, Razorpay, Paytm, PhonePe, PayPal, Adyen, Square, Braintree, Twilio, SendGrid, Mailchimp, Shopify, WooCommerce, Tally, WhatsApp Business, Slack, Microsoft Teams, Okta, Auth0, Google Workspace) so the check catches them.
+- Tests: new `TestFormfillIntegrations` (a kind of system from an earlier draft is accepted, an unmentioned product is rejected, a product the brief names is accepted); Codex's grounding test still passes; all 12 packages pass (gofmt differences are CRLF only). A real call on :8091 returned barcode scanners, card payment provider, accounting system, supplier ordering and notifications, quoting the first-release draft, with no vendor names.
+- With the owner's OK, :8090 was restarted on `bin\mindsuite-agents-integrations.exe` (log `backend-integrations.log`), same config and runs folder, no run in progress; a real integrations prediction on :8090 returned kinds of systems. Older builds stay in `bin` for rollback.
+
+### 2026-11-21 — Predictions failed on :8090: restarted on the current build (Claude)
+
+- The owner reported that prediction was not happening. Cause: :8090 still ran the 07:03 build (`mindsuite-agents-formfiller.exe`), from before the Formfiller request gained `next` and `previous` (07:21). The backend refuses unknown fields, so every request from the app returned 400 "Invalid product brief request". A newer build (`mindsuite-agents-sequence.exe`, 07:27) existed but had not been started.
+- With the owner's OK, built `mindsuite-agents-predict.exe` from the current working copy and restarted :8090 with the same config and runs folder (no run was in progress). Health shows formfiller, targetOptions, decisionReview and Claude available.
+- Checked: the same request now returns a prediction from :8090; in Chrome a test product (storage backed up) got a "Users and their jobs" suggestion with reason, quote, Use answer and Dismiss after Predict next answer; no console errors; storage restored (14 of 14), test project removed. Two small Claude calls were used for the checks.
+
+### 2026-11-21 — Compliance catalogue and guide (Claude)
+
+- The owner asked to show more compliance and educate users on it. New `assets/compliance.js` (cache key `compliance-2`): **35 laws and standards in 7 groups** (privacy: GDPR, UK GDPR, India DPDP Act, CCPA/CPRA, LGPD, PIPEDA, Singapore PDPA, UAE and Saudi PDPL, Australia Privacy Act, COPPA, FERPA; health: HIPAA, HITRUST, 21 CFR Part 11; finance: PCI DSS, SOX, GLBA, DORA, PSD2, RBI directions, SEC 17a-4, APRA CPS 234; security: ISO 27001, SOC 2, NIS2, Cyber Essentials; government: FedRAMP, CMMC, ITAR; accessibility: WCAG 2.2, ADA, European Accessibility Act; AI: EU AI Act) plus the existing local, sector, none and unknown. Each has what it is, when it applies, what it means for the design and the **official source**. All 33 source links were checked on 2026-11-21: 26 by HTTP, 7 that block scripts (HHS, ISO, OAIC, DoD CMMC, FTC, FDA) by opening them in Chrome; COPPA, APRA and OAIC addresses were corrected.
+- The picker (`compliancePicker`, used by the existing `regulationBlock()` in both workflows) groups the chips with region labels and an ⓘ **explainer** per item, a search box, **Likely for this project** suggestions from the project's own text (countries, payments, health, children, students, AI, SaaS, channels; rule-based, nothing added until the owner confirms), and **What your selections mean for the design**. Storage is unchanged (`M.scope.regulation.list`, older ids keep their meaning).
+- `REGULATIONS` in `index.html` now comes from `complianceRegulations()`; the cloud check uses `complianceStrict()` (regulated data: HIPAA, Part 11, PCI, GLBA, DORA, PSD2, RBI, SEC 17a-4, APRA, FedRAMP, CMMC, ITAR, local, sector). The Target options brief gets `complianceFacts()`: each confirmed regulation with its top design needs.
+- Not done here, on purpose: **continuous Formfiller predictions** (the owner asked for all fields predicted and updated as answers change). Codex was editing `formfiller.js`, `project-mode.js` and the Formfiller Go code minutes before, with a step-by-step "Predict next answer"; to avoid two agents editing the same files, this was left to Codex.
+- Checked: `node --check` on every script and the main script; Go vet and all 12 test packages (Codex's uncommitted work included; gofmt differences were CRLF only). In Chrome with storage backed up: the VB.NET project kept its HIPAA selection and shows the design implications; the DPDP explainer opens with the official link; a test new product mentioning India, UPI and cards, an AI chatbot, SaaS, web and mobile got suggestions DPDP, RBI, PCI DSS, EU AI Act, SOC 2 and WCAG with reasons; confirmed items reached the agent facts. No console errors. Storage restored (13 of 13), test project removed.
+
+### 2026-11-21 — First-release technology choices
+
+In a **Project from scratch** workspace, open **Design → Rules & people → Technology rules**. The screen offers presets for a first-release web app, a mobile app with a shared API, and an event-driven product. Users can preview a preset, apply it, or edit individual rules. Legacy modernization and modernization with extensions use the existing migration catalog.
+
+`assets/rule-catalog.js` selects the catalog for the active workspace. The rules editor, design rankings, technology rules CSV and Target options agent brief all use the selected catalog. Product rankings use the brief’s channels, deployment environment and forecast alongside team skills and rules. A new product can record a design with no external integrations. Previously saved migration-only choices remain in the project history and require a replacement before the affected design can be recorded again.
+
+Chrome checks at desktop and mobile widths covered all three project modes, rule editing, presets, reload, CSV import and export, the agent request contents and existing decisions. The full workflow regression passed for both entry paths, including release and migration planning. The agent check inspected its outgoing request locally without calling Claude.
+
+### 2026-11-21 — Formfiller agent for the product brief
+
+The new-product and extension briefs offer **Suggest missing answers** and an optional **Suggest once when I finish my next brief answer**. The second option runs after a committed text edit or completed dictation. Both send one request to the configured Claude backend. The input contains the project name, mode, target date, answered product brief fields and missing keys.
+
+The agent drafts likely users and their jobs, journeys, launch scope and other supported brief answers. Each proposal shows a reason and a short quote checked against the input. Numeric proposals require a source number and deployment choices must match the available options. Unreviewed drafts live in the current browser workspace under M.formfiller. Using or editing an answer promotes it to the product brief. Users can dismiss individual proposals or accept all. The workspace history records runs, timing and review actions. A response to an earlier version of the brief is discarded.
+
+The frontend is in assets/formfiller.js and assets/project-mode.js. The agent and HTTP handler are in backend/internal/agents/formfiller.go and backend/internal/server/formfiller.go. The service exposes POST /api/brief/formfill and the formfiller health flag. The default local service on port 8090 now runs mindsuite-agents-formfiller.exe with the existing config and runs folder.
+
+All Go packages passed. Isolated Chrome checks exercised the actual Go service with a simulated streaming Claude response, including the automatic trigger, typed overrides, accept, dismiss, reload, stale replies, service errors and mobile layout. The local service reports Claude configured. A live Claude generation was outside these checks.
+
+### 2026-11-21 — Textbox dictation in both workflows
+
+Editable text fields, searches and multiline answers have a microphone button. Select it to start listening and select it again to stop. Final phrases replace selected text or insert at the cursor and use the field's existing save handlers. The inline status shows interim speech, permission errors and device voice-typing guidance. Both workflows, dialogs and newly downloaded standalone verification forms use the same implementation in assets/dictation.js. Speech recognition uses the browser provider and the browser's preferred language.
+
+Chrome tests used simulated recognition events to check editing, duplicate and late results, length limits, workspace persistence, field changes, dialogs, microphone denial, device fallback and the standalone form. The product and legacy workflow regression checks also passed. A physical microphone and live transcription service still need a manual end-to-end check.
+
+### 2026-11-21 — Handoff refreshed for Claude
+
+The current-product section now follows both paths from the opening screen through approval and export. The local checkpoint identifies the untracked workflow file, and backlog item 14 records the completed capability work. The preceding implementation session checked both paths in isolated Chrome workspaces, including saved projects, launch approval, changes after approval and a 320 px mobile layout. Those checks exercised the UI and request preparation. The earlier live Claude runs are documented separately in the November 20 entries.
+
+### 2026-11-21 — Separate modernization and new-development workflows (Codex)
+
+- **Legacy modernization:** Discover (project interview, evidence and team runs, reports, validation, expert verification), Decide (rules and target decisions), Migrate (migration waves and sign-off). Modernize and extend follows this path with an additional product brief.
+- **Project from scratch:** Define (product brief and first-release scope), Design (rules and build, buy or partner options), Deliver (pilot, first release, later releases and launch approval). New product projects open at their product brief. The design team receives product facts and capability scope. Its endpoint can be set on the design screen.
+- Capability scope records use the existing M.inventory.contexts IDs and an optional releaseScope. Existing M.product, design decisions and planning records still load. Product planning uses the existing numeric plan slots for the pilot, first release and later releases. Launch approval checks the brief, success measures, first-release decisions, and launch timing. It becomes stale when the launch scope, plan or first-release dates change. A product plan exports the brief, capabilities, decisions, rollout, dates and review history.
+- The navigation and product screens are in assets/project-workflows.js. Shared design, rules and planning screens use the active project mode. Browser QA used isolated workspaces to exercise both paths, capability entry, export, approval and reapproval checks, existing extension mode, saved-project access, and the 320px mobile layout. The local agent service reported target-option support. No model calls were started for QA.
+
+### 2026-11-21 — Two choices on the opening screen (Codex)
+
+- The MindSuite home URL and the New project button open the same two cards: Project from scratch and Legacy modernization. A choice creates its own workspace and opens the project interview. The new-product path includes the product brief and the modernization path includes the target deployment questions.
+- Saved workspaces are available through Projects and direct workspace URLs. Existing projects that modernize and extend still open in that mode, and the interview still offers it under Project type. Opening the home page creates no blank workspace. Older single-project data is migrated into Projects when present.
+- Chrome checks in an isolated browser profile covered both card layouts, both project paths, saved-project selection, direct workspace URLs, stale URLs, and migration of an older project. Updated index.html and the project-mode and project-workspaces assets.
+
+### 2026-11-21 — Caught up with Claude and upgraded the default backend (Codex)
+
+- Reviewed the product-mode, Validate, decision advisor, and Target options changes at b59b025. The working copy was clean before this note.
+- The 12 Go test packages passed. Confirmed no analyses were running on :8090, then started the new build with the existing configuration and runs directory. Windows held the previous executable open, so the current build uses a versioned executable and the previous one is available for rollback.
+- Verified the local page serves the current project-mode and target-options assets. All three decision routes on :8090 responded to local validation checks, and five prior run records were verified. Claude is configured and :8091 is still available. No model requests or evidence reruns were started.
 
 ### 2026-11-20 — Pushed: commit 76f2833 on main
 - All of 2026-11-20's Claude work below: doctrine for modernization and new products, start screen and product brief, 03 Validate, Rules & people tabs and richer technology rules, the decision advisor (Phases A–C), and the Target options team with Explore and the solution designer (backend endpoints `/api/decide/review` and `/api/decide/options`).
@@ -176,8 +294,7 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 - **Backend:** new `POST /api/decide/suggest` (`internal/server/suggest.go`; health flag `approachSuggest`). Body `{strategic, criticality, claims:[{kind, role, text, verdict, correction}]}`, at most 300 claims, 1 MB, text cut to 600 characters. Unknown fields are refused (400), so names or comments cannot be sent by mistake; verdict must be confirmed or corrected, and corrected needs the correction. 503 without a key. `internal/agents/suggest.go` asks `ModelStrong` for structured JSON (summary; up to 4 suggestions with approach, fit, reasons citing claim numbers, what would change it) and drops unknown approaches, duplicates and claim numbers that do not exist. Tests: `suggest_test.go` in both packages.
 - **Web app** (end of `assets/verify-claims.js`, cache key `suggest-1`; `aiPanel(c,d)` on each decision card after Verified claims): a consent box per card that covers one request, "See exactly what is sent", Suggest approaches / Ask again. The answer is kept in `d.ai` with the claims it used; it is marked out of date when they change. "Use this approach" sets the approach only. Each request is logged as `ai-suggest` with how many claims were sent.
 - Checked: Go tests pass. Real call with made-up payroll claims (none of the user's data) on a separate backend built from this code on :8092 (Codex's :8090 untouched): answer in 9 s, reasons cite claims, extra field refused. In Chrome on :8768 with storage backed up and made-up claims: the preview held only the 3 verified claims (no quote, comment, name, rejected or open claim); the button stayed off until the box was ticked and the tick cleared after one request; three suggestions came back; Use this approach set Replace; answering another claim marked the suggestion out of date. Storage restored exactly (11 entries).
-- 2026-11-20 00:26: the :8090 backend was rebuilt from this code and restarted (old Codex process from `Documents\Codex\...\work\database-business-review` stopped; no run was in progress). It now runs `Downloads\Legecy Modernizationin\mindsuite-agents.exe serve -config mindsuite.json -runs "Downloads\Legecy Modernization
-uns"` from that `bin` folder, hidden, log in `binackend.log`. Health shows `approachSuggest: true`, Claude available from the encrypted key file, and the 3 Mess-Management runs are still listed.
+- 2026-11-20 00:26: the :8090 backend was rebuilt from this code and restarted (old Codex process from `Documents\Codex\...\work\database-business-review` stopped; no run was in progress). It now runs `Downloads\Legecy Modernization\bin\mindsuite-agents.exe serve -config mindsuite.json -runs "Downloads\Legecy Modernization\runs"` from that `bin` folder, hidden, log in `bin\backend.log`. Health shows `approachSuggest: true`, Claude available from the encrypted key file, and the 3 Mess-Management runs are still listed.
 
 ### 2026-11-19 — The gate in Target decisions (Claude, not committed)
 - Doctrine step 3 of "Verify before deciding" (principles 4 and 6). Code at the end of `assets/verify-claims.js` (cache key `gate-1`), hooked into `index.html` with `typeof` guards.

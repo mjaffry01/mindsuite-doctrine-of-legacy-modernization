@@ -22,13 +22,25 @@ const RULE_STATE=Object.fromEntries(RULE_STATES.map(s=>[s[0],s]));
 
 /* ---- Catalogue: base options plus the organization's own ---- */
 let TARGET_BASE=null;
+// Shared technologies retain their IDs so rules saved by earlier versions still apply.
+const PRODUCT_OPTIONS={
+ architecture:[['clientapi','Client app with a backend API','Web or mobile clients share an application API'],'modular','microservices','events','serverless'],
+ language:['java','dotnet','node','python','go'],
+ database:['postgres','mysql','sqlserver',['oracle','Oracle Database','Relational database for the application'],'nosql',['sqlite','SQLite (embedded)','Store data locally in an application or device']],
+ integration:[['api','REST APIs','Connect clients and partners over HTTP'],['webhook','Webhooks','Notify a partner when something happens'],'events','queue','ipaas','mft',['cdc','Change data capture','Publish database changes to downstream consumers']],
+ cloud:['aws','azure','gcp','oci','ibm','private',['onprem','On-premises hosting','Deploy to infrastructure operated by your organization or customer']]
+};
+let PRODUCT_BASE=null;
 function syncRuleCatalog(R){
  R.ruleInfo=R.ruleInfo||{};R.custom=R.custom||{};
  if(!TARGET_BASE)TARGET_BASE=Object.fromEntries(Object.keys(TARGETS).map(k=>[k,TARGETS[k].opts.slice()]));
+ if(!PRODUCT_BASE)PRODUCT_BASE=Object.fromEntries(Object.entries(PRODUCT_OPTIONS).map(([dim,options])=>
+  [dim,options.map(o=>Array.isArray(o)?o:TARGET_BASE[dim].find(([id])=>id===o))]));
+ const base=isNewProduct()?PRODUCT_BASE:TARGET_BASE;
  for(const dim of Object.keys(TARGETS)){
   R.ruleInfo[dim]=R.ruleInfo[dim]||{};
   const own=(R.custom[dim]||[]).map(c=>[c.id,c.label,c.hint||'Added by your organization']);
-  TARGETS[dim].opts=TARGET_BASE[dim].concat(own);
+  TARGETS[dim].opts=base[dim].concat(own);
   if(dim==='cloud')for(const [id,label] of own)if(!CLOUD_SVC[id])CLOUD_SVC[id]=customCloudServices(label);
  }
 }
@@ -42,8 +54,6 @@ function customRuleId(label){return 'org-'+String(label).toLowerCase().replace(/
 function ruleStanceEffect(dim,id,add,exclude){
  const R=M.decide.rules,st=R.stance[dim][id]||'allowed',info=(R.ruleInfo[dim]||{})[id]||{};
  const why=info.reason?': '+info.reason:'';
- // A new product has no current system: "keep current …" options do not apply.
- if(id==='keep'&&typeof modeOf==='function'&&modeOf()==='new')exclude('A new product has no current system to keep');
  if(st==='excluded')exclude('Excluded by organization rules'+why);
  if(st==='retiring')exclude('Being retired by organization rules'+(info.exitBy?' (exit by '+info.exitBy+')':'')+why);
  if(st==='standard')add('rule',3,'Organization standard'+why);
@@ -53,6 +63,45 @@ function ruleStanceEffect(dim,id,add,exclude){
  if(st!=='standard'&&!TARGETS[dim].multi){
   const std=TARGETS[dim].opts.filter(([o])=>o!==id&&R.stance[dim][o]==='standard');
   if(std.length&&id!=='keep')add('rule',-1,'Not the organization standard ('+std.map(o=>o[1]).join(', ')+')');
+ }
+}
+
+// A product forecast describes what will be built. Its future data volume is not data to migrate.
+function scoreProductOption(dim,id,add,signals,c,d,R,exclude){
+ const deploy=M.product?.deploy||{},channels=deploy.channels||[];
+ switch(dim){
+ case 'architecture':
+  capArch(id,add,c);
+  constraintArch(id,add);
+  if(id==='modular')add('effort',1,'One application to deploy for the first release');
+  if(id==='clientapi'&&channels.some(ch=>['web','mobile','api'].includes(ch)))add('fit',1,'The product brief names a web, mobile or API channel');
+  if(id==='microservices')add('effort',-1,'Each service needs its own deployment and monitoring');
+  break;
+ case 'language':
+  if(R.skills.includes(id))add('skills',2,'The team lists this language as a skill');
+  break;
+ case 'database':
+  if(id==='sqlite'&&channels.some(ch=>['mobile','desktop','embedded'].includes(ch)))add('fit',1,'The planned client can store data on the device');
+  if(num(M.product?.dataGb)>=10000)add('risk',0,'Check storage limits against the three-year product forecast');
+  break;
+ case 'integration':
+  capInt(id,add,c);
+  if(id==='api'&&channels.some(ch=>['mobile','api'].includes(ch)))add('fit',1,'The planned channel needs an application interface');
+  if(id==='events'&&effective('architecture',d)==='events')add('fit',1,'The selected architecture publishes and consumes events');
+  break;
+ case 'cloud': {
+  capCloud(id,add,c);
+  regulationCloud(id,add);
+  const publicCloud=['aws','azure','gcp','oci','ibm'].includes(id);
+  if((['public','multicloud'].includes(deploy.where)&&publicCloud)||(['onprem','private'].includes(id)&&deploy.where===id))
+   add('fit',2,'Matches the deployment environment in the product brief');
+  if(R.residency==='region')add('risk',0,'Confirm availability in '+(R.region||'the required region'));
+
+  if(publicCloud&&R.residency==='private'&&(signals.regulated||signals.sensitive))exclude('Sensitive data must use private infrastructure');
+  const names={aws:['aws','amazon'],azure:['azure','microsoft'],gcp:['google','gcp'],oci:['oracle cloud','oci'],ibm:['ibm']};
+  if((names[id]||[]).some(name=>R.contracts.toLowerCase().includes(name)))add('cost',1,'Covered by a recorded organization agreement');
+  break;
+ }
  }
 }
 
@@ -83,9 +132,17 @@ const RULE_PRESETS=[
  ['regulated','Regulated: keep data on-premises',{cloud:{onprem:'standard',private:'preferred',aws:'excluded',azure:'excluded',gcp:'excluded',oci:'excluded',ibm:'excluded'},architecture:{serverless:'excluded'}}],
  ['opensource','Open-source first',{database:{postgres:'standard',mysql:'preferred',oracle:'approval',sqlserver:'approval'},language:{java:'preferred',python:'preferred',go:'preferred'},cloud:{private:'preferred'}}],
  ['cautious','Low risk: gradual change',{architecture:{modular:'preferred',wrap:'preferred',microservices:'approval',events:'approval',serverless:'approval'},integration:{api:'preferred',cdc:'preferred'}}]];
+const PRODUCT_PRESETS=[
+ ['web-mvp','First-release web app',{architecture:{modular:'preferred'},database:{postgres:'preferred'},integration:{api:'preferred'}}],
+ ['mobile-api','Mobile app with a shared API',{architecture:{clientapi:'preferred'},integration:{api:'standard'}}],
+ ['event-product','Event-driven product',{architecture:{events:'preferred'},integration:{events:'preferred',queue:'preferred'}}]
+];
+function rulePresets(){
+ return isNewProduct()?[...PRODUCT_PRESETS,...RULE_PRESETS.filter(([key])=>['azure','aws','gcp','opensource'].includes(key))]:RULE_PRESETS;
+}
 function applyRulePreset(key,replace){
- const p=RULE_PRESETS.find(x=>x[0]===key);if(!p)return 0;const R=M.decide.rules;let n=0;
- if(replace)for(const dim of Object.keys(TARGETS)){R.stance[dim]={};R.ruleInfo[dim]={};}
+ const p=rulePresets().find(x=>x[0]===key);if(!p)return 0;const R=M.decide.rules;let n=0;
+ if(replace)for(const dim of Object.keys(TARGETS))for(const [id] of TARGETS[dim].opts){delete R.stance[dim][id];delete R.ruleInfo[dim][id];}
  for(const [dim,rules] of Object.entries(p[2]))for(const [id,state] of Object.entries(rules)){
   if(!TARGETS[dim].opts.some(o=>o[0]===id))continue;
   setRule(dim,id,state,{reason:'Preset: '+p[1],owner:M.actor||''});n++;
@@ -107,13 +164,14 @@ const RULE_ALIASES={
  integration:{api:['api gateway','rest','rest api','apis'],events:['kafka','event streaming','event hubs','pub/sub'],queue:['message queue','rabbitmq','ibm mq','mq','service bus','sqs'],ipaas:['ipaas','mulesoft','boomi','logic apps'],mft:['mft','sftp','managed file transfer'],cdc:['cdc','change data capture','debezium','goldengate']},
  architecture:{modular:['modular monolith'],microservices:['microservices'],events:['event-driven','event driven','event-driven architecture'],serverless:['serverless','lambda','functions'],wrap:['api facade','api façade','strangler fig']}};
 const normRule=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
-function matchRuleOption(name,areaHint){
+function matchRuleOption(name,areaHint,catalog=TARGETS){
  const n=normRule(name);const dims=areaHint&&TARGETS[areaHint]?[areaHint]:Object.keys(TARGETS);
  for(const dim of dims){
-  for(const [id,label] of TARGETS[dim].opts){
+  const options=catalog===TARGETS?TARGETS[dim].opts:catalog[dim];
+  for(const [id,label] of options){
    const l=normRule(label);if(n===l||n===normRule(label.split(' (')[0])||n===id)return [dim,id];
   }
-  for(const [id,al] of Object.entries(RULE_ALIASES[dim]||{}))if(al.includes(n))return [dim,id];
+  for(const [id,al] of Object.entries(RULE_ALIASES[dim]||{}))if(al.includes(n)&&options.some(o=>o[0]===id))return [dim,id];
  }
  return null;
 }
@@ -134,13 +192,20 @@ function importRuleCsv(text){
  const ci={name:col('name','technology','item','option'),ring:col('ring','status','state','stance'),area:col('area','dimension','category'),
   reason:col('reason','rationale','why','description'),owner:col('owner','decided by'),review:col('review_by','reviewby','review date','review'),exit:col('exit_by','exitby','exit date','sunset date')};
  if(ci.name<0||ci.ring<0)return {error:'The file needs a "name" column and a "ring" (or "status") column.'};
- const people=M.people||[];const out={applied:0,added:0,unknownRing:[],unmatched:[]};
+ const people=M.people||[];const out={applied:0,added:0,unknownRing:[],unmatched:[],outsideMode:[]};
  for(const r of rows.slice(1)){
   const name=(r[ci.name]||'').trim();if(!name)continue;
   const state=RING_MAP[normRule(r[ci.ring])];if(!state){out.unknownRing.push(name+' ('+(r[ci.ring]||'blank')+')');continue;}
   let area=ci.area>=0?normRule(r[ci.area]).replace(/ \/.*$/,''):'';
   area=area?Object.keys(TARGETS).find(k=>k===area||normRule(TARGETS[k].title).startsWith(area))||'':'';
   let hit=matchRuleOption(name,area);
+  if(!hit){
+   const alternate=matchRuleOption(name,area,isNewProduct()?TARGET_BASE:PRODUCT_BASE);
+   if(alternate){
+    if(!optOf(...alternate)){out.outsideMode.push(name);continue;}
+    hit=alternate;
+   }
+  }
   if(!hit&&area){const R=M.decide.rules;R.custom[area]=R.custom[area]||[];const id=customRuleId(name);R.custom[area].push({id,label:name,hint:'Added by import'});syncRuleCatalog(R);hit=[area,id];out.added++;}
   if(!hit){out.unmatched.push(name);continue;}
   const ownerName=ci.owner>=0?(r[ci.owner]||'').trim():'';const owner=people.find(p=>normRule(p.name)===normRule(ownerName))?.id||'';

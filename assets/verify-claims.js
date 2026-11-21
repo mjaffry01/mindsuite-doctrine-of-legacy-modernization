@@ -209,6 +209,7 @@ document.getElementById('save').addEventListener('click',function(){
  alert('Your answers were saved as a file in your Downloads folder. Send that file back to the person who sent you this form.');
 });
 })();
+(${installTextboxDictation.toString()})();
 </script></body></html>`;
 }
 

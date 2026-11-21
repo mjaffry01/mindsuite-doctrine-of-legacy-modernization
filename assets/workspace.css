@@ -281,3 +281,16 @@ main{padding:39px 43px 95px;max-width:1580px}.page-heading{margin-bottom:27px;ga
 .run-telemetry-list{max-width:100%;overflow-x:auto}.run-telemetry-table{min-width:640px}.run-telemetry-table td{padding-block:8px;vertical-align:top}
 
 .business-operations h3{margin:0 0 8px}.business-flow-card{border:1px solid var(--line);border-radius:10px;margin:14px 0;padding:14px}.business-flow-card h4{margin:0 0 8px;font-size:15px}.business-flow-card h5{margin:12px 0 4px;font-size:13px}.business-flow-list{padding-left:21px}.business-flow-list li{padding:4px 0;line-height:1.5;overflow-wrap:anywhere}
+
+/* Product brief and capability scope */
+.product-workflow .product-basics>.context-control:last-child{grid-column:auto}
+.capability-list li{
+ flex-direction:row;align-items:center;justify-content:space-between;gap:12px;
+ padding:12px 14px;border-color:var(--line);border-radius:9px;
+}
+.capability-list li>div:first-child{min-width:0;overflow-wrap:anywhere}
+.capability-list li small{display:block;margin-top:3px}
+.capability-list .finding-actions{flex-shrink:0;margin:0;padding:0;border:0}
+@media(max-width:480px){
+ .capability-list li{align-items:flex-start;flex-direction:column}
+}

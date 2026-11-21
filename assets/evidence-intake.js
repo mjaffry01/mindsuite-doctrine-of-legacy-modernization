@@ -57,6 +57,7 @@ function evidencePageTitle() {
 
 function showEvidenceStep(step, focus = true) {
   if (busy) return;
+  if (isNewProduct()) { go('upload'); return; }
   const needsName = step === 'sources' && !M.project.trim();
   if (needsName) step = 'project';
   evidenceUI.step = step;

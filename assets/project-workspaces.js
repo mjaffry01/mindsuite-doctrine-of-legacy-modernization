@@ -2,7 +2,6 @@
    workspace loads a new page so pending callbacks never see a different project. */
 const projectPrefix = 'mindsuite-workspace-v1:';
 const projectPattern = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
-const recentProjectKey = 'mindsuite-recent-workspace-v1';
 const migratedProjectKey = 'mindsuite-migrated-workspace-v1';
 
 function readProject(id) {
@@ -16,42 +15,36 @@ function readProject(id) {
 
 function projectAddress(id) {
   const url = new URL(location.href);
-  url.searchParams.set('workspace', id);
+  if (id) url.searchParams.set('workspace', id);
+  else url.searchParams.delete('workspace');
+  url.searchParams.delete('sample');
   url.hash = '';
   return url;
 }
 
-function openProjectState(legacyKey, blank) {
-  try {
-    const requested = new URL(location.href).searchParams.get('workspace');
-    const recent = localStorage.getItem(recentProjectKey);
-    let id = [requested, recent].find(key => projectPattern.test(key || '') && readProject(key));
-    let state = id ? readProject(id) : null;
-    if (!state) {
-      id = crypto.randomUUID();
-      state = blank();
-      const migrated = localStorage.getItem(migratedProjectKey);
-      if (!migrated) {
-        const legacy = JSON.parse(localStorage.getItem(legacyKey) || 'null');
-        if (legacy?.version === 1 && Array.isArray(legacy.files)) {
-          state = legacy;
-          state.legacyRunIds = Object.entries(state.agentBackend || {})
-            .filter(([key, value]) => /runid$/i.test(key) && typeof value === 'string')
-            .map(([, value]) => value);
-          for (const [key, result] of Object.entries(state)) {
-            if (/agentRun$/i.test(key) && result?.id) state.legacyRunIds.push(result.id);
-          }
-        }
-      }
-      writeProject(id, state);
-      if (!migrated) localStorage.setItem(migratedProjectKey, id);
-    }
-    localStorage.setItem(recentProjectKey, id);
-    history.replaceState(null, '', projectAddress(id));
-    return {id, state: {...blank(), ...state}};
-  } catch {
-    return {id: crypto.randomUUID(), state: blank()};
+function migrateLegacyProject(legacyKey) {
+  if (localStorage.getItem(migratedProjectKey)) return;
+  const state = JSON.parse(localStorage.getItem(legacyKey) || 'null');
+  if (state?.version !== 1 || !Array.isArray(state.files)) return;
+
+  state.legacyRunIds = Object.entries(state.agentBackend || {})
+    .filter(([key, value]) => /runid$/i.test(key) && typeof value === 'string')
+    .map(([, value]) => value);
+  for (const [key, result] of Object.entries(state)) {
+    if (/agentRun$/i.test(key) && result?.id) state.legacyRunIds.push(result.id);
   }
+  const id = crypto.randomUUID();
+  writeProject(id, state);
+  localStorage.setItem(migratedProjectKey, id);
+}
+
+function openProjectState(legacyKey, blank) {
+  const requested = new URL(location.href).searchParams.get('workspace');
+  const state = projectPattern.test(requested || '') ? readProject(requested) : null;
+  if (state) return {id: requested, state: {...blank(), ...state}};
+
+  try { migrateLegacyProject(legacyKey); } catch {}
+  return {id: crypto.randomUUID(), state: blank(), entry: true};
 }
 
 function writeProject(id, state) {
@@ -68,57 +61,42 @@ function savedProjects() {
     .sort((a, b) => (a.project.project || '').localeCompare(b.project.project || ''));
 }
 
-function showProjectPicker(create) {
-  const dialog = document.getElementById('projectPicker');
-  dialog.replaceChildren();
-  const title = h('h2', {id: 'projectPickerTitle', text: create ? 'New project' : 'Project workspaces'});
-  const close = button('Close', () => dialog.close());
-  if (create) {
-    const name = h('input', {id: 'newWorkspaceName', maxlength: '180', autocomplete: 'off'});
-    const form = h('form', {}, [
-      title,
-      h('label', {for: 'newWorkspaceName', text: 'Project name (optional)'}),
-      name,
-      h('small',{class:'muted',text:'Leave this blank to name the project from your first upload.'}),
-      h('div', {class: 'project-actions'}, [close, h('button', {type: 'submit', class: 'btn primary', text: 'Create workspace'})])
-    ]);
-    form.addEventListener('submit', event => {
-      event.preventDefault();
-      const project = name.value.trim();
-      try {
-        writeProject(workspaceId, M);
-        const id = crypto.randomUUID();
-        writeProject(id, {...emptyMock(), project});
-        location.assign(projectAddress(id));
-      } catch {
-        dialog.close();
-        notice('Browser storage is unavailable or full. Export your current project before making room.');
-      }
-    });
-    dialog.append(form);
-  } else {
-    const choices = savedProjects().map(({id, project}) => {
-      const current = id === workspaceId;
-      const name = project.project?.trim() || 'Untitled project';
-      const suffix = current ? ' · Current workspace' : '';
-      return h('li', {}, [h('button', {
-        type: 'button', class: 'btn', disabled: current ? '' : null,
-        text: name + suffix, onclick: () => {
-          try {
-            writeProject(workspaceId, M);
-            location.assign(projectAddress(id));
-          } catch {
-            dialog.close();
-            notice('Browser storage is full. Export your current project before switching.');
-          }
-        }
-      })]);
-    });
-    dialog.append(title, h('ul', {class: 'project-choices'}, choices),
-      h('div', {class: 'project-actions'}, [close, button('New project', () => showProjectPicker(true), 'btn primary')]));
+function startNewProject() {
+  if (openedWorkspace.entry) {
+    document.getElementById('projectPicker').close();
+    return;
   }
+  try {
+    writeProject(workspaceId, M);
+    location.assign(projectAddress());
+  } catch {
+    notice('Browser storage is full. Export your current project before starting another.');
+  }
+}
+
+function showProjectPicker() {
+  const dialog = document.getElementById('projectPicker');
+  const title = h('h2', {id: 'projectPickerTitle', text: 'Project workspaces'});
+  const choices = savedProjects().map(({id, project}) => {
+    const current = !openedWorkspace.entry && id === workspaceId;
+    const name = project.project?.trim() || 'Untitled project';
+    return h('li', {}, [h('button', {
+      type: 'button', class: 'btn', disabled: current ? '' : null,
+      text: name + (current ? ' · Current workspace' : ''), onclick: () => {
+        try {
+          if (!openedWorkspace.entry) writeProject(workspaceId, M);
+          location.assign(projectAddress(id));
+        } catch {
+          dialog.close();
+          notice('Browser storage is full. Export your current project before switching.');
+        }
+      }
+    })]);
+  });
+  dialog.replaceChildren(title,
+    choices.length ? h('ul', {class: 'project-choices'}, choices) : h('p', {text: 'No saved projects yet.'}),
+    h('div', {class: 'project-actions'}, [button('Close', () => dialog.close()), button('New project', startNewProject, 'btn primary')]));
   if (!dialog.open) dialog.showModal();
-  if (create) document.getElementById('newWorkspaceName').focus();
 }
 
 function openReferenceWorkspace() {

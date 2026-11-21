@@ -11,7 +11,7 @@ function workspaceMenu(open,restoreFocus=false){
  const toggle=document.getElementById('workspaceMenu');toggle?.setAttribute('aria-expanded',String(open));
  if(open)document.querySelector('#phaseNav .active')?.focus();else if(restoreFocus)toggle?.focus();
 }
-function enhanceWorkspace(){
+function enhanceWorkspace(groups){
  document.getElementById('main').setAttribute('tabindex','-1');
  const aside=document.querySelector('.layout>aside');aside.id='workspace-navigation';
  if(!document.getElementById('workspaceMenu')){
@@ -50,16 +50,34 @@ function enhanceWorkspace(){
   for(const [id,label] of [['all','All sources'],['open','Needs input']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.filter=id;b.onclick=()=>{workspaceUI.filter=id;apply();};filters.append(b);}
   input.oninput=()=>{workspaceUI.query=input.value;apply();};tools.append(search,filters,count);grid.before(tools);grid.after(empty);apply();
  }
- enhanceContemporaryUI();
+ enhanceContemporaryUI(groups);
 }
 
 /* Contemporary navigation and compact agent actions. Presentation only. */
-function enhanceContemporaryUI(){
+function enhanceContemporaryUI(groups){
  const navPaths=[['M3 5h18v15H3zM7 3v4M17 3v4M3 10h18M7 14h4'],['M8 6 2 12l6 6M16 6l6 6-6 6M14 4l-4 16'],['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'],['M5 3h14v18H5zM8 8h8M8 12h5M8 16h6'],['M12 3 2 21h20zM12 9v5M12 17h.01'],['M5 3h10l4 4v14H5zM14 3v5h5M8 12h8M8 16h6'],['M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M2 21v-3a7 7 0 0 1 14 0v3M17 4a3 3 0 0 1 0 6M22 21v-3a6 6 0 0 0-4-5'],['M4 4h6v6H4zM14 14h6v6h-6zM10 7h7v7M4 18h6M7 15v6'],['M4 4v16M4 7h13M4 13h9M4 19h16M17 5v4M13 11v4M20 17v4'],['M4 3h11l4 4v5M4 3v18h8M14 3v5h5M14 18l3 3 5-7']];
  const nav=[...document.querySelectorAll('#phaseNav .phase')];
- nav.forEach((button,i)=>{if(button.querySelector('.nav-icon'))return;const icon=document.createElement('span');icon.className='nav-icon';icon.append(workspaceIcon(navPaths[i]||navPaths[0]));button.prepend(icon);});
+ const iconIndex={upload:0,analysis:1,validate:2,summary:3,verify:4,rules:6,decide:7,roadmap:8,signoff:9,'release-scope':5};
+ for(const button of nav){
+  if(button.querySelector('.nav-icon'))continue;
+  const icon=document.createElement('span');icon.className='nav-icon';
+  icon.append(workspaceIcon(navPaths[iconIndex[button.dataset.screen]]||navPaths[0]));
+  button.prepend(icon);
+ }
  let stages=document.querySelector('.workspace-stages');
- if(!stages){stages=document.createElement('nav');stages.className='workspace-stages';stages.setAttribute('aria-label','Modernization stages');for(const [n,title,index] of [['01','Discover',0],['02','Decide',6],['03','Plan',8]]){const b=document.createElement('button');b.type='button';const num=document.createElement('span');num.textContent=n;b.append(num,document.createTextNode(title));b.dataset.index=index;b.onclick=()=>document.querySelectorAll('#phaseNav .phase')[index]?.click();stages.append(b);}document.querySelector('.top-right').before(stages);}
- const active=nav.findIndex(b=>b.classList.contains('active')),stage=active<6?0:active<8?1:2;
- [...stages.children].forEach((b,i)=>{if(i===stage)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');b.disabled=nav[Number(b.dataset.index)]?.disabled||false;});
+ if(!stages){
+  stages=document.createElement('nav');stages.className='workspace-stages';stages.setAttribute('aria-label','Project stages');
+  document.querySelector('.top-right').before(stages);
+ }
+ const current=workflowStep();
+ const focused=document.activeElement?.dataset.stage;
+ stages.replaceChildren(...groups.map(({title,steps},index)=>{
+  const [first]=steps[0];
+  return h('button',{
+   type:'button','data-stage':String(index),disabled:busy?'':null,
+   'aria-current':steps.some(([id])=>id===current)?'step':null,
+   onclick:()=>go(first)
+  },[h('span',{text:String(index+1).padStart(2,'0')}),title]);
+ }));
+ if(focused!=null)stages.querySelector('[data-stage="'+focused+'"]')?.focus({preventScroll:true});
 }

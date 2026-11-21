@@ -24,8 +24,8 @@ const REASON_TO_DRIVER={support:'eos',contract:'eos',dependencies:'eos',compatib
 function advisorAnswers(){ensureDecide();return M.decide.advisor||(M.decide.advisor={});}
 function advisorInputs(c){
  const S=ctxSignals(c),b=(typeof brief==='function'?brief():{})||{},K=constraints(),A=advisorAnswers();
- const why=[].concat(b.why||[]).filter(Boolean);
- const drivers=new Set([...(M.values.drivers||[]),...why.map(w=>REASON_TO_DRIVER[w]).filter(Boolean)]);
+ const product=isNewProduct(), why=product?[]:[].concat(b.why||[]).filter(Boolean);
+ const drivers=new Set(product?[]:[...(M.values.drivers||[]),...why.map(w=>REASON_TO_DRIVER[w]).filter(Boolean)]);
  let months=null,deadlineText='',deadlinePassed='';
  if(b.deadline){const d=new Date(b.deadline);if(!isNaN(d)){
   if(d<new Date(new Date().toDateString()))deadlinePassed=b.deadline;   // a past date is not used for advice
@@ -142,9 +142,10 @@ function advisorConfidence(c,I){
   ['Code scanned',!!S.lang,()=>showEvidenceStep('sources')],
   ['Bounded contexts',S.contexts>0,()=>{invTab='contexts';go('inventory');}]];
  if(I.mode==='new'){
-  const brief=()=>{screen='evidence';try{showEvidenceStep('project');}catch(e){go('evidence');}};
+  const brief=()=>go('upload');
+  const values=()=>document.getElementById('decision-'+c.id)?.querySelector('.ctx-values select')?.focus();
   items.splice(0,items.length,
-   ['Strategic value',!!I.strategic,()=>go('review')],['Criticality',!!I.crit,()=>go('review')],
+   ['Strategic value',!!I.strategic,values],['Criticality',!!I.crit,values],
    ['Problem and users',!!(String(I.P.problem||'').trim()&&String(I.P.users||'').trim()),brief],['First release (MVP)',!!String(I.P.mvp||'').trim(),brief],
    ['Scale (users or peak load)',!!(I.P.users_count||I.P.peak),brief],['Deployment type',!!I.deploy.where,brief],
    [I.deadlinePassed?'Deadline ('+I.deadlinePassed+' has passed)':'Deadline',I.hasDeadline,brief],['Risk appetite',!!I.risk,()=>{rulesTab='priorities';go('rules');}]);
@@ -358,18 +359,19 @@ function portfolioPanel(C){
  const skillGap=langs.filter(l=>!R.skills.includes(l));
  const pm=rows.filter(r=>r.size).reduce((a,r)=>[a[0]+PERSON_MONTHS[r.size][0],a[1]+PERSON_MONTHS[r.size][1]],[0,0]);
  const cur=B.currency||'',fmt=n=>Math.round(n).toLocaleString()+' '+cur;
- const today=runCost(),target=num(B.targetRun),rate=num(B.personMonth);
+ const product=isNewProduct(),today=product?0:runCost(),target=num(B.targetRun),rate=num(B.personMonth);
  const oneOff=rate?[pm[0]*rate,pm[1]*rate]:null;
  const set=k=>v=>{const b=B[k];B[k]=v;logInput('cost:'+k,b,v);persist();render();};
  const costRows=[];
  if(today)costRows.push(['Today, 3 years',fmt(today*3),'from the business case in 05 Rules & people']);
- if(oneOff)costRows.push(['Migration, one-off',fmt(oneOff[0])+' – '+fmt(oneOff[1]),pm[0]+'–'+pm[1]+' person-months (rule of thumb by effort size)']);
+ if(oneOff)costRows.push([product?'Implementation, one-off':'Migration, one-off',fmt(oneOff[0])+' – '+fmt(oneOff[1]),pm[0]+'–'+pm[1]+' person-months (rule of thumb by effort size)']);
  if(target)costRows.push(['Target running, 3 years',fmt(target*3),'your estimate per year × 3']);
+ if(product&&target&&oneOff)costRows.push(['Product total, 3 years',fmt(oneOff[0]+target*3)+' – '+fmt(oneOff[1]+target*3),'Implementation and running costs']);
  if(today&&target&&oneOff){const lo=oneOff[0]+target*3,hi=oneOff[1]+target*3;costRows.push(['Target total, 3 years',fmt(lo)+' – '+fmt(hi),hi<today*3?'cheaper than today within 3 years, even at the high estimate':lo<today*3?'cheaper than today only at the low estimate':'more than today over 3 years']);
   const save=today-target;costRows.push(['Payback',save>0?(oneOff[0]/save).toFixed(1)+' – '+(oneOff[1]/save).toFixed(1)+' years':'no yearly saving',save>0?'one-off cost ÷ yearly saving of '+fmt(save):'the target costs as much or more to run']);}
  return h('section',{class:'summary-section portfolio'},[
-  h('div',{class:'portfolio-head'},[h('h2',{text:'Portfolio view'}),h('small',{class:'muted',text:C.length+' context'+(C.length===1?'':'s')+' · '+rows.filter(r=>r.d.status==='decided').length+' decided'})]),
-  h('table',{class:'scan-table portfolio-table'},[h('thead',{},[h('tr',{},['Context','Approach','Cloud','Database','Language','Effort','Confidence','Status'].map(t=>h('th',{text:t})))]),
+  h('div',{class:'portfolio-head'},[h('h2',{text:'Portfolio view'}),h('small',{class:'muted',text:C.length+(product?(C.length===1?' capability':' capabilities'):(C.length===1?' context':' contexts'))+' · '+rows.filter(r=>r.d.status==='decided').length+' decided'})]),
+  h('table',{class:'scan-table portfolio-table'},[h('thead',{},[h('tr',{},[product?'Capability':'Context','Approach','Cloud','Database','Language','Effort','Confidence','Status'].map(t=>h('th',{text:t})))]),
    h('tbody',{},rows.map(r=>h('tr',{},[h('td',{text:r.c.name}),h('td',{},[r.appr?apprLabel(r.appr):'—',!r.has&&r.appr?h('small',{class:'muted',text:' (suggested)'}):null]),
     h('td',{text:label('cloud',r.cloud)||'—'}),h('td',{text:label('database',r.db)||'—'}),h('td',{text:label('language',r.lang)||'—'}),h('td',{text:r.size||'—'}),
     h('td',{class:'conf-'+r.adv.confidence.level,text:r.adv.confidence.level}),h('td',{text:r.d.status==='decided'?(violations(r.c,r.d).length?'Breaks rules':'Decided'):r.d.reopened?'Changed':'Open'})])))]),
@@ -378,11 +380,11 @@ function portfolioPanel(C){
     clouds.length>1?h('small',{class:'warn-text',text:'More than one cloud: more skills, tooling and contracts to run.'}):null]),
    h('div',{},[h('b',{text:'Skills'}),h('p',{text:skillGap.length?'Not yet a team skill: '+skillGap.map(x=>label('language',x)).join(', '):langs.length?'The team already knows the chosen languages':'No new language chosen'})]),
    h('div',{},[h('b',{text:'Effort'}),h('p',{text:pm[1]?pm[0]+'–'+pm[1]+' person-months in total':'Choose or accept approaches first'}),h('small',{class:'muted',text:'Rule of thumb: S 2–6, M 6–18, L 18–48, XL 48–120 person-months.'})])]),
-  h('details',{class:'compare portfolio-cost',open:costRows.length>1?'':null},[h('summary',{text:'3-year cost against today'}),
-   h('div',{class:'rules-grid'},[inputControl('Cost of one person-month',B.personMonth,set('personMonth'),'number','e.g. 12000'),inputControl('Expected yearly running cost after the move',B.targetRun,set('targetRun'),'number','e.g. 90000'),inputControl('Currency',B.currency,set('currency'),'text','USD')]),
-   !today?h('p',{class:'muted',text:'Add today\'s yearly run cost in 05 Rules & people (Priorities & limits → Money) to compare.'}):null,
+  h('details',{class:'compare portfolio-cost',open:costRows.length>1?'':null},[h('summary',{text:product?'3-year product cost':'3-year cost against today'}),
+   h('div',{class:'rules-grid'},[inputControl('Cost of one person-month',B.personMonth,set('personMonth'),'number','e.g. 12000'),inputControl(product?'Expected yearly product running cost':'Expected yearly running cost after the move',B.targetRun,set('targetRun'),'number','e.g. 90000'),inputControl('Currency',B.currency,set('currency'),'text','USD')]),
+   !product&&!today?h('p',{class:'muted',text:'Add today\'s yearly run cost in 05 Rules & people (Priorities & limits → Money) to compare.'}):null,
    costRows.length?h('dl',{class:'inv-meta cost-table'},costRows.flatMap(([k,v,n])=>[h('dt',{text:k}),h('dd',{},[h('b',{text:v}),h('small',{class:'muted',text:' · '+n})])])):null,
-   h('small',{class:'muted',text:'Estimates for comparing options, not a budget. The effort ranges are rules of thumb; replace them with your own estimates in the roadmap.'})])
+   h('small',{class:'muted',text:'Estimates help compare options. Refine effort and cost when planning delivery.'})])
  ]);
 }
 

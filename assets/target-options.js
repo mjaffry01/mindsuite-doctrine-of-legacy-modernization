@@ -9,46 +9,54 @@
 
 const OPTION_AREAS=[['hosting','Hosting & platform'],['architecture','Application & architecture'],['data','Data'],['integration','Integration'],
  ['ui','User interface & channels'],['products','Products & SaaS'],['legacy','Legacy runtime specialist']];
+const availableOptionAreas=()=>isNewProduct()?OPTION_AREAS.filter(([id])=>id!=='legacy'):OPTION_AREAS;
 const OPTION_AREA_TO_DIM={hosting:'cloud',architecture:'architecture',data:'database',integration:'integration'};
 const optionsUI={consent:{},busy:{},error:{},areas:{},started:{},exploring:{},exploreError:{}};
 
 /* ---- 1. Evidence brief ---- */
 const maskPaths=s=>String(s||'').replace(/(?:[A-Za-z]:)?[\w.\-]*[\\/][\w.\-\\/]+(?::\d+)?/g,'[file]').replace(/\b[\w\-]+\.(?:cs|vb|java|cbl|cob|sql|py|js|ts|xml|config|json|ya?ml)(?::\d+)?\b/gi,'[file]');
 function optionsBrief(c){
- const S=ctxSignals(c),I=advisorInputs(c),R=M.decide.rules,inv=M.inventory,all=c.virtual;const facts=[];
+ const product=isNewProduct(),S=ctxSignals(c),I=advisorInputs(c),R=M.decide.rules,inv=M.inventory,all=c.virtual;const facts=[];
  const add=(area,text)=>{text=String(text||'').trim();if(text&&facts.length<150)facts.push({id:'F'+(facts.length+1),area,text:text.slice(0,300)});};
  const lbl=(list,id)=>((list||[]).find(x=>x[0]===id)||[,id])[1];
  if(typeof productFacts==='function')productFacts(add);
- if(M.values.legacyType)add('stack','System type: '+lbl(TYPES,M.values.legacyType));
- for(const id of (M.values.technology||[]).slice(0,25)){const t=(TECH_CATALOG||[]).find(x=>x[0]===id);add('stack','Technology: '+(t?t[1]:id)+(M.details&&M.details[id]?' ('+String(M.details[id]).slice(0,80)+')':''));}
- if(!S.lang)add('stack','Current programming language not identified yet');
- const comps=inv.components.filter(x=>all||x.context===c.id);
- if(comps.length){const kinds={};for(const x of comps)kinds[x.kind||'module']=(kinds[x.kind||'module']||0)+1;add('component',comps.length+' components: '+Object.entries(kinds).map(([k,n])=>n+' '+k).join(', '));
-  for(const x of comps.slice(0,12))add('component','Component '+maskPaths(x.name)+(x.kind?' ('+x.kind+')':'')+(x.tech?', '+maskPaths(x.tech):'')+(x.size?', size '+x.size:''));}
- const stores=inv.dataStores.filter(d=>all||d.owner===c.id||(d.writers||[]).includes(c.id));
- for(const d of stores.slice(0,15))add('data','Data store '+maskPaths(d.name)+(d.kind?' ('+d.kind+')':'')+(d.sensitivity?', sensitivity '+d.sensitivity:'')+((d.writers||[]).length>1?', written by '+d.writers.length+' contexts':''));
- if(S.shared.length)add('data',S.shared.length+' shared data store(s) written by more than one context');
- const ifs=S.ifs;if(ifs.length){const by={};for(const i of ifs){const k=(i.protocol||'unknown')+' '+(i.direction||'');by[k]=(by[k]||0)+1;}add('integration',ifs.length+' interfaces: '+Object.entries(by).map(([k,n])=>n+' × '+k.trim()).join(', '));
-  for(const i of ifs.slice(0,10))add('integration','Interface: '+(i.protocol||'protocol unknown')+(i.direction?', '+i.direction:'')+(i.frequency?', '+i.frequency:''));}
- if(S.eventsWithConsumers.length)add('integration',S.eventsWithConsumers.length+' domain events with consumers');
- if(S.batch)add('component','Has batch jobs');
- if(S.rules.length)add('business',S.rules.length+' business rules recorded (texts not sent)');
- for(const r of S.risks.slice(0,12))add('risk','Risk: '+maskPaths(r.name)+(r.category?' ['+r.category+']':'')+(r.severity?', '+r.severity:''));
- if(S.noTests)add('risk','No automated tests recorded');
- const cp=typeof capOf==='function'?capOf(c):null;
- if(cp){const f=capFacts(cp);add('capacity',[f.peak!=null&&'peak '+f.peak+' requests/s',f.avg!=null&&'average '+f.avg+'/s',f.data!=null&&f.data+' GB data',f.growth&&f.growth+'% growth a year',f.avail!=null&&f.avail+'% availability',cp.users&&cp.users+' users'].filter(Boolean).join(', ')||'Capacity profile recorded without numbers');}
- else add('capacity','No capacity profile yet');
+ if(product&&!c.virtual){
+  add('product','Capability: '+maskPaths(c.name)+(c.description?' · '+maskPaths(c.description):''));
+  add('product','Capability scope: '+(c.releaseScope==='later'?'later release':'first release'));
+ }
+ if(!product){
+  if(M.values.legacyType)add('stack','System type: '+lbl(TYPES,M.values.legacyType));
+  for(const id of (M.values.technology||[]).slice(0,25)){const t=(TECH_CATALOG||[]).find(x=>x[0]===id);add('stack','Technology: '+(t?t[1]:id)+(M.details&&M.details[id]?' ('+String(M.details[id]).slice(0,80)+')':''));}
+  if(!S.lang)add('stack','Current programming language not identified yet');
+  const comps=inv.components.filter(x=>all||x.context===c.id);
+  if(comps.length){const kinds={};for(const x of comps)kinds[x.kind||'module']=(kinds[x.kind||'module']||0)+1;add('component',comps.length+' components: '+Object.entries(kinds).map(([k,n])=>n+' '+k).join(', '));
+   for(const x of comps.slice(0,12))add('component','Component '+maskPaths(x.name)+(x.kind?' ('+x.kind+')':'')+(x.tech?', '+maskPaths(x.tech):'')+(x.size?', size '+x.size:''));}
+  const stores=inv.dataStores.filter(d=>all||d.owner===c.id||(d.writers||[]).includes(c.id));
+  for(const d of stores.slice(0,15))add('data','Data store '+maskPaths(d.name)+(d.kind?' ('+d.kind+')':'')+(d.sensitivity?', sensitivity '+d.sensitivity:'')+((d.writers||[]).length>1?', written by '+d.writers.length+' contexts':''));
+  if(S.shared.length)add('data',S.shared.length+' shared data store(s) written by more than one context');
+  const ifs=S.ifs;if(ifs.length){const by={};for(const i of ifs){const k=(i.protocol||'unknown')+' '+(i.direction||'');by[k]=(by[k]||0)+1;}add('integration',ifs.length+' interfaces: '+Object.entries(by).map(([k,n])=>n+' × '+k.trim()).join(', '));
+   for(const i of ifs.slice(0,10))add('integration','Interface: '+(i.protocol||'protocol unknown')+(i.direction?', '+i.direction:'')+(i.frequency?', '+i.frequency:''));}
+  if(S.eventsWithConsumers.length)add('integration',S.eventsWithConsumers.length+' domain events with consumers');
+  if(S.batch)add('component','Has batch jobs');
+  if(S.rules.length)add('business',S.rules.length+' business rules recorded (texts not sent)');
+  for(const r of S.risks.slice(0,12))add('risk','Risk: '+maskPaths(r.name)+(r.category?' ['+r.category+']':'')+(r.severity?', '+r.severity:''));
+  if(S.noTests)add('risk','No automated tests recorded');
+  const cp=typeof capOf==='function'?capOf(c):null;
+  if(cp){const f=capFacts(cp);add('capacity',[f.peak!=null&&'peak '+f.peak+' requests/s',f.avg!=null&&'average '+f.avg+'/s',f.data!=null&&f.data+' GB data',f.growth&&f.growth+'% growth a year',f.avail!=null&&f.avail+'% availability',cp.users&&cp.users+' users'].filter(Boolean).join(', ')||'Capacity profile recorded without numbers');}
+  else add('capacity','No capacity profile yet');
+ }
  const reg=((M.scope.regulation||{}).list||[]).filter(x=>!['none','unknown'].includes(x));
- if(reg.length)add('regulation','Regulation: '+reg.map(x=>(REGULATIONS.find(y=>y[0]===x)||[,x])[1]).join(', '));
- if(S.regulated||S.sensitive)add('regulation','Holds '+(S.regulated?'regulated':'personal or financial')+' data');
+ if(typeof complianceFacts==='function')complianceFacts(add);
+ else if(reg.length)add('regulation','Regulation: '+reg.map(x=>(REGULATIONS.find(y=>y[0]===x)||[,x])[1]).join(', '));
+ if(!product&&(S.regulated||S.sensitive))add('regulation','Holds '+(S.regulated?'regulated':'personal or financial')+' data');
  if(R.residency==='region')add('regulation','Data must stay in '+(R.region||'a named region'));
  if(R.residency==='private')add('regulation','Sensitive or regulated data must stay on private infrastructure');
  add('skills','Team skills: '+(R.skills.length?R.skills.map(x=>lbl(SKILLS,x)).join(', '):'not recorded'));
  const K=constraints();
- for(const [k,label,type,opts] of CONSTRAINT_FIELDS){if(['budget','standards','procurement'].includes(k))continue;const v=K[k];if(!v)continue;add('constraint',label+': '+(type==='select'?lbl(opts,v):v));}
+ for(const [k,label,type,opts] of constraintFields()){if(['budget','standards','procurement'].includes(k))continue;const v=K[k];if(!v)continue;add('constraint',label+': '+(type==='select'?lbl(opts,v):v));}
  if(I.deadlineText)add('constraint','Deadline: '+I.deadlineText);else if(I.deadlinePassed)add('constraint','The recorded deadline has passed; no current deadline');
- if(I.drivers.size)add('business','Modernization drivers: '+[...I.drivers].map(x=>lbl(DRIVERS,x)).join(', '));
- if(I.knowledge)add('business','Business rules known by: '+lbl(KNOWLEDGE,I.knowledge));
+ if(!product&&I.drivers.size)add('business','Modernization drivers: '+[...I.drivers].map(x=>lbl(DRIVERS,x)).join(', '));
+ if(!product&&I.knowledge)add('business','Business rules known by: '+lbl(KNOWLEDGE,I.knowledge));
  const rules=[];
  for(const dim of Object.keys(TARGETS))for(const [id,label] of TARGETS[dim].opts){const st=R.stance[dim][id];if(!st||st==='allowed')continue;const i=(R.ruleInfo[dim]||{})[id]||{};
   rules.push({area:dim,option:label,state:st,reason:String(i.reason||'').slice(0,200)});}
@@ -60,12 +68,14 @@ function defaultOptionAreas(c,d){
  if(typeof modeOf==='function'&&modeOf()!=='modernize'){const ch=((M.product||{}).deploy||{}).channels||[];if(!ch.length||ch.some(x=>['web','mobile','desktop'].includes(x)))a.push('ui');a.push('products');}
  if((['desktop','clientserver','web'].includes(M.values.legacyType)||I.drivers.has('ux'))&&!a.includes('ui'))a.push('ui');
  if((I.strategic==='generic'||d.approach==='replace'||d.approach==='buy')&&!a.includes('products'))a.push('products');
- if(I.S.lang==='cobol'||M.values.legacyType==='mainframe'||/VB6|Visual Basic 6|PowerBuilder|Delphi|COBOL|RPG|CICS|IBM i|Natural|Adabas/i.test(tech))a.push('legacy');
+ if(!isNewProduct()&&(I.S.lang==='cobol'||M.values.legacyType==='mainframe'||/VB6|Visual Basic 6|PowerBuilder|Delphi|COBOL|RPG|CICS|IBM i|Natural|Adabas/i.test(tech)))a.push('legacy');
  return a;
 }
 function optionsPayload(c,d){
- const sel=optionsUI.areas[c.id]||defaultOptionAreas(c,d);const {facts,rules}=optionsBrief(c);
- return {mode:typeof modeOf==='function'?modeOf():'modernize',context:String(c.name||'').slice(0,80),strategic:String(c.strategic||''),criticality:String(c.criticality||''),approach:d.approach&&d.approach!=='undecided'?d.approach:'',areas:sel,facts,rules};
+ const available=availableOptionAreas().map(([id])=>id);
+ const sel=(optionsUI.areas[c.id]||defaultOptionAreas(c,d)).filter(id=>available.includes(id));
+ const {facts,rules}=optionsBrief(c);
+ return {mode:typeof modeOf==='function'?modeOf():'modernize',context:String(c.name||'').slice(0,80),strategic:String(c.strategic||''),criticality:String(c.criticality||''),approach:d.approach!=='undecided'&&approachAllowed(d.approach)?d.approach:'',areas:sel,facts,rules};
 }
 
 /* ---- Run ---- */
@@ -215,7 +225,7 @@ function addOptionToCatalogue(o){
  const dim=OPTION_AREA_TO_DIM[o.area];if(!dim)return;const R=M.decide.rules;R.custom[dim]=R.custom[dim]||[];
  const id=customRuleId(o.name);R.custom[dim].push({id,label:o.name,hint:(o.summary||'').slice(0,120)+' (AI-proposed'+(o.catalogue==='known'?'':', needs confirmation')+')'});
  logInput('rule-option:'+dim+':'+id,null,o.name+' (from the Target options team)');syncRuleCatalog(R);persist();render();
- notice('"'+o.name+'" added to '+TARGETS[dim].title+'. Set a rule on it in 05 Rules & people if needed.');
+ notice('"'+o.name+'" added to '+TARGETS[dim].title+'. Set a rule on it in Rules & people if needed.');
 }
 function useBlueprint(c,d,b,opts){
  const byId=Object.fromEntries(opts.map(o=>[o.id,o]));const missing=[];
@@ -248,7 +258,7 @@ function optionsResults(c,d){
     h('div',{class:'opt-chips'},b.options.map(id=>nm[id]?h('span',{class:'stance-chip '+(nm[id].guard||'allowed'),title:nm[id].summary||'',text:nm[id].name}):null)),
     h('dl',{class:'scenario-facts'},[h('dt',{text:'Effort'}),h('dd',{text:b.effort||'—'}),h('dt',{text:'Cost vs today'}),h('dd',{text:b.costTrend||'unknown'}),h('dt',{text:'Deadline'}),h('dd',{text:b.deadline||'—'})]),
     (b.why||[]).length?h('ul',{class:'plain-list opt-why'},b.why.map(r=>h('li',{},['+ '+r.text,factRef(run,r.facts)]))):null,
-    b.migration?h('p',{class:'muted',text:'Migration: '+b.migration}):null,
+    b.migration?h('p',{class:'muted',text:(isNewProduct()?'Delivery path: ':'Migration: ')+b.migration}):null,
     (b.challenges||[]).length?h('ul',{class:'plain-list opt-challenges'},b.challenges.map(t=>h('li',{text:'! '+t}))):null,
     h('div',{class:'advisor-actions'},[on?h('span',{class:'badge confirmed',text:'Current target'}):button('Use this blueprint',()=>useBlueprint(c,d,b,opts),'btn small'),
      (()=>{const k=b.tier||b.name;const busy=optionsUI.exploring['design:'+k];const done=(run.designs||{})[k];const bt=button(busy?'Designing…':done?'Design again':'Design this blueprint',()=>designBlueprint(c,d,b,opts),'btn small'+(done?'':' primary'));if(busy)bt.disabled=true;return bt;})()]),
@@ -279,11 +289,11 @@ function optionsPanel(c,d){
  const body=optionsPayload(c,d);const busy=!!optionsUI.busy[c.id];const sel=new Set(body.areas);
  return h('section',{class:'options-team'},[
   h('div',{class:'dim-head'},[h('b',{text:'Technical options from the AI agent team'}),h('small',{text:'Scouts propose, a verifier and your rules check, an architect builds blueprints, a challenger tests them. People decide.'})]),
-  h('div',{class:'type-chips opt-areas'},OPTION_AREAS.map(([id,label])=>h('label',{class:'type-chip'+(sel.has(id)?' on':'')},[h('input',{type:'checkbox',checked:sel.has(id)?'':null,disabled:busy?'':null,
-   onchange:e=>{const s=new Set(optionsUI.areas[c.id]||defaultOptionAreas(c,d));e.target.checked?s.add(id):s.delete(id);optionsUI.areas[c.id]=OPTION_AREAS.map(x=>x[0]).filter(x=>s.has(x));render();}}),label]))),
-  h('div',{class:'type-chips'},[agentChip('Allow '+body.facts.length+' discovery facts and '+body.rules.length+' technology rules to be sent to Claude for one run of '+(body.areas.length+2)+' requests',!!optionsUI.consent[c.id],v=>{optionsUI.consent[c.id]=v;render();})]),
+  h('div',{class:'type-chips opt-areas'},availableOptionAreas().map(([id,label])=>h('label',{class:'type-chip'+(sel.has(id)?' on':'')},[h('input',{type:'checkbox',checked:sel.has(id)?'':null,disabled:busy?'':null,
+   onchange:e=>{const s=new Set(optionsUI.areas[c.id]||defaultOptionAreas(c,d));e.target.checked?s.add(id):s.delete(id);optionsUI.areas[c.id]=availableOptionAreas().map(x=>x[0]).filter(x=>s.has(x));render();}}),label]))),
+  h('div',{class:'type-chips'},[agentChip('Allow '+body.facts.length+(isNewProduct()?' product facts and ':' discovery facts and ')+body.rules.length+' technology rules to be sent to Claude for one run of '+(body.areas.length+2)+' requests',!!optionsUI.consent[c.id],v=>{optionsUI.consent[c.id]=v;render();})]),
   h('details',{class:'compare'},[h('summary',{text:'See exactly what is sent'}),h('pre',{class:'ai-payload',text:JSON.stringify(body,null,2)}),
-   h('small',{class:'muted',text:'Not sent: business data, people\'s names, partner names, comments, business rule texts, unverified claims, evidence quotes; file paths are replaced by [file].'})]),
+   h('small',{class:'muted',text:isNewProduct()?'Review the product brief and capability details listed above before sending.':'Not sent: business data, people\'s names, partner names, comments, business rule texts, unverified claims, evidence quotes; file paths are replaced by [file].'})]),
   h('div',{class:'report-reader-actions'},[h('button',{class:'btn small primary',type:'button',disabled:!optionsUI.consent[c.id]||busy||!body.areas.length?'':null,onclick:()=>runOptionsTeam(c,d),
    text:busy?'Agents working…':d.optionsRun?'Generate again':'Generate options'}),
    busy?h('span',{class:'muted'},[' Scouts → verifier → rules guard → architect → challenger · ',h('span',{id:'opt-elapsed-'+c.id,text:'0 s'})]):null]),

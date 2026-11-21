@@ -2,7 +2,7 @@
    Every project is one of: modernize an existing system, build a new product, or modernize and extend.
    The mode is stored per project in M.mode. Projects saved before modes existed count as "modernize".
    It changes only what has to differ:
-     - the start screen asks for it on a new, empty project (modePage);
+     - the opening screen offers the two starting paths (modePage);
      - "Record evidence" becomes "Product brief" for a new product, and the brief (with deployment type)
        is asked on the project step for new and extend projects (productBriefSection);
      - the approaches offered: the 7 Rs, build / buy / partner, or both (approachAllowed, modeSuggest);
@@ -23,23 +23,46 @@ function projectIsEmpty(){
  const inv=M.inventory||{};
  return !String(M.project||'').trim()&&!(M.files||[]).length&&!Object.keys(M.values||{}).length&&!Object.values(inv).some(l=>Array.isArray(l)&&l.length);
 }
-const needsModeChoice=()=>!M.mode&&projectIsEmpty();
+const needsModeChoice=()=>openedWorkspace.entry||(!M.mode&&projectIsEmpty());
 function setMode(mode){
- const before=M.mode||'';M.mode=mode;
- if(typeof logInput==='function')logInput('project:mode',before,mode);
+ const before=M.mode;
+ ensureDiscovery();
+ M.mode=mode;
+ logInput('project:mode',before,mode);
+ if(openedWorkspace.entry){
+  try{
+   writeProject(workspaceId,M);
+   location.assign(projectAddress(workspaceId));
+  }catch{
+   M.mode=before;
+   M.history.pop();
+   notice('The project could not be saved. Check that browser storage is available and try again.');
+  }
+  return;
+ }
  persist();
  go('evidence');
- if(typeof showEvidenceStep==='function'){try{showEvidenceStep('project');}catch(e){}}
+ showEvidenceStep('project');
 }
 
-/* ---- Start screen ---- */
+/* ---- Opening screen ---- */
+const ENTRY_PATHS=[
+ ['new','Project from scratch','Define the problem, who it serves, and what the first release should deliver.','✦'],
+ ['modernize','Legacy modernization','Assess the code, data, and operations behind a system you already run.','↻']
+];
 function modePage(){
- return h('div',{class:'mode-page'},[
-  h('div',{class:'page-heading'},[h('div',{},[h('div',{class:'eyebrow',text:'NEW PROJECT'}),h('h1',{text:'What are you working on?'}),
-   h('p',{text:'This sets how discovery starts and which decisions you make. Everything else is shared, and you can change it later in the project interview.'})])]),
-  h('div',{class:'mode-grid'},PROJECT_MODES.map(([id,title,text])=>h('button',{type:'button',class:'mode-card','data-mode':id,onclick:()=>setMode(id)},[
-   h('span',{class:'mode-icon',text:{modernize:'↻',new:'✦',extend:'↗'}[id]}),h('b',{text:title}),h('span',{class:'muted',text:text})]))),
-  h('p',{class:'muted mode-note',text:'Most modernizations also add new capabilities. If yours does, choose Modernize and extend.'})]);
+ return h('section',{class:'mode-page','aria-labelledby':'mode-title'},[
+  h('h1',{id:'mode-title',text:'How are you starting?'}),
+  h('div',{class:'mode-grid'},ENTRY_PATHS.map(([id,title,description,icon])=>h('button',{
+   type:'button',class:'mode-card','data-mode':id,'aria-labelledby':'mode-'+id,'aria-describedby':'mode-description-'+id,
+   onclick:()=>setMode(id)
+  },[
+   h('span',{class:'mode-icon','aria-hidden':'true',text:icon}),
+   h('span',{class:'mode-card-title',id:'mode-'+id,text:title}),
+   h('span',{class:'mode-card-description',id:'mode-description-'+id,text:description}),
+   h('span',{class:'mode-arrow','aria-hidden':'true',text:'→'})
+  ])))
+ ]);
 }
 
 /* ---- Product brief (new and extend projects) ---- */
@@ -60,32 +83,66 @@ const BRIEF_NUM=[['users_count','Expected users','number','e.g. 400'],['peak','P
  ['dataGb','Data volume after 3 years (GB)','number','e.g. 200'],['availability','Availability target (%)','number','e.g. 99.9']];
 function productBrief(){M.product=M.product||{};const P=M.product;P.deploy=P.deploy||{channels:[]};return P;}
 function productBriefSection(){
- const P=productBrief(),D=P.deploy;
- const set=k=>v=>{const b=P[k];P[k]=v;logInput('product:'+k,b,v);persist();};
- const setD=k=>v=>{const b=D[k];D[k]=v;logInput('product:deploy:'+k,b,v);persist();render();};
- const done=BRIEF_TEXT.filter(([k])=>String(P[k]||'').trim()).length+(D.where?1:0);
+ const numFields=keys=>BRIEF_NUM.filter(([k])=>keys.includes(k)).map(([k,label,type,ph])=>editable(k,inputControl(label,visibleBriefValue(k),v=>{writeBriefAnswer(k,v);if(typeof refreshLoadCalc==='function'&&(k==='users_count'||k==='peak'))refreshLoadCalc();if(typeof refreshDataCalc==='function'&&(k==='users_count'||k==='dataGb'))refreshDataCalc();},type,ph)));
+ const saveChoice=(key,value)=>{
+  const before=briefAnswer(key);writeBriefAnswer(key,value);logInput('product:'+key,before,value);persist();render();
+  if(formfillUI.afterEdit&&before!==briefAnswer(key))runFormfiller();
+ };
+ const editable=(key,control)=>{
+  let before=briefAnswer(key);
+  const field=control.querySelector('textarea,input');
+  field.dataset.briefKey=key;
+  let edited=false;
+  field.addEventListener('input',()=>{edited=true;});
+  const finished=()=>{
+   if(!edited||!field.value.trim()||!formfillUI.afterEdit||!field.isConnected||document.hidden)return;
+   edited=false;
+   runFormfiller();
+  };
+  field.addEventListener('dictationend',finished);
+  field.addEventListener('change',()=>{
+   const after=briefAnswer(key);logInput('product:'+key,before,after);before=after;persist();
+   if(!field.closest('.dictation-control')?.querySelector('.dictation-mic[aria-pressed="true"]'))finished();
+  });
+  return briefField(key,control);
+ };
+ const pick=(key,label,choices)=>briefField(key,selectControl(label,visibleBriefValue(key),[['','Not answered'],...choices],v=>saveChoice(key,v)));
+ const channels=visibleBriefValue('channels').split(',').map(v=>v.trim()).filter(Boolean);
+ const where=visibleBriefValue('where');
+ const done=BRIEF_TEXT.filter(([k])=>briefAnswer(k)).length+(briefAnswer('where')?1:0);
  return h('section',{class:'scope-panel rec-step product-brief',id:'product-brief'},[
   h('div',{class:'discovery-section-head'},[h('div',{},[h('h2',{text:isNewProduct()?'Product brief':'What the system must become'}),
-   h('p',{text:isNewProduct()?'A new product has no code to scan: these answers are the facts the advisor and the agent team work from.':'The new capabilities this modernization must add. They are decided as build, buy or partner, next to the existing parts.'})]),
+   h('p',{text:isNewProduct()?'These answers guide design decisions, sizing and technical options.':'Describe the new capabilities this modernization must add.'})]),
    h('span',{class:'input-status '+(done>=5?'done':'open'),text:done+' of '+(BRIEF_TEXT.length+1)+' answered'})]),
-  h('div',{class:'brief-grid'},BRIEF_TEXT.map(([k,label,hint,ph])=>h('label',{class:'context-control'},[h('span',{text:label}),
-   h('textarea',{class:'field',rows:'2',maxlength:'600',placeholder:ph,title:hint,oninput:e=>{P[k]=e.target.value;persist();},onchange:e=>logInput('product:'+k,null,e.target.value)},[P[k]||''])]))),
-  h('div',{class:'scope-grid'},BRIEF_NUM.map(([k,label,type,ph])=>inputControl(label,P[k],set(k),type,ph))),
-  h('div',{class:'deploy-block'},[h('h3',{text:'Deployment type'}),h('p',{class:'muted',text:'Where it runs, who it serves and how it reaches users. The agent team only proposes hosting that fits these answers.'}),
+  formfillerPanel(),
+  h('div',{class:'brief-grid'},BRIEF_TEXT.map(([k,label,hint,ph])=>editable(k,h('label',{class:'context-control'},[h('span',{text:label}),
+   h('textarea',{class:'field',rows:'2',maxlength:'600',placeholder:ph,title:hint,oninput:e=>writeBriefAnswer(k,e.target.value)},[visibleBriefValue(k)])])))),
+  /* Load first: expected users and peak, with the suggested peak right under them; then data and availability. */
+  h('h3',{class:'brief-sub',text:'Load'}),
+  h('div',{class:'scope-grid'},numFields(['users_count','peak'])),
+  typeof loadCalcPanel==='function'?loadCalcPanel():null,
+  h('h3',{class:'brief-sub',text:'Data and availability'}),
+  h('div',{class:'scope-grid'},numFields(['dataGb'])),
+  typeof dataCalcPanel==='function'?dataCalcPanel():null,
+  h('div',{class:'scope-grid'},numFields(['availability'])),
+  h('div',{class:'deploy-block'},[h('h3',{text:'Deployment type'}),h('p',{class:'muted',text:'Where it runs, who it serves, how it reaches users and how it is hosted.'}),
    h('div',{class:'scope-grid'},[
-    selectControl('Where it runs *',D.where||'',[['','Not answered'],...DEPLOY_WHERE],setD('where')),
-    selectControl('Tenancy',D.tenancy||'',[['','Not answered'],...DEPLOY_TENANCY],setD('tenancy')),
-    D.where==='public'||D.where==='multicloud'||D.where==='hybrid'?inputControl('Regions or countries the data must stay in',D.regions,v=>{const b=D.regions;D.regions=v;logInput('product:deploy:regions',b,v);persist();},'text','e.g. EU only; India (data residency)'):null]),
-   h('div',{class:'type-chips'},[h('span',{class:'type-label',text:'How it reaches users'}),...DEPLOY_CHANNELS.map(([id,label])=>h('label',{class:'type-chip'+((D.channels||[]).includes(id)?' on':'')},[
-    h('input',{type:'checkbox',checked:(D.channels||[]).includes(id)?'':null,onchange:e=>{const s=new Set(D.channels||[]);e.target.checked?s.add(id):s.delete(id);const b=D.channels;D.channels=[...s];logInput('product:deploy:channels',b,D.channels);persist();render();}}),label]))])])]);
+    pick('where','Where it runs *',DEPLOY_WHERE),pick('tenancy','Tenancy',DEPLOY_TENANCY),
+    ['public','multicloud','hybrid'].includes(where)||visibleBriefValue('regions')?editable('regions',inputControl('Regions or countries the data must stay in',visibleBriefValue('regions'),v=>writeBriefAnswer('regions',v),'text','e.g. EU only; India (data residency)')):null]),
+   briefField('channels',h('div',{class:'type-chips'},[h('span',{class:'type-label',text:'How it reaches users'}),...DEPLOY_CHANNELS.map(([id,label])=>h('label',{class:'type-chip'+(channels.includes(id)?' on':'')},[
+    h('input',{type:'checkbox',checked:channels.includes(id)?'':null,onchange:e=>{const next=new Set(channels);if(e.target.checked)next.add(id);else next.delete(id);saveChoice('channels',[...next]);}}),label]))])),
+   typeof hostingModelPicker==='function'?hostingModelPicker():null])
+ ]);
 }
+
 /* Deployment type for a modernization project: where the target runs (asked in the project interview step). */
 function deploymentOnlySection(){
  const D=productBrief().deploy;const setD=k=>v=>{const b=D[k];D[k]=v;logInput('product:deploy:'+k,b,v);persist();render();};
  return h('section',{class:'scope-panel rec-step deploy-only'},[h('div',{class:'discovery-section-head'},[h('div',{},[h('h2',{text:'Target deployment type'}),
   h('p',{text:'Where the modernized system should run and who it serves. Leave it open if this is what you want the assessment to decide.'})])]),
   h('div',{class:'scope-grid'},[selectControl('Where it should run',D.where||'',[['','Let the assessment decide'],...DEPLOY_WHERE],setD('where')),
-   selectControl('Tenancy',D.tenancy||'',[['','Not answered'],...DEPLOY_TENANCY],setD('tenancy'))])]);
+   selectControl('Tenancy',D.tenancy||'',[['','Not answered'],...DEPLOY_TENANCY],setD('tenancy'))]),
+  typeof hostingModelPicker==='function'?hostingModelPicker():null]);
 }
 
 /* ---- Facts for the Target options team ---- */
@@ -93,10 +150,11 @@ function productFacts(add){
  const P=M.product||{},D=P.deploy||{};const lbl=(l,id)=>(l.find(x=>x[0]===id)||[,id])[1];
  if(hasProductBrief())add('product','Project type: '+lbl(PROJECT_MODES,modeOf()));
  for(const [k,label] of BRIEF_TEXT){const v=String(P[k]||'').trim();if(v)add('product',label.replace(' *','')+': '+v.slice(0,260));}
- for(const [k,label] of BRIEF_NUM)if(String(P[k]||'').trim())add('capacity',label+': '+P[k]);
+ for(const [k,label] of BRIEF_NUM)if(String(P[k]||'').trim())add('capacity',label+': '+P[k]+(k==='peak'&&typeof peakFactNote==='function'?peakFactNote(P):'')+(k==='dataGb'&&typeof dataFactNote==='function'?dataFactNote(P):''));
  if(D.where)add('deployment','Deployment: runs on '+lbl(DEPLOY_WHERE,D.where)+(D.regions?'; data must stay in '+D.regions:''));
  if(D.tenancy)add('deployment','Tenancy: '+lbl(DEPLOY_TENANCY,D.tenancy));
  if((D.channels||[]).length)add('deployment','Reaches users through: '+D.channels.map(x=>lbl(DEPLOY_CHANNELS,x)).join(', '));
+ if(typeof hostingFacts==='function')hostingFacts(add);
 }
 
 /* ---- Approach suggestion for new capabilities ---- */
@@ -110,14 +168,79 @@ function modeSuggest(c){
 (function modeStyle(){
  if(document.getElementById('project-mode-style'))return;
  const css=`
-.mode-page{max-width:1080px}
-.mode-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:18px 0}
-.mode-card{display:flex;flex-direction:column;gap:8px;text-align:left;border:1px solid var(--line);border-radius:12px;background:#fff;padding:18px;cursor:pointer;font:inherit}
-.mode-card:hover,.mode-card:focus-visible{border-color:var(--accent);box-shadow:0 0 0 3px #e5ecff;outline:none}
-.mode-card b{font-size:17px}.mode-card .muted{font-size:13px;line-height:1.45}
-.mode-icon{font-size:22px;color:var(--accent)}
-.mode-note{margin-top:4px}
-.brief-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px 14px;margin:10px 0}
+body.project-entry{--entry-header:72px;background:#111322;color:#fcfbff}
+body.project-entry .app-top{
+ position:relative;height:var(--entry-header);background:#111322;border-color:#ffffff18;color:#fcfbff;
+}
+body.project-entry .top-right{margin-left:auto}
+body.project-entry .brand-mark{background:#ded9ff;color:#242045}
+body.project-entry .brand small,
+body.project-entry .layout>aside,
+body.project-entry #workspaceMenu,
+body.project-entry .workspace-stages,
+body.project-entry #projectName,
+body.project-entry #newProject,
+body.project-entry #projectList[hidden],
+body.project-entry .nav-backdrop{display:none!important}
+body.project-entry #projectList{background:#ffffff0a;border-color:#ffffff30;color:#edeaff}
+body.project-entry #projectList:hover{background:#ffffff17}
+body.project-entry .layout{display:block}
+body.project-entry main{
+ min-height:calc(100vh - var(--entry-header));min-height:calc(100svh - var(--entry-header));max-width:none;
+ padding:clamp(48px,11vh,130px) clamp(16px,6vw,72px) 70px;
+ background:radial-gradient(ellipse at 20% 0%,#292148 0%,transparent 56%),
+            radial-gradient(ellipse at 88% 40%,#30232c 0%,transparent 58%);
+}
+.mode-page{max-width:1080px;margin:0 auto}
+.mode-page h1{
+ margin:0 0 clamp(28px,5vw,50px);color:#fcfbff;font-size:clamp(34px,6vw,76px);
+ font-weight:750;letter-spacing:-.055em;line-height:1;
+}
+.mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(14px,2.2vw,24px)}
+.mode-card{
+ --mode-accent:#d1bdff;--mode-surface:#25203a;--mode-line:#a48ee2;
+ position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:flex-start;
+ gap:10px;min-height:250px;overflow:hidden;padding:clamp(20px,3vw,34px);
+ border:1px solid var(--mode-line);border-color:color-mix(in srgb,var(--mode-line) 48%,transparent);
+ border-radius:18px;background:var(--mode-surface);color:#fcfbff;text-align:left;font:inherit;
+ cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.mode-card[data-mode="modernize"]{--mode-accent:#ffd3a0;--mode-surface:#332529;--mode-line:#dba57f}
+.mode-card::before{
+ content:'';position:absolute;z-index:-1;top:-112px;right:-79px;width:275px;height:275px;
+ border:1px solid var(--mode-line);border-radius:50%;
+ box-shadow:0 0 0 30px color-mix(in srgb,var(--mode-accent) 25%,transparent),
+            0 0 0 60px color-mix(in srgb,var(--mode-accent) 16%,transparent);
+ opacity:.24;pointer-events:none;
+}
+.mode-card:hover{transform:translateY(-4px);border-color:var(--mode-line);box-shadow:0 18px 42px #08071066}
+.mode-card:focus-visible,body.project-entry #projectList:focus-visible{outline:2px solid #fcfbff;outline-offset:4px}
+.mode-icon{
+ display:grid;place-items:center;margin-bottom:auto;width:46px;height:46px;
+ border:1px solid color-mix(in srgb,var(--mode-accent) 34%,transparent);
+ border-radius:12px;background:color-mix(in srgb,var(--mode-accent) 10%,transparent);
+ color:var(--mode-accent);font-size:24px;
+}
+.mode-card-title{font-size:clamp(23px,3.2vw,34px);font-weight:720;letter-spacing:-.035em;line-height:1.1}
+.mode-card-description{max-width:31ch;padding-right:12px;color:#e6dfea;font-size:15px;line-height:1.5}
+.mode-arrow{
+ position:absolute;right:clamp(14px,2.7vw,28px);top:clamp(18px,3vw,34px);
+ color:var(--mode-accent);font-size:26px;line-height:1;
+}
+@media(max-width:640px){
+ body.project-entry{--entry-header:64px}
+ .mode-grid{grid-template-columns:1fr}
+ .mode-card{min-height:176px;gap:8px}
+ .mode-icon{width:36px;height:36px;margin-bottom:8px;font-size:20px}
+}
+@media(prefers-reduced-motion:reduce){.mode-card{transition:none}.mode-card:hover{transform:none}}
+.brief-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px 14px;margin:10px 0}
+
+.formfiller-panel{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px;margin:16px 0 20px;border:1px solid #d9d3f3;border-radius:12px;background:#f8f6ff}
+.formfiller-panel>div:first-child{flex:1 1 300px}.formfiller-panel h3{margin:0}.formfiller-panel p{margin:5px 0;color:#514c62}.formfiller-panel small:empty{display:none}
+.formfiller-auto{display:flex;align-items:center;gap:7px;font-size:12px;width:fit-content;margin:8px 0}.formfiller-auto input{width:auto}.formfiller-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.brief-proposal{min-width:0;border-left:3px solid #9887db;padding-left:9px}.brief-proposal-note{display:grid;gap:4px;font-size:12px;color:#544776;margin:4px 0 12px}.brief-proposal-note small{overflow-wrap:anywhere}
+
 .brief-grid textarea{resize:vertical}
 .deploy-block{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}.deploy-block h3{margin:0 0 4px;font-size:15px}
 .deploy-block .type-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
@@ -128,7 +251,7 @@ function modeSuggest(c){
 /* Project type, changeable later (shown on the project interview step). */
 function modeSwitcher(){
  return h('div',{class:'mode-switch'},[selectControl('Project type',modeOf(),PROJECT_MODES.map(([id,t])=>[id,t]),v=>{
-  if(v===modeOf())return;const b=M.mode||'modernize';M.mode=v;logInput('project:mode',b,v);persist();render();notice('Project type: '+PROJECT_MODES.find(x=>x[0]===v)[1]+'.');})]);
+  if(v===modeOf())return;const b=M.mode||'modernize';M.mode=v;logInput('project:mode',b,v);persist();evidenceUI.step='project';go('upload');notice('Project type: '+PROJECT_MODES.find(x=>x[0]===v)[1]+'.');})]);
 }
 
 /* Sidebar hint for "01 Product brief". */
