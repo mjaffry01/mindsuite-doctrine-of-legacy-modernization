@@ -26,13 +26,14 @@ const AGENT_DESIGN=[
  ['Decision reviewer','Design options / Target decisions','POST /api/decide/review','Strong model','Challenges one decision before it is recorded, from the approach, choices, reasons and verified claims only.']];
 const AGENT_LOCAL=[
  ['Decision advisor','Scores routes against the evidence, your rules and priorities; confidence; one deciding question'],
- ['Platform decision suggester','Suggests the shared platform (tier, cloud, hosting, architecture, database)'],
+ ['Platform decision suggester','Suggests the shared platform (tier, cloud, hosting, architecture, database); the same recommendation, with its reasons, points and the options it beat, appears on Rules & people → Technology rules'],
+ ['Cloud service rules','Your Standard / Preferred / Needs approval / Excluded rules for about 250 individual services on Azure, AWS, Google Cloud, IBM Cloud, Oracle Cloud and private platforms; the plan uses a Standard service first, then Preferred, replaces an Excluded one, and a Standard compute service sets the hosting model'],
  ['Load and data calculators','Peak load and 3-year data volume from users, predicted from the brief'],
- ['Technical plan and System blueprint','Layer-by-layer plan, shared platform, owners of shared concerns'],
+ ['Technical plan and System blueprint','Layer-by-layer plan (hosting, traffic, compute and server types, data, messaging, files, search, IoT, AI, payments, sign-in, permissions, security, availability, disaster recovery plan, monitoring and observability, delivery, cloud design patterns), shared platform, owners of shared concerns'],
  ['Cost estimator','Component costs and cost per tier from the sizing'],
  ['AI feature suggester','Spots where AI would help (search, assistant, extraction, anomaly detection, reporting questions, content tagging) and names the model service, vector store and guardrails per cloud'],
  ['Shared-concern owners','Decides who owns payments, customer accounts, media, search and notifications so nothing is built twice'],
- ['Assumptions register and HLD','Collects every assumption; assembles the high-level design, its architecture and component diagrams and the full design JSON (schema mindsuite.design/1)']];
+ ['Assumptions register and HLD','Collects every assumption; assembles the high-level design, its architecture diagram, a detailed component diagram (private network, subnets, network and access, split monitoring, identity and delivery services, disaster recovery) and the full design JSON (schema mindsuite.design/1)']];
 const AGENT_UI={loaded:false,loading:false,teams:{},error:''};
 
 async function agentsLoad(){

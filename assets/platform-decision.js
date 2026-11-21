@@ -30,7 +30,7 @@ function platformSuggest(){
  const dbr=rank('database',['sqlite','keep']);
  if(dbr.length){const top=dbr[0],tied=dbr.filter(o=>o.score===top.score);
   v.database=tied.some(o=>o.id==='postgres')&&tied.length>1?'postgres':top.id;
-  why.database=tied.length>1?'no rule prefers one; PostgreSQL is managed on every cloud and has no licence cost':((top.reasons||[])[0]||{}).t||'best score against your rules';}
+  why.database=tied.length>1?(tied.every(o=>(o.reasons||[]).some(r=>r.w==='rule'))?'your rules prefer '+tied.map(o=>o.label).join(' and ')+' equally; '+(v.database==='postgres'?'PostgreSQL is taken because it is managed on every cloud and has no licence cost':(optOf('database',v.database)||[,v.database])[1]+' scores first'):'no rule prefers one; '+(v.database==='postgres'?'PostgreSQL is managed on every cloud and has no licence cost':(optOf('database',v.database)||[,v.database])[1]+' scores first')):((top.reasons||[])[0]||{}).t||'best score against your rules';}
  const ar=rank('architecture',['clientapi','keep']);
  if(ar.length){v.architecture=ar[0].id;why.architecture=(((ar[0].reasons||[])[0]||{}).t||'best score against your rules')+'; web and mobile clients call its API';}
  const cr=rank('cloud',['keep']);
@@ -53,7 +53,16 @@ function platformSuggest(){
  else{let s=[];try{s=hostingSuggest(P);}catch(e){}
   const byTier={Safe:['paas','vm','static','lowcode'],Balanced:['containers','paas'],Ambitious:['kubernetes','containers']}[tier];
   const pick=s.find(x=>byTier.includes(x.id))||s[0];v.hosting=pick?pick.id:{Safe:'paas',Balanced:'containers',Ambitious:'kubernetes'}[tier];
-  why.hosting=pick?'fits the brief ('+(pick.why[0]||'best fit')+') and the '+tier+' tier':'typical for the '+tier+' tier';}
+  why.hosting=pick?'fits the brief ('+(pick.why[0]||'best fit')+') and the '+tier+' tier':'typical for the '+tier+' tier';
+  // A compute service your rules make Standard (or Preferred) decides the hosting model.
+  if(typeof csRules==='function'&&typeof CLOUD_SERVICES!=='undefined'){
+   const prov=csProvider(v.cloud),rules=csRules()[prov]||{},st=s=>(rules[s[0]]||{}).state;
+   const comp=(CLOUD_SERVICES[prov]||[]).filter(s=>s[2]==='compute');
+   const hit=comp.find(s=>st(s)==='standard')||comp.find(s=>st(s)==='preferred');
+   const roleHost={k8s:'kubernetes',ctr:'containers',paas:'paas',fn:'serverless',vm:'vm',static:'static'};
+   const hm=hit&&roleHost[hit[3].split(',')[0]];
+   if(hm){v.hosting=hm;why.hosting='your rules make '+hit[1]+' the '+(st(hit)==='standard'?'standard':'preferred')+' compute service';}
+  }}
  return {v,why};
 }
 function platformEffective(){

@@ -155,16 +155,19 @@ function hldComponents(m){
  const pf=typeof platformEffective==='function'?platformEffective():{};
  const ck=(TP_CLOUD[pf.cloud||'']??TP_CLOUD[((M.product||{}).deploy||{}).where||'']??'');
  const sv=k=>tpSvc(k,ck);
+ const T=B.tier==='Safe'?0:B.tier==='Balanced'?1:2,D=(M.product||{}).deploy||{};
  const N=[],E=[];const node=(id,zone,title,sub)=>N.push({id,zone,title,sub:sub||''});const edge=(from,to,label,dash)=>E.push({from,to,label:label||'',dash:!!dash});
+ const has=id=>N.some(n=>n.id===id);
  // Users and devices
  if(I.f.customers)node('customers','actors','Customers','web and mobile');
  if(I.f.staff)node('staff','actors','Staff','admin and support screens');
  if(!I.f.customers&&!I.f.staff)node('users','actors','Users','');
- if(I.f.iot)node('devices','actors','Devices and sensors','');
+ if(I.f.iot)node('devices','actors','Devices and sensors','X.509 certificate per device');
  // Entry
- const nq=L('north').q||{};const entry=[];
+ const nq=L('north').q||{},pub=!!((L('hosting').q||{}).pub);const entry=[];
+ node('dns','edge','DNS',sv('dns'));
  if(nq.cdn){node('cdn','edge','CDN',sv('cdn'));entry.push('cdn');}
- if(nq.waf){node('waf','edge','WAF and front door',sv('waf'));entry.push('waf');}
+ if(nq.waf){node('waf','edge','WAF and front door',sv('waf')+(pub||I.f.customers?' · DDoS: '+sv('ddos'):''));entry.push('waf');}
  else if(nq.lb){node('lb','edge','Load balancer',sv('lb'));entry.push('lb');}
  if(nq.apigw){node('apigw','edge','API gateway',sv('apigw'));entry.push('apigw');}
  if(I.f.iot&&L('iot').t)node('iothub','edge','Device hub',sv('iotHub'));
@@ -175,100 +178,137 @@ function hldComponents(m){
  const srv=(L('servers').t||'').split(' · ');const srvOf=k=>(srv.find(x=>x.startsWith(k))||'').replace(/^[^:]*: /,'');
  node('app','app',kindName+(service?': '+service.split(',')[0]:''),[size,srvOf('app servers').startsWith('no servers')?'':srvOf('app servers'),B.capabilities.filter(c=>/Shared platform/.test(c.runsOn)).length+' capabilities as modules'].filter(Boolean).join(' · '));
  const mq=L('messaging').q;
- if(mq&&mq.kind!=='worker'||(mq&&mq.kind==='worker'))node('workers','app','Background workers',mq&&mq.kind==='worker'?'jobs table in the database':'consume from '+(mq.kind==='stream'?'event streaming':'the queue'));
+ if(mq)node('workers','app','Background workers',mq.kind==='worker'?'jobs table in the database':'consume from '+(mq.kind==='stream'?'event streaming':'the queue'));
+ if(I.f.reports||I.f.notify||I.f.payments||mq)node('jobs','app','Scheduled jobs',sv('scheduler')+' · '+[I.f.payments&&'reconciliation',I.f.reports&&'report exports',I.f.notify&&'reminders','clean-up'].filter(Boolean).join(', '));
  if(I.f.iot&&L('iot').t)node('ingest','app','Readings ingestion','validates and stores device readings');
  // Data
- const dq=L('database').q;
- if(dq){const [en]=String(L('database').t).split(' · ');node('db','data','Database',en.replace(/^[^:]*: /,'')+' · '+dq.instances+' × '+dq.vcpu+' vCPU (memory optimised) · '+dq.storageGb+' GB SSD');}
- else if(L('database').t)node('db','data','Database','inside the bought or partner product');
+ const dq=L('database').q,dbt=String(L('database').t||'');
+ if(dq){const [en]=dbt.split(' · ');node('db','data','Database (primary)',en.replace(/^[^:]*: /,'')+' · '+dq.vcpu+' vCPU, memory optimised · '+dq.storageGb+' GB SSD');
+  if(dq.instances>=2)node('dbreplica','data',/read replica/.test(dbt)?'Standby and read replica':'Standby (other zone)',(dq.instances-1)+' more server'+(dq.instances>2?'s':'')+' · '+(/read replica/.test(dbt)?'reports and busy reads':'automatic failover'));}
+ else if(dbt)node('db','data','Database','inside the bought or partner product');
  const kq=L('cache').q;if(kq&&kq.nodes)node('cache','data','Cache',sv('redis')+' · '+kq.nodes+' × '+kq.gb+' GB');
- if(mq&&mq.kind==='queue')node('mq','data','Message queue',sv('queue'));
- if(mq&&mq.kind==='stream')node('mq','data','Event streaming',sv('stream'));
+ if(mq&&mq.kind==='queue')node('mq','data','Message queue',sv('queue')+' · with a dead-letter queue');
+ if(mq&&mq.kind==='stream')node('mq','data','Event streaming',sv('stream')+' · with a dead-letter topic');
  if(L('search').q)node('search','data','Search',sv('search'));
  const fq=L('files').q;if(fq)node('object','data','Object storage',sv('blob')+' · '+tpN(fq.objectGb)+' GB');
  if(I.f.iot&&L('iot').t)node('tsdb','data','Time-series store',sv('tsdb'));
+ if(dq||fq)node('backupvault','data','Backup vault',sv('backup'));
+ // Network and access (inside the private network)
+ if(!/Vendor product/.test(B.capabilities.map(c=>c.runsOn).join())||has('db')){
+  if(T>=1||I.regs.length)node('privep','net','Private endpoints',sv('private')+' · database, cache, queue and secrets have no public address');
+  node('nat','net','Outbound internet (NAT)',sv('nat')+' · fixed outbound address for partners');
+  if(I.f.staff||T>=1)node('bastion','net','Admin access',sv('bastion')+' · no public SSH or RDP');
+  if(D.where==='hybrid'||D.where==='onprem'||!isNewProduct()||/\b(erp|on-?prem\w*|sap|mainframe|data cent(?:er|re))\b/i.test(String((M.product||{}).integrations||'')))node('vpn','net','Private connection to your sites',sv('vpn'));
+ }
  // Cross-cutting
- node('idp','cross','Identity',[I.f.staff?'staff: '+sv('idStaff'):'',I.f.customers&&!(B.owners||[]).some(o=>o.id==='identity'&&o.owner)?'customers: '+sv('idCust'):''].filter(Boolean).join(' · ')||sv('idStaff'));
+ const custOut=(B.owners||[]).some(o=>o.id==='identity'&&o.owner);
+ if(I.f.staff||!I.f.customers)node('idstaff','cross','Staff sign-in',sv('idStaff')+' · MFA');
+ if(I.f.customers)node('idcust','cross','Customer sign-in',custOut?'the partner platform, federated over OIDC':sv('idCust'));
  node('vault','cross','Secrets and keys',sv('vault'));
- node('mon','cross','Monitoring and logs',sv('mon'));
+ if(T>=1)node('appconfig','cross','Settings and feature flags',sv('appconfig'));
+ node('metrics','cross','Metrics and alerts',sv('metrics')+' · '+sv('alerting'));
+ node('logs','cross','Logs',sv('logs'));
+ if(T>=1)node('apm','cross','Tracing and app performance',sv('apm'));
+ if(T>=1)node('dash','cross','Dashboards and on-call',sv('dashboards'));
+ node('audit','cross','Audit trail',sv('audit'));
+ if(/SIEM/.test(String(L('observability').t||'')))node('siem','cross','Security monitoring (SIEM)',sv('siem'));
+ if(['ctr','k8s','fn','paas'].includes(hq.kind)||hq.kind==='saas')node('registry','cross','Container registry',sv('registry'));
  node('cicd','cross','Build and release',sv('cicd'));
+ if(T>=1)node('policy','cross','Guardrails (policy)',sv('governance'));
+ {const t=L('dr').t||'';const m2=t.match(/Strategy: ([^—]+)—/),r=t.match(/RTO\), lose at most ([^ ]+(?: [a-z]+)?) of data/),o=t.match(/recover within ([^(]+)\(RTO/);if(t)node('drsite','cross','Disaster recovery',(m2?m2[1].trim():'')+(o?' · RTO '+o[1].trim():'')+(r?' · RPO '+r[1]:'')+' · second region');}
  // External
  const payl=L('payments').t;if(payl)node('pay','ext','Payment gateway',/Handled by the/.test(payl)?'the bought product\'s checkout and billing':(payl.match(/(?:in front of |Outside the platform: )([^;·]+?)(?: with| and|;|$)/)||[])[1]||'payment provider');
  const vend=B.capabilities.filter(c=>/Vendor product/.test(c.runsOn)),part=B.capabilities.filter(c=>/Partner/.test(c.runsOn));
  if(vend.length)node('vendor','ext','Bought products (SaaS)',vend.map(c=>c.name).join(' · '));
  if(part.length)node('partner','ext','Partner platform',part.map(c=>c.name).join(' · '));
+ if(I.f.notify||I.f.customers)node('notify','ext','Email and SMS',sv('notify'));
  if(L('ai').t)node('ai','ext','AI model service',sv('aiModels'));
  const kinds=String((M.product||{}).integrations||'').split(/[;\n]/).map(x=>x.split(':')[0].trim()).filter(Boolean).filter(k=>!/payment/i.test(k)).slice(0,3);
  if(kinds.length)node('other','ext','Other systems',kinds.join(' · '));
  // Flows
  const first=entry[0]||'app',last=entry[entry.length-1];
- for(const a of ['customers','staff','users'])if(N.find(n=>n.id===a))edge(a,first,'HTTPS');
+ for(const a of ['customers','staff','users'])if(has(a))edge(a,first,'HTTPS');
  for(let i=1;i<entry.length;i++)edge(entry[i-1],entry[i],'HTTPS');
  if(last)edge(last,'app','HTTPS');
- if(N.find(n=>n.id==='iothub')){edge('devices','iothub','MQTT over TLS');edge('iothub',N.find(n=>n.id==='mq')?'mq':'ingest','readings');}
- if(N.find(n=>n.id==='ingest')){if(N.find(n=>n.id==='mq'))edge('mq','ingest','consume');edge('ingest','tsdb','write');}
- if(N.find(n=>n.id==='db')&&dq)edge('app','db','SQL over TLS');
- if(N.find(n=>n.id==='cache'))edge('app','cache','Redis over TLS');
- if(N.find(n=>n.id==='mq')){edge('app','mq',mq.kind==='stream'?'publish events':'send jobs');edge('mq','workers',mq.kind==='stream'?'subscribe':'consume');}
- else if(N.find(n=>n.id==='workers'))edge('app','workers','jobs');
- if(N.find(n=>n.id==='search'))edge('app','search','index and query');
- if(N.find(n=>n.id==='object'))edge('app','object','HTTPS (signed URLs)');
- edge('app','idp','OpenID Connect',true);edge('app','vault','secrets',true);edge('app','mon','OpenTelemetry',true);edge('cicd','app','deploy',true);
- if(N.find(n=>n.id==='pay')){edge('app','pay','API (tokens only)');edge('pay',nq.apigw?'apigw':last||'app','signed webhooks',true);}
- if(N.find(n=>n.id==='vendor'))edge('app','vendor','API');
- if(N.find(n=>n.id==='partner'))edge('app','partner','API, OIDC federation');
- if(N.find(n=>n.id==='ai'))edge('app','ai','HTTPS (prompts, no personal data)');
- if(N.find(n=>n.id==='other'))edge('app','other','APIs and files');
- return {nodes:N,edges:E,cloud:pf.cloud||''};
+ if(has('iothub')){edge('devices','iothub','MQTT over TLS');edge('iothub',has('mq')?'mq':'ingest','readings');}
+ if(has('ingest')){if(has('mq'))edge('mq','ingest','consume');edge('ingest','tsdb','write');}
+ if(has('db')&&dq)edge('app','db','SQL over TLS');
+ if(has('dbreplica'))edge('db','dbreplica','replication',true);
+ if(has('backupvault')&&has('db'))edge('db','backupvault','backups',true);
+ if(has('cache'))edge('app','cache','Redis over TLS');
+ if(has('mq')){edge('app','mq',mq.kind==='stream'?'publish events':'send jobs');edge('mq','workers',mq.kind==='stream'?'subscribe':'consume');}
+ else if(has('workers'))edge('app','workers','jobs');
+ if(has('search'))edge('app','search','index and query');
+ if(has('object'))edge('app','object','HTTPS (signed URLs)');
+ if(has('pay')){edge('app','pay','API (tokens only)');edge('pay',nq.apigw?'apigw':last||'app','signed webhooks',true);}
+ if(has('vendor'))edge('app','vendor','API');
+ if(has('partner'))edge('app','partner','API, OIDC federation');
+ if(has('notify'))edge('app','notify','send email and SMS');
+ if(has('ai'))edge('app','ai','HTTPS (prompts, no personal data)');
+ if(has('other'))edge('app','other','APIs and files');
+ for(const x of ['idstaff','idcust','vault','appconfig','metrics','logs','apm','audit'])if(has(x))edge('app',x,'',true);
+ return {nodes:N,edges:E,cloud:pf.cloud||'',network:sv('network')};
 }
 
 function hldComponentDiagram(m,cm){
  cm=cm||hldComponents(m);
- const MAIN=860,SX=900,SW=300,W=SX+SW+20;
- const pos={};const rowY={actors:20,edge:120,app:240,data:380};const rowH={actors:50,edge:64,app:70,data:76};
- for(const z of ['actors','edge','app','data']){const items=cm.nodes.filter(n=>n.zone===z);if(!items.length)continue;
-  const w=Math.min(250,(MAIN-14*(items.length-1))/items.length),tot=w*items.length+14*(items.length-1);let x=20+(MAIN-tot)/2;
+ const MAIN=980,SX=1030,SW=360,CW=175,W=SX+SW+20;
+ const rows=['actors','edge','app','data','net'];
+ const rowY={actors:20,edge:120,app:262,data:412,net:570},rowH={actors:52,edge:66,app:76,data:92,net:62};
+ const pos={};
+ for(const z of rows){const items=cm.nodes.filter(n=>n.zone===z);if(!items.length)continue;
+  const w=Math.min(240,(MAIN-14*(items.length-1))/items.length),tot=w*items.length+14*(items.length-1);let x=20+(MAIN-tot)/2;
   for(const n of items){pos[n.id]={x,y:rowY[z],w,h:rowH[z]};x+=w+14;}}
- let sy=20;
- const side=z=>{const items=cm.nodes.filter(n=>n.zone===z);if(!items.length)return;sy+=z==='ext'?14:0;
-  for(const n of items){const h=n.sub.length>70?78:n.sub.length>34?64:50;pos[n.id]={x:SX,y:sy+18,w:SW,h};sy+=h+10;}sy+=18;};
- const sideTop=sy;side('cross');const extTop=sy;side('ext');
- const H=Math.max(rowY.data+rowH.data+30,sy+20);
+ const hasNet=cm.nodes.some(n=>n.zone==='net');
+ // Side: cross-cutting in two columns, external below.
+ let sy=34;const sideTop=sy;
+ const cross=cm.nodes.filter(n=>n.zone==='cross');
+ for(let i=0;i<cross.length;i+=2){const pair=cross.slice(i,i+2);const h=Math.max(...pair.map(n=>n.sub.length>60?82:n.sub.length>30?68:54));
+  pair.forEach((n,j)=>{pos[n.id]={x:SX+j*(CW+10),y:sy,w:CW,h};});sy+=h+10;}
+ sy+=26;const extTop=sy;
+ for(const n of cm.nodes.filter(n=>n.zone==='ext')){const h=n.sub.length>80?78:n.sub.length>40?64:52;pos[n.id]={x:SX,y:sy,w:SW,h};sy+=h+10;}
+ const bottom=(hasNet?rowY.net+rowH.net:rowY.data+rowH.data)+24;
+ const H=Math.max(bottom+16,sy+20);
  const P=[];
- P.push('<rect x="12" y="'+(rowY.app-14)+'" width="'+(MAIN+16)+'" height="'+(rowH.app+28)+'" rx="10" class="zone app"/><text x="22" y="'+(rowY.app-2)+'" class="zt">Application zone</text>');
- P.push('<rect x="12" y="'+(rowY.data-14)+'" width="'+(MAIN+16)+'" height="'+(rowH.data+28)+'" rx="10" class="zone data"/><text x="22" y="'+(rowY.data-2)+'" class="zt">Data zone (private network)</text>');
- P.push('<text x="'+SX+'" y="'+(sideTop+12)+'" class="zt">Cross-cutting</text>');
- if(cm.nodes.some(n=>n.zone==='ext'))P.push('<text x="'+SX+'" y="'+(extTop+26)+'" class="zt">External services</text>');
- // Orthogonal routes: rows connect through channels between rows; the side column through one trunk;
- // cross-cutting services through one bracket (every application part uses them).
+ // Private network frame around application, data and network rows.
+ P.push('<rect x="8" y="'+(rowY.app-34)+'" width="'+(MAIN+24)+'" height="'+(bottom-(rowY.app-34))+'" rx="12" class="zone vnet"/><text x="20" y="'+(rowY.app-18)+'" class="zt">Private network · '+hldEsc(cm.network||'')+'</text>');
+ P.push('<rect x="14" y="'+(rowY.app-12)+'" width="'+(MAIN+12)+'" height="'+(rowH.app+24)+'" rx="10" class="zone app"/><text x="22" y="'+(rowY.app+rowH.app+8)+'" class="zt">Application subnet</text>');
+ P.push('<rect x="14" y="'+(rowY.data-12)+'" width="'+(MAIN+12)+'" height="'+(rowH.data+24)+'" rx="10" class="zone data"/><text x="22" y="'+(rowY.data+rowH.data+8)+'" class="zt">Data subnet (no public access)</text>');
+ if(hasNet)P.push('<text x="22" y="'+(rowY.net-6)+'" class="zt">Network and access</text>');
+ P.push('<text x="'+SX+'" y="'+(sideTop-10)+'" class="zt">Cross-cutting services</text>');
+ if(cm.nodes.some(n=>n.zone==='ext'))P.push('<text x="'+SX+'" y="'+(extTop-10)+'" class="zt">External services</text>');
  const lines=[];const trunk=SX-26;
- const chan={actors:rowY.edge-18,edge:rowY.app-24,app:rowY.data-24,data:rowY.data+rowH.data+16};
- const ext=new Set(cm.nodes.filter(n=>n.zone==='ext').map(n=>n.id)),cross=new Set(cm.nodes.filter(n=>n.zone==='cross').map(n=>n.id));
- const lab=(x,y,t,cls)=>t?lines.push('<text x="'+x+'" y="'+y+'" class="cl'+(cls?' '+cls:'')+'">'+hldEsc(t)+'</text>'):0;
+ const chan={actors:rowY.edge-18,edge:rowY.app-44,app:rowY.data-26,data:rowY.data+rowH.data+14,net:rowY.net+rowH.net+10};
+ const ext=new Set(cm.nodes.filter(n=>n.zone==='ext').map(n=>n.id)),crossS=new Set(cross.map(n=>n.id));
+ const labels=[];const lab=(x,y,t,cls)=>t?labels.push('<text x="'+x+'" y="'+y+'" class="cl'+(cls?' '+cls:'')+'">'+hldEsc(t)+'</text>'):0;
  const path=(pts,dash)=>lines.push('<path d="M'+pts.map(p=>p.join(' ')).join(' L')+'" class="ce'+(dash?' d':'')+'" fill="none" marker-end="url(#cmA)"/>');
  const zoneOf=id=>(cm.nodes.find(n=>n.id===id)||{}).zone;
  for(const e of cm.edges){
-  if(cross.has(e.to)||cross.has(e.from))continue;
+  if(crossS.has(e.to)||crossS.has(e.from))continue;
   const A=pos[e.from],Bp=pos[e.to];if(!A||!Bp)continue;
   const ax=A.x+A.w/2,bx=Bp.x+Bp.w/2;
   if(ext.has(e.to)){const ch=chan[zoneOf(e.from)]||chan.app,y2=Bp.y+Bp.h/2;path([[ax,A.y+A.h],[ax,ch],[trunk,ch],[trunk,y2],[Bp.x-2,y2]],e.dash);lab(Bp.x-6,y2-4,e.label,'r');continue;}
   if(ext.has(e.from)){const y1=A.y+A.h/2,ty=Bp.y+Bp.h/2;path([[A.x,y1],[trunk-8,y1],[trunk-8,ty],[Bp.x+Bp.w+2,ty]],e.dash);lab(trunk-12,ty-5,e.label,'r');continue;}
+  if(zoneOf(e.from)===zoneOf(e.to)){
+   const between=cm.nodes.some(n=>n.zone===zoneOf(e.from)&&pos[n.id]&&n.id!==e.from&&n.id!==e.to&&pos[n.id].x>Math.min(A.x,Bp.x)&&pos[n.id].x<Math.max(A.x,Bp.x));
+   if(between){const yb=A.y+A.h+7;path([[ax,A.y+A.h],[ax,yb],[bx,yb],[bx,Bp.y+Bp.h+2]],e.dash);lab((ax+bx)/2,yb+11,e.label);}
+   else{const y=A.y+A.h/2;path(Bp.x>A.x?[[A.x+A.w,y],[Bp.x-2,y]]:[[A.x,y],[Bp.x+Bp.w+2,y]],e.dash);lab((Math.min(A.x+A.w,Bp.x+Bp.w)+Math.max(A.x,Bp.x))/2,A.y-4,e.label);}
+   continue;}
   if(Bp.y>A.y+A.h){const ch=Bp.y-12;if(Math.abs(ax-bx)<4)path([[ax,A.y+A.h],[bx,Bp.y-2]],e.dash);else path([[ax,A.y+A.h],[ax,ch],[bx,ch],[bx,Bp.y-2]],e.dash);lab(bx+4,Bp.y-15,e.label,'l');continue;}
   if(Bp.y+Bp.h<A.y){const ch=A.y-10;path([[ax,A.y],[ax,ch],[bx,ch],[bx,Bp.y+Bp.h+2]],e.dash);lab(bx+4,Bp.y+Bp.h+12,e.label,'l');continue;}
-  const y=A.y+A.h/2;path(Bp.x>A.x?[[A.x+A.w,y],[Bp.x-2,y]]:[[A.x,y],[Bp.x+Bp.w+2,y]],e.dash);lab((A.x+A.w+Bp.x)/2,y-5,e.label);
  }
- // Bracket to the cross-cutting group.
- const cb=cm.nodes.filter(n=>n.zone==='cross').map(n=>pos[n.id]).filter(Boolean);
- if(cb.length){const top=cb[0].y,bot=cb[cb.length-1].y+cb[cb.length-1].h,mid=(top+bot)/2,ax=20+MAIN+8;
+ // One bracket for the cross-cutting group: every part uses sign-in, secrets, settings, telemetry; CI/CD releases them.
+ const cb=cross.map(n=>pos[n.id]).filter(Boolean);
+ if(cb.length){const top=Math.min(...cb.map(p=>p.y)),bot=Math.max(...cb.map(p=>p.y+p.h)),mid=(top+bot)/2,ax=20+MAIN+12;
   lines.push('<path d="M'+(SX-12)+' '+top+' H'+(SX-6)+' V'+bot+' H'+(SX-12)+'" class="ce" fill="none"/>');
   lines.push('<path d="M'+ax+' '+(rowY.app+rowH.app/2)+' H'+(SX-30)+' V'+mid+' H'+(SX-8)+'" class="ce d" fill="none" marker-end="url(#cmA)"/>');
-  lab(SX-34,mid-6,'every part: sign-in (OIDC), secrets, telemetry; released by CI/CD','r');}
- const boxes=cm.nodes.filter(n=>pos[n.id]).map(n=>{const p=pos[n.id],tl=hldWrap(n.title,Math.floor(p.w/7),2),sl=hldWrap(n.sub,Math.floor(p.w/6),3);
+  lab(SX-34,mid-6,'every part: sign-in, secrets, settings, telemetry; released by CI/CD','r');}
+ const boxes=cm.nodes.filter(n=>pos[n.id]).map(n=>{const p=pos[n.id],tl=hldWrap(n.title,Math.floor(p.w/7),2),sl=hldWrap(n.sub,Math.floor(p.w/6),p.h>80?4:3);
   return '<g class="cb '+n.zone+'"><rect x="'+p.x+'" y="'+p.y+'" width="'+p.w+'" height="'+p.h+'" rx="7"/>'+tl.map((t,i)=>'<text x="'+(p.x+p.w/2)+'" y="'+(p.y+16+i*14)+'" class="t">'+hldEsc(t)+'</text>').join('')+sl.map((t,i)=>'<text x="'+(p.x+p.w/2)+'" y="'+(p.y+18+tl.length*14+i*12)+'" class="s">'+hldEsc(t)+'</text>').join('')+'</g>';});
- const css='.zone{fill:none;stroke:#d5dcec;stroke-dasharray:4 4}.zone.app{fill:#faf9ff}.zone.data{fill:#f7fcf9}.zt{font:700 11px system-ui,sans-serif;fill:#6b7389;text-transform:uppercase}'+
-  '.cb rect{fill:#f7f9ff;stroke:#b8c6e3}.cb.actors rect{fill:#fff;stroke:#7c8fb8}.cb.edge rect{fill:#eef6ff;stroke:#8fb0dd}.cb.app rect{fill:#f1eeff;stroke:#7a6ae0}.cb.data rect{fill:#eef9f3;stroke:#8fcbab}.cb.cross rect{fill:#f6f4ff;stroke:#b9aef0}.cb.ext rect{fill:#fffaf2;stroke:#e5c48a}'+
+ const css='.zone{fill:none;stroke:#d5dcec;stroke-dasharray:4 4}.zone.vnet{fill:#fbfcff;stroke:#9fb3d9;stroke-dasharray:6 4}.zone.app{fill:#faf9ff}.zone.data{fill:#f7fcf9}.zt{font:700 11px system-ui,sans-serif;fill:#6b7389;text-transform:uppercase}.zt.r{text-anchor:end}'+
+  '.cb rect{fill:#f7f9ff;stroke:#b8c6e3}.cb.actors rect{fill:#fff;stroke:#7c8fb8}.cb.edge rect{fill:#eef6ff;stroke:#8fb0dd}.cb.app rect{fill:#f1eeff;stroke:#7a6ae0}.cb.data rect{fill:#eef9f3;stroke:#8fcbab}.cb.net rect{fill:#f3f6fb;stroke:#a9b6cf}.cb.cross rect{fill:#f6f4ff;stroke:#b9aef0}.cb.ext rect{fill:#fffaf2;stroke:#e5c48a}'+
   '.t{font:600 11.5px system-ui,sans-serif;text-anchor:middle;fill:#1d2433}.s{font:10.5px system-ui,sans-serif;text-anchor:middle;fill:#5b6478}.ce{stroke:#8091b3;stroke-width:1.2}.ce.d{stroke-dasharray:4 4}.cl{font:9.5px system-ui,sans-serif;text-anchor:middle;fill:#4b5570;paint-order:stroke;stroke:#fff;stroke-width:3px}.cl.r{text-anchor:end}.cl.l{text-anchor:start}';
- return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" class="hld-svg" role="img" aria-label="Component diagram"><style>'+css+'</style><defs><marker id="cmA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8091b3"/></marker></defs>'+lines.join('')+boxes.join('')+'</svg>';
+ return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" class="hld-svg" role="img" aria-label="Component diagram"><style>'+css+'</style><defs><marker id="cmA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8091b3"/></marker></defs>'+P.join('')+lines.join('')+boxes.join('')+labels.join('')+'</svg>';
 }
 
 /* ---- Diagram agent (Claude): reads the whole design and returns a reviewed component diagram ---- */
@@ -282,7 +322,7 @@ function diagramRequest(m,cm){
   layers:m.blueprint.platform.slice(0,40).map(l=>({id:cut(l.id,40),label:cut(l.label,80),design:cut(l.t,1500)})),
   capabilities:m.blueprint.capabilities.slice(0,60).map(c=>({name:cut(c.name,120),route:cut(c.route,80),runsOn:cut(c.runsOn,160)})),
   owners:(m.blueprint.owners||[]).slice(0,12).map(o=>cut(o.label+': '+(o.owner?(o.owner.by==='partner'?'partner platform':'bought product')+' for '+o.owner.name:'the shared platform'),300)),
-  draftNodes:cm.nodes.slice(0,40).map(n=>({id:cut(n.id,40),zone:n.zone,title:cut(n.title,120),sub:cut(n.sub,300)})),
+  draftNodes:cm.nodes.slice(0,40).map(n=>({id:cut(n.id,40),zone:n.zone==='net'?'cross':n.zone,title:cut(n.title,120),sub:cut(n.sub,300)})),
   draftEdges:cm.edges.slice(0,80).map(e=>({from:e.from,to:e.to,label:cut(e.label,80)}))};
 }
 function hldFingerprint(req){const t=JSON.stringify({...req,draftNodes:undefined,draftEdges:undefined});let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return String(h);}
@@ -356,7 +396,7 @@ function hldPage(){
  const cm=hldComponents(m),aib=hldAiBlock(m,cm),csvg=aib.svg||hldComponentDiagram(m,cm);
  const cholder=h('div',{class:'hld-diagram'});cholder.innerHTML=csvg;
  const shown=aib.view==='ai'&&aib.am?aib.am:cm;
- const zoneName={actors:'Users and devices',edge:'Entry',app:'Application',data:'Data',cross:'Cross-cutting',ext:'External'};
+ const zoneName={actors:'Users and devices',edge:'Entry',app:'Application',data:'Data',net:'Network and access',cross:'Cross-cutting',ext:'External'};
  const sec=(title,body)=>h('section',{class:'summary-section hld-sec'},[h('h2',{text:title}),...[].concat(body)]);
  const dl=rows=>h('dl',{class:'inv-meta hld-dl'},rows.flatMap(([k,v])=>[h('dt',{text:k}),h('dd',{text:String(v||'')})]));
  return h('div',{class:'hld'},[

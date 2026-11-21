@@ -126,7 +126,7 @@ function formfillerPanel(){
  const pending=briefProposalKeys(),remaining=briefFillRequest().missing.length;
  return h('section',{id:'formfiller-panel',class:'formfiller-panel','aria-label':'Formfiller agent'},[
   h('div',{},[h('h3',{text:'Formfiller agent'}),
-   h('p',{text:'Each prediction uses your brief and earlier suggestions. You can edit any answer. Claude receives the project name, target date, answers and draft suggestions once per step.'}),
+   h('p',{text:'Each prediction uses your project name, target date, brief answers and earlier suggestions. You can edit any answer. If Claude returns no usable suggestion, Formfiller tries once more.'}),
    h('label',{class:'formfiller-auto'},[
     h('input',{type:'checkbox',checked:formfillUI.afterEdit?'':null,disabled:formfillUI.busy?'':null,onchange:e=>{formfillUI.afterEdit=e.target.checked;}}),
     'Predict one answer after my next edit'
@@ -136,7 +136,7 @@ function formfillerPanel(){
    h('button',{type:'button',class:'btn small primary',disabled:formfillUI.busy?'':null,onclick:()=>runFormfiller(),text:formfillUI.busy?'Formfiller is working…':'Predict next answer'}),
    formfillUI.busy?button('Stop after this answer',()=>{formfillUI.stop=true;formfillUI.message='Finishing the current prediction.';refreshFormfillPanel();},'btn small'):
     remaining>1?h('div',{},[button('Draft remaining answers in sequence',()=>runFormfiller(true),'btn small'),
-     h('small',{text:'Up to '+remaining+' Claude requests'})]):null,
+     h('small',{text:remaining+' fields remaining · up to '+(2*remaining)+' Claude requests including retries'})]):null,
    pending.length?button('Use all '+pending.length+' suggestions',()=>acceptBriefDrafts(pending),'btn small'):null
   ])
  ]);
@@ -177,6 +177,6 @@ function writeBriefAnswer(key,value){
   if(!removed.length)formfillUI.message='';
   recordFormfill('edit-suggestion',{key,proposed:pending.value,model:pending.model});
   refreshFormfillPanel();
- }
+ }else if(!removed.length&&Boolean(before)!==Boolean(briefAnswer(key)))refreshFormfillPanel();
  persist();
 }

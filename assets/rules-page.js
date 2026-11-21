@@ -48,6 +48,7 @@ let rulesTab='people';
 })();
 
 /* ---- Technology rules: chips open a rule editor (state, reason, owner, dates) ---- */
+(function(){if(document.getElementById('rule-suggest-style'))return;document.head.append(Object.assign(document.createElement('style'),{id:'rule-suggest-style',textContent:'.rule-rec{margin:6px 0 10px;padding:10px 12px;border:1px solid #d9d2ff;border-radius:10px;background:#faf9ff}.rr-head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}.rr-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5a46c8}.rr-pick{display:inline-flex;gap:6px;align-items:center;font-size:15.5px}.rr-badge{font-size:12px;padding:2px 8px;border-radius:10px}.rr-badge.yes{background:#e6f6ec;color:#1d6b3a}.rr-badge.no{background:#fff4e0;color:#7a4b00}.rr-sure{font-size:12.5px;padding:2px 8px;border-radius:10px;background:#eef0f5;color:#3c4257}.rr-sure.slight,.rr-sure.tie{background:#fff4e0;color:#7a4b00}.rr-head .btn{margin-left:auto}.rr-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:8px 18px;margin-top:8px;font-size:13.5px}@media(max-width:900px){.rr-body{grid-template-columns:1fr}}.rr-reasons{list-style:none;margin:4px 0;padding:0}.rr-reasons li{margin:3px 0}.rr-reasons li.pos{color:#1d6b3a}.rr-reasons li.neg{color:#9b1c1c}.rr-crit{display:inline-block;min-width:78px;font-size:11.5px;font-weight:600;color:#5d6377;text-transform:uppercase;letter-spacing:.04em}.rr-note{margin:4px 0 0;color:#3c4257}.rr-cmp{width:100%;border-collapse:collapse;margin:4px 0}.rr-cmp th,.rr-cmp td{border-top:1px solid #ece9fb;padding:4px 6px;text-align:left;vertical-align:top}.rr-cmp th{font-weight:600;white-space:nowrap}.rr-score{white-space:nowrap;color:#5d6377;width:70px}'}));})();
 function ruleChipText(dim,id,label){
  const R=M.decide.rules,st=R.stance[dim][id]||'allowed',info=(R.ruleInfo[dim]||{})[id]||{};
  const today=new Date().toISOString().slice(0,10);const overdue=info.reviewBy&&info.reviewBy<today;
@@ -59,6 +60,7 @@ function stanceChips(dim){
  const R=M.decide.rules;const set=TARGETS[dim].opts.filter(([id])=>(R.stance[dim][id]||'allowed')!=='allowed').length;
  return h('div',{class:'stance-group','data-area':dim},[
   h('div',{class:'stance-group-head'},[h('b',{text:TARGETS[dim].title}),h('small',{class:'muted',text:(isNewProduct()?PRODUCT_AREA_HELP:AREA_HELP)[dim]+(set?' · '+set+' rule'+(set===1?'':'s'):'')}),button('+ Add your own',()=>customOptionDialog(dim),'linkbtn')]),
+  ruleSuggestionLine(dim),
   h('div',{class:'stance-chips'},TARGETS[dim].opts.map(([id,label,hint])=>{
    const st=R.stance[dim][id]||'allowed',info=(R.ruleInfo[dim]||{})[id]||{};
    return h('button',{type:'button',class:'stance-chip '+st+(String(id).startsWith('org-')?' own':''),'data-find':(label+' '+(hint||'')+' '+(info.reason||'')).toLowerCase(),'data-rule':st,
@@ -67,6 +69,49 @@ function stanceChips(dim){
     onclick:()=>ruleDialog(dim,id)},[ruleChipText(dim,id,label)]);
   }))
  ]);
+}
+/* Recommendation card per area: what the brief and your rules point to, how sure, why, and how it compares
+   with the other options. Same suggestion as Design options step 1 (platformSuggest); scores from rankOptions
+   on the whole platform (reasons x weights from What matters most). Rules are the organization's policy;
+   this card is advice for this project, and "Make it preferred" turns it into a rule. */
+const RULE_CRIT={fit:'Fit',effort:'Effort',risk:'Risk',cost:'Cost',skills:'Skills',portability:'Portability',rule:'Your rules'};
+const RULE_DEVICE_SIDE={database:{sqlite:'stores data on the device, not on the shared platform'},architecture:{clientapi:'describes the client apps; the platform itself still needs an architecture'}};
+function ruleSuggestionLine(dim){
+ if(typeof platformSuggest!=='function'||!['architecture','language','database','integration','cloud'].includes(dim))return null;
+ let S,ranked;
+ try{S=platformSuggest();ranked=rankOptions(dim,typeof PLATFORM_VCTX!=='undefined'?PLATFORM_VCTX:{id:'platform',virtual:true},{approach:'build',choices:{}});}catch(e){return null;}
+ const R=M.decide.rules,ids=[].concat(S.v[dim]||[]).filter(Boolean);if(!ids.length)return null;
+ const lab=id=>((TARGETS[dim].opts.find(o=>o[0]===id)||[,id])[1]);
+ const stateOf=id=>R.stance[dim][id]||'allowed';
+ const open=ids.filter(id=>!['preferred','standard'].includes(stateOf(id)));
+ const skip=RULE_DEVICE_SIDE[dim]||{};
+ const valid=ranked.filter(o=>!o.excluded&&!skip[o.id]);
+ const top=valid.find(o=>o.id===ids[0])||valid[0];
+ const others=valid.filter(o=>!ids.includes(o.id));
+ const gap=top&&others[0]?Math.round((top.score-others[0].score)*10)/10:null;
+ const tied=others.filter(o=>top&&o.score===top.score);
+ const sure=!TARGETS[dim].multi&&tied.length?['tie','Tie with '+tied.map(o=>o.label).join(', ')+'. Decided by: '+(S.why[dim]||'the first in the list')]
+  :gap==null?['clear','Only option that fits']:gap>=6?['clear','Clear lead (+'+gap+' points)']:gap>0?['slight','Slight lead (+'+gap+' points): worth a second look']:['clear','Recommended'];
+ const make=()=>{for(const id of open){const b=stateOf(id);R.stance[dim][id]='preferred';R.ruleInfo[dim]=R.ruleInfo[dim]||{};R.ruleInfo[dim][id]={...(R.ruleInfo[dim][id]||{}),reason:'Recommended for this '+(isNewProduct()?'product':'system')+': '+(S.why[dim]||'best score against the brief and your rules')};logInput('rule:'+dim+':'+id,b,'preferred');}persist();render();};
+ const reason=r=>h('li',{class:r.v>0?'pos':r.v<0?'neg':''},[h('span',{class:'rr-crit',text:RULE_CRIT[r.w]||r.w}),(r.v>0?'+ ':r.v<0?'− ':'')+r.t]);
+ const chosen=ids.map(id=>valid.find(o=>o.id===id)||ranked.find(o=>o.id===id)).filter(Boolean);
+ const ruleBadge=id=>{const st=stateOf(id);return st==='allowed'?h('span',{class:'rr-badge no',text:'Not yet a rule'}):h('span',{class:'rr-badge yes',text:'In your rules: '+(RULE_STATE[st]?RULE_STATE[st][1]:st)});};
+ const cmpRows=[...others.slice(0,3),...ranked.filter(o=>o.excluded||skip[o.id]).slice(0,2)];
+ const pts=n=>(n>0?'+':'')+Math.round(n*10)/10;
+ return h('div',{class:'rule-rec'},[
+  h('div',{class:'rr-head'},[h('span',{class:'rr-label',text:'Recommendation'}),
+   ...ids.map(id=>h('span',{class:'rr-pick'},[h('b',{text:lab(id)}),ruleBadge(id)])),
+   h('span',{class:'rr-sure '+sure[0],text:sure[1]}),
+   open.length?button('Make it preferred',make,'btn small primary'):null]),
+  h('div',{class:'rr-body'},[
+   h('div',{},[h('b',{text:'Why'}),
+    chosen.length&&chosen.some(o=>o.reasons.length)?h('ul',{class:'rr-reasons'},chosen.flatMap(o=>o.reasons.map(reason))):h('p',{class:'muted',text:'No rule or fact in the brief favours one option; this is the default for this kind of product.'}),
+    S.why[dim]?h('p',{class:'rr-note',text:'In short: '+S.why[dim]+'.'}):null]),
+   h('div',{},[h('b',{text:'Compared with'}),
+    cmpRows.length?h('table',{class:'rr-cmp'},h('tbody',{},cmpRows.map(o=>h('tr',{},[h('th',{scope:'row',text:o.label}),
+     h('td',{class:'rr-score',text:o.excluded?'excluded':skip[o.id]?'n/a':pts(o.score)}),
+     h('td',{text:o.excluded?o.excluded:skip[o.id]?'Not used for the shared platform: '+skip[o.id]:(o.reasons.length?o.reasons.slice(0,2).map(r=>(r.v>0?'+ ':r.v<0?'− ':'')+r.t).join('; '):'nothing in the brief or your rules favours it')})])))):h('p',{class:'muted',text:'No other option fits.'}),
+    h('small',{class:'muted',text:'Points = each reason × how much its criterion matters (What matters most, under Priorities & limits).'+(top?' Recommendation: '+pts(top.score)+' points.':'')})])])]);
 }
 function ruleDialog(dim,id){
  const R=M.decide.rules,o=TARGETS[dim].opts.find(x=>x[0]===id);if(!o)return;
@@ -193,7 +238,8 @@ function rulesTabsPage(){
    rulesToolbar(),
    rulesInForce(),
    h('div',{class:'rules-browse'},[rulesFilterBar(),h('div',{class:'stance-legend'},RULE_STATES.map(([v,label,icon,help])=>h('span',{class:'legend-item '+v,title:help},[(icon?icon+' ':'')+label])))]),
-   ...Object.keys(TARGETS).map(stanceChips)
+   ...Object.keys(TARGETS).map(stanceChips),
+   typeof cloudServicesPanel==='function'?cloudServicesPanel():null
   ])];
   queueMicrotask(()=>applyRulesFilter(document.getElementById('main')));
  }else{

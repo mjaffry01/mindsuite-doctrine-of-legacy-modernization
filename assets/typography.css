@@ -1,0 +1,279 @@
+/* MindSuite Pathfinder · typography layer (loaded last).
+   One readable font (Inter, loaded in index.html; Segoe UI / system font as fallback), a 15 px base,
+   and every small size raised: rules below are generated from the app's own CSS by scaling
+   7–9.5 px → 11.5, 10–10.5 → 12, 11–11.5 → 12.5, 12 → 13, 12.5 → 13.5, 13 → 14, 14 → 15 px.
+   Regenerate with: python tools/typography.py (run in the repo root) after adding new small text. */
+html body{font-family:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Arial,sans-serif;font-size:15px;line-height:1.6;color:var(--ink);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-feature-settings:"cv11","ss01"}
+html button,html input,html select,html textarea{font-family:inherit}
+html input,html select,html textarea{font-size:15px}
+html small{font-size:max(12.5px,.86em)}
+html h1{letter-spacing:-.02em;line-height:1.15}html h2{letter-spacing:-.01em;line-height:1.3}html h3{line-height:1.35}
+html p,html li,html dd{line-height:1.6}
+html table{font-size:14px}html th,html td{line-height:1.5}
+:root{--muted:#5d6377}
+html #notice{font-size:13px}
+html .action-bar .btn.primary{font-size:12.5px}
+html .action-bar b{font-size:14px}
+html .action-bar small{font-size:12.5px}
+html .advisor .eyebrow{font-size:12.5px}
+html .advisor-checks{font-size:14px}
+html .advisor-missing{font-size:13px}
+html .advisor-robust{font-size:14px}
+html .ag-does{font-size:12.5px}
+html .ag-kind{font-size:12px}
+html .ag-members{font-size:13.5px}
+html .agent-conn .scan-privacy{font-size:12.5px}
+html .agent-conn>.muted{font-size:12.5px}
+html .agent-log{font-size:12.5px}
+html .agent-msg-type{font-size:12px}
+html .agent-pre{font-size:13.5px}
+html .agent-problems{font-size:13.5px}
+html .agent-step{font-size:13.5px}
+html .agent-step small{font-size:12.5px}
+html .ai-payload{font-size:13px}
+html .artifact-bottom span{font-size:12px}
+html .artifact-card p{font-size:13px}
+html .artifact-card small{font-size:12.5px}
+html .asm-state{font-size:13px}
+html .availability-note{font-size:13px}
+html .badge{font-size:12px}
+html .brand-word small{font-size:12px}
+html .brief-proposal-note{font-size:13px}
+html .brief-sub{font-size:15px}
+html .brief-title{font-size:14px}
+html .btn{font-size:13px}
+html .btn.small{font-size:12.5px}
+html .business-flow-card h5{font-size:14px}
+html .cap-agent-head p{font-size:14px}
+html .cap-badge{font-size:12.5px}
+html .cap-box p{font-size:13.5px}
+html .card-facts summary{font-size:13px}
+html .category-icon{font-size:13px}
+html .check-list{font-size:14px}
+html .collection-detail summary{font-size:12.5px}
+html .compare{font-size:13px}
+html .compare summary{font-size:12.5px}
+html .compliance-chip{font-size:13px}
+html .compliance-chip small{font-size:12.5px}
+html .compliance-explainer h3{font-size:15px}
+html .compliance-impl li{font-size:14px}
+html .compliance-info{font-size:15px}
+html .conflict-note{font-size:13px}
+html .context-control .field{font-size:14px}
+html .context-control>span{font-size:12.5px}
+html .context-control>span,html .project-field label{font-size:13px}
+html .context-issue{font-size:12.5px}
+html .cost-rates summary{font-size:14px}
+html .ctx-box b{font-size:15px}
+html .ctx-box small{font-size:12.5px}
+html .ctx-checks{font-size:13.5px}
+html .ctx-checks legend{font-size:13px}
+html .ctx-decision-grid .context-control span{font-size:12.5px}
+html .ctx-decisions .muted{font-size:12.5px}
+html .ctx-decisions>b{font-size:13px}
+html .ctx-links{font-size:13.5px}
+html .db-summary{font-size:13px}
+html .demo-banner{font-size:13px}
+html .dep-node text{font-size:12.5px}
+html .design-head h5{font-size:15px}
+html .dim-head small{font-size:12.5px}
+html .discovery-disclosure{font-size:14px}
+html .discovery-launch p{font-size:14px}
+html .discovery-project{font-size:14px}
+html .discovery-question{font-size:14px}
+html .discovery-section-head p{font-size:14px}
+html .discovery-workspace .source-actions .btn{font-size:12.5px}
+html .drawer-header p{font-size:13px}
+html .drop-zone p{font-size:13px}
+html .drop-zone small{font-size:12.5px}
+html .edit-option b{font-size:13px}
+html .edit-option small{font-size:12.5px}
+html .edit-selection h3{font-size:13px}
+html .empty-state p{font-size:13px}
+html .evidence-card b{font-size:14px}
+html .evidence-card p,html .evidence-card small{font-size:13px}
+html .evidence-dl dd{font-size:13px}
+html .evidence-dl dt{font-size:12px}
+html .evidence-flow-step b{font-size:14px}
+html .evidence-flow-step small{font-size:12.5px}
+html .evidence-intake-status>p{font-size:14px}
+html .evidence-line small{font-size:12px}
+html .evidence-request b{font-size:12px}
+html .evidence-request p{font-size:13px}
+html .explore-compute{font-size:14px}
+html .explore-tier{font-size:12.5px}
+html .eyebrow{font-size:12px}
+html .field{font-size:14px}
+html .field-key{font-size:12.5px}
+html .field.compact{font-size:13px}
+html .file-count{font-size:12.5px}
+html .file-info b{font-size:13px}
+html .file-info small{font-size:12px}
+html .finding-title h3{font-size:15px}
+html .fit-tag{font-size:12px}
+html .formfiller-auto{font-size:13px}
+html .freeze-note{font-size:12.5px}
+html .goal-reasons>legend{font-size:14px}
+html .guide p{font-size:14px}
+html .guide-cmd{font-size:13px}
+html .guide-links{font-size:13px}
+html .guide-method h3{font-size:15px}
+html .history-entry b{font-size:13px}
+html .history-entry p{font-size:13px}
+html .history-entry small{font-size:12px}
+html .hld-ai-head p{font-size:13.5px}
+html .hld-dl{font-size:14px}
+html .hosting-badge{font-size:12.5px}
+html .hosting-card dl{font-size:13px}
+html .hosting-card p{font-size:14px}
+html .hosting-kind{font-size:12.5px}
+html .input-group{font-size:12px}
+html .input-guide{font-size:12.5px}
+html .input-status{font-size:12.5px}
+html .inputs-progress b{font-size:15px}
+html .inputs-progress small{font-size:12.5px}
+html .inputs-table{font-size:13.5px}
+html .inputs-table th{font-size:12.5px}
+html .inv-files{font-size:12.5px}
+html .inv-meta{font-size:13px}
+html .link-kind{font-size:12px}
+html .linkbtn{font-size:13px}
+html .load-src{font-size:12.5px}
+html .load-steps{font-size:14px}
+html .load-why{font-size:14px}
+html .manual-evidence>summary{font-size:14px}
+html .map-caption{font-size:13px}
+html .map-caption span{font-size:12px}
+html .map-node b{font-size:13px}
+html .map-node small{font-size:11.5px}
+html .matrix-badges .stance-chip{font-size:12px}
+html .method-links{font-size:12.5px}
+html .method-panel summary{font-size:14px}
+html .method-steps b{font-size:13px}
+html .method-steps p{font-size:13px}
+html .method-tag{font-size:12px}
+html .metric span{font-size:12.5px}
+html .missing-text{font-size:13px}
+html .mock-pill{font-size:12.5px}
+html .mode-badge{font-size:12.5px}
+html .more-detail summary{font-size:13.5px}
+html .multi-opt{font-size:13.5px}
+html .muted{font-size:13px}
+html .muted-cell{font-size:13px}
+html .need{font-size:14px}
+html .opt-cat{font-size:12.5px}
+html .opt-challenges{font-size:13px}
+html .opt-chips .stance-chip{font-size:12.5px}
+html .opt-head{font-size:15px}
+html .opt-meta{font-size:13px}
+html .opt-title .stance-chip{font-size:12.5px}
+html .opt-why{font-size:14px}
+html .options-results .scenario .eyebrow{font-size:12.5px}
+html .original-finding p{font-size:13px}
+html .original-finding small{font-size:12.5px}
+html .page-actions .btn{font-size:12.5px}
+html .page-heading p{font-size:15px}
+html .pf-sugg{font-size:12.5px}
+html .pf-tier p{font-size:14px}
+html .phase b{font-size:13.5px}
+html .phase small{font-size:12.5px}
+html .phase-group{font-size:12px}
+html .phase-num{font-size:12.5px}
+html .phase.active small{font-size:11.5px}
+html .plain-list{font-size:14px}
+html .plan-approach{font-size:13.5px}
+html .plan-card h3{font-size:15px}
+html .plan-deps{font-size:12.5px}
+html .produced-by{font-size:12.5px}
+html .produced-by .linkbtn{font-size:12.5px}
+html .project-field label{font-size:13px}
+html .project-name{font-size:14px}
+html .protocol-actions small{font-size:12px}
+html .protocol-detail{font-size:13px}
+html .protocol-detail dt{font-size:12px}
+html .protocol-view{font-size:12px}
+html .rail-label{font-size:12px}
+html .rail-note{font-size:13px}
+html .rail-note b{font-size:12px}
+html .rail-note p{font-size:12px}
+html .reason{font-size:12.5px}
+html .rec-head-actions .btn{font-size:12px}
+html .rec-step-head .muted{font-size:13.5px}
+html .rec-step-head>.value-num{font-size:12.5px}
+html .rec-steps b{font-size:14px}
+html .rec-steps small{font-size:12.5px}
+html .record-context{font-size:12.5px}
+html .record-header b{font-size:14px}
+html .record-header small{font-size:12px}
+html .review-list .sev{font-size:12.5px}
+html .rules-csv-help{font-size:13px}
+html .sb-grid h3{font-size:15px}
+html .sb-shared{font-size:13px}
+html .scan-details summary{font-size:13.5px}
+html .scan-list li{font-size:13.5px}
+html .scan-list small{font-size:12.5px}
+html .scan-panel h3{font-size:14px}
+html .scan-privacy{font-size:13px}
+html .scan-table{font-size:13px}
+html .scan-table td,html .ev-table td,html .people-table td{font-size:12.5px}
+html .scan-table th,html .ev-table th,html .people-table th{font-size:12px}
+html .scan-table,html .ev-table,html .people-table{font-size:13px}
+html .scan-wrap>summary{font-size:13.5px}
+html .scenario h5{font-size:15px}
+html .scenario-facts{font-size:13px}
+html .scenario-tech{font-size:13px}
+html .section-heading span{font-size:12.5px}
+html .selected-line input{font-size:13px}
+html .selected-line>div{font-size:13px}
+html .source-actions .btn{font-size:12px}
+html .source-actions .linkbtn{font-size:12.5px}
+html .source-card .apply-row>.btn{font-size:12px}
+html .source-details>summary{font-size:13px}
+html .source-detects{font-size:13.5px}
+html .source-detects b{font-size:12px}
+html .source-empty{font-size:13px}
+html .source-filter button{font-size:12.5px}
+html .source-head h3{font-size:15px}
+html .source-note{font-size:13px}
+html .source-results{font-size:12.5px}
+html .source-search input{font-size:12.5px}
+html .source-status{font-size:12.5px}
+html .source-title .source-status{font-size:13px}
+html .source-title h3{font-size:15px}
+html .stance-chip{font-size:13px}
+html .stance-group>b{font-size:13.5px}
+html .stance-item{font-size:13px}
+html .stance-legend{font-size:13px}
+html .start-folders .btn{font-size:12.5px}
+html .start-folders small{font-size:12.5px}
+html .success-list{font-size:14px}
+html .summary-callout p{font-size:13px}
+html .summary-row p{font-size:13px}
+html .summary-row>b{font-size:13px}
+html .svc-box>b{font-size:13.5px}
+html .tab{font-size:13px}
+html .tag{font-size:13px}
+html .tier-cost h3{font-size:15px}
+html .top-right .btn{font-size:12.5px}
+html .tp-basis{font-size:13px}
+html .tp-table{font-size:13.5px}
+html .tp-why{font-size:12.5px}
+html .type-chip{font-size:13px}
+html .type-label{font-size:13px}
+html .type-picker .type-chip{font-size:12px}
+html .type-picker small{font-size:12px}
+html .type-suggest{font-size:13.5px}
+html .validate-sub{font-size:14px}
+html .value-chips span{font-size:13px}
+html .value-num{font-size:13px}
+html .value-step b{font-size:14px}
+html .value-step small{font-size:12.5px}
+html .verdict{font-size:13px}
+html .version-note{font-size:12.5px}
+html .wave h2{font-size:15px}
+html .wave-dates .context-control span{font-size:12.5px}
+html .working-as span{font-size:12.5px}
+html .workspace-stages button{font-size:12.5px}
+html .workspace-stages span{font-size:11.5px}
+html body{font-size:15px}
+html h3{font-size:15px}

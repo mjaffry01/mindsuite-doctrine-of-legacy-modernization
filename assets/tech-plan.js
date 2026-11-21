@@ -40,6 +40,33 @@ const TP_SVC={
  aiModels:['Azure AI Foundry (Azure OpenAI and other model providers)','Amazon Bedrock','Vertex AI (Gemini and partner models)','open-weight models served on your own GPUs (vLLM)','IBM watsonx.ai','OCI Generative AI'],
  vector:['Azure AI Search (vector search)','Amazon OpenSearch Service (vector search) or Aurora PostgreSQL with pgvector','Vertex AI Vector Search','PostgreSQL with pgvector, or OpenSearch','IBM Cloud Databases for OpenSearch, or watsonx.data','Oracle Database 23ai vector search, or OCI Search with OpenSearch'],
  aiSafety:['Azure AI Content Safety','Amazon Bedrock Guardrails','Vertex AI safety filters and Model Armor','an open-source guard model and PII filter','watsonx.governance','OCI Generative AI guardrails'],
+ metrics:['Azure Monitor metrics','Amazon CloudWatch metrics','Cloud Monitoring','Prometheus','IBM Cloud Monitoring','OCI Monitoring'],
+ logs:['Log Analytics (Azure Monitor Logs)','Amazon CloudWatch Logs','Cloud Logging','Grafana Loki or Elasticsearch','IBM Cloud Logs','OCI Logging + Logging Analytics'],
+ apm:['Application Insights','AWS X-Ray + CloudWatch Application Signals','Cloud Trace + Cloud Profiler','Jaeger or Grafana Tempo with OpenTelemetry','IBM Instana Observability','OCI Application Performance Monitoring'],
+ dashboards:['Azure Managed Grafana or Azure Workbooks','Amazon Managed Grafana or CloudWatch dashboards','Cloud Monitoring dashboards','Grafana','IBM Cloud Monitoring dashboards','OCI Monitoring dashboards'],
+ alerting:['Azure Monitor alerts with action groups','CloudWatch alarms with Amazon SNS','Cloud Monitoring alerting policies','Alertmanager with PagerDuty or Opsgenie','IBM Cloud Monitoring alerts with Event Notifications','OCI Monitoring alarms with Notifications'],
+ synthetic:['Application Insights availability tests','CloudWatch Synthetics and CloudWatch RUM','Cloud Monitoring uptime checks','Grafana synthetic monitoring or Uptime Kuma','IBM Instana synthetic monitoring','OCI APM synthetic monitoring'],
+ audit:['Azure Activity Log','AWS CloudTrail and AWS Config','Cloud Audit Logs','auditd shipped to the central log store','Activity Tracker Event Routing','OCI Audit'],
+ siem:['Microsoft Sentinel','Amazon GuardDuty with AWS Security Hub','Google Security Operations','Wazuh or Splunk','Security and Compliance Center Workload Protection','Cloud Guard'],
+ costmon:['Microsoft Cost Management budgets','AWS Budgets and Cost Explorer','Cloud Billing budgets','OpenCost or Kubecost','IBM Turbonomic','OCI Budgets and Cost Analysis'],
+ promm:['Azure Monitor managed service for Prometheus with Azure Managed Grafana','Amazon Managed Service for Prometheus with Amazon Managed Grafana','Google Cloud Managed Service for Prometheus','Prometheus with Grafana','IBM Cloud Monitoring (Prometheus compatible)','OCI Monitoring with Prometheus exporters'],
+ backup:['Azure Backup with a geo-redundant vault','AWS Backup with cross-region copies','Backup and DR Service','Veeam or Commvault','Backup for VPC with copies to a second region','OCI backups copied to a second region'],
+ dr:['Azure Site Recovery','AWS Elastic Disaster Recovery','Backup and DR Service','Zerto or VMware Site Recovery Manager','a second-region copy rebuilt with Terraform (Schematics)','OCI Full Stack Disaster Recovery'],
+ dnsfail:['Azure Front Door or Azure Traffic Manager','Amazon Route 53 health checks and failover routing','Cloud DNS with global Cloud Load Balancing','global DNS failover (for example F5 GSLB)','IBM Cloud Internet Services global load balancing','OCI DNS traffic steering'],
+ iac:['Bicep or Terraform','AWS CloudFormation or Terraform','Terraform (Infrastructure Manager)','Terraform or Ansible','Terraform (Schematics)','Terraform (Resource Manager)'],
+ geodb:['a cross-region geo-replica of the database','a cross-region read replica (Aurora Global Database if you use Aurora)','a cross-region replica of the database','an asynchronous replica at the second site','a read replica in a second region','a cross-region replica (Autonomous Data Guard for Oracle)'],
+ geostore:['Blob Storage with geo-redundant storage (GRS)','S3 Cross-Region Replication','dual-region or multi-region Cloud Storage buckets','object storage replicated to the second site','Cloud Object Storage cross-region buckets','Object Storage replication to a second region'],
+ network:['Azure Virtual Network','Amazon VPC','VPC network','VLANs with firewall zones','IBM Cloud VPC','Virtual Cloud Network (VCN)'],
+ nat:['Azure NAT Gateway','NAT gateway','Cloud NAT','an outbound proxy or NAT','Public Gateway','NAT Gateway'],
+ private:['Azure Private Link (private endpoints)','AWS PrivateLink and VPC endpoints','Private Service Connect','private VLANs','Virtual Private Endpoints','private endpoints'],
+ bastion:['Azure Bastion','AWS Systems Manager Session Manager','Identity-Aware Proxy (IAP)','a jump host with MFA','a bastion host with MFA','OCI Bastion'],
+ dns:['Azure DNS','Amazon Route 53','Cloud DNS','your DNS servers','IBM Cloud Internet Services DNS','OCI DNS'],
+ ddos:['Azure DDoS Protection','AWS Shield','Cloud Armor','DDoS protection from your ISP or CDN','IBM Cloud Internet Services','OCI built-in DDoS protection'],
+ registry:['Azure Container Registry','Amazon ECR','Artifact Registry','Harbor','IBM Cloud Container Registry','OCI Container Registry'],
+ appconfig:['Azure App Configuration (with feature flags)','AWS AppConfig','Parameter Manager','a configuration service with feature flags','IBM Cloud App Configuration','configuration in OCI Vault with a feature-flag library'],
+ vpn:['Azure VPN Gateway or ExpressRoute','AWS Site-to-Site VPN or Direct Connect','Cloud VPN or Cloud Interconnect','your VPN or MPLS line','VPN for VPC or Direct Link','Site-to-Site VPN or FastConnect'],
+ scheduler:['Azure Container Apps jobs','Amazon EventBridge Scheduler','Cloud Scheduler','Kubernetes CronJobs','IBM Cloud Code Engine jobs','OCI Functions on a schedule'],
+ governance:['Azure Policy','AWS Organizations policies and AWS Config rules','Organization Policy Service','policy as code (Open Policy Agent)','IBM Cloud Security and Compliance Center','OCI Security Zones'],
  vm:['Azure Virtual Machines','Amazon EC2','Compute Engine','VMware or Hyper-V virtual machines','IBM Cloud Virtual Servers for VPC','OCI Compute']};
 const TP_DB={postgres:['Azure Database for PostgreSQL (Flexible Server)','Amazon RDS or Aurora PostgreSQL','Cloud SQL or AlloyDB for PostgreSQL','PostgreSQL with Patroni','IBM Cloud Databases for PostgreSQL','OCI Database with PostgreSQL'],
  mysql:['Azure Database for MySQL (Flexible Server)','Amazon RDS or Aurora MySQL','Cloud SQL for MySQL','MySQL with InnoDB Cluster','IBM Cloud Databases for MySQL','HeatWave MySQL'],
@@ -58,8 +85,11 @@ function tpServer(role,cloud,vcpu){
  const n=[2,4,8,16,32].find(x=>x>=(vcpu||2))||32;
  return t.replace(/\{n\}/g,n).replace(/\{m\}/g,n*4).replace(/\{m2\}/g,n*8).replace(/\{m1\}/g,n*2).replace(/\{o\}/g,Math.max(1,n/2));
 }
-function tpSvc(key,cloud){const i={azure:0,aws:1,gcp:2,ibm:4,oci:5}[cloud];const row=TP_SVC[key]||TP_DB[key];if(!row)return '';return i==null||!row[i]?row[3]:row[i];}
+function tpSvc(key,cloud){const i={azure:0,aws:1,gcp:2,ibm:4,oci:5}[cloud];const row=TP_SVC[key]||TP_DB[key];if(!row)return '';const base=i==null||!row[i]?row[3]:row[i];
+ // The organization's service rules (assets/cloud-services.js) pick or replace the service for this role.
+ return typeof cloudServiceFor==='function'?cloudServiceFor(key,cloud,base):base;}
 /* Role names from the brief's "Users and their jobs" (the words before each colon). */
+function dbIsOwnFor(L){const d=L.find(l=>l.id==='database');return !!(d&&d.q);}
 function tpRoles(t){
  const out=[];for(const part of String(t||'').split(/[;\n]|\(\d+\)/)){const m=part.match(/^\s*([A-Za-z][A-Za-z /-]{2,32}?)s?\s*:/);if(m){const r=m[1].trim().replace(/^./,x=>x.toUpperCase());if(!out.includes(r))out.push(r);}}
  return out.slice(0,6);
@@ -119,7 +149,7 @@ function techPlan(c,s,I){
  const T=tier==='Safe'?0:tier==='Balanced'?1:2;
  // Separate services only when the architecture says so (or Ambitious with no architecture chosen).
  const split=['microservices','events','serverless'].includes(arch)||(T===2&&!arch);
- const L=[];const add=(id,label,t,why,src)=>{if(t)L.push({id,label,t,why:why||'',src:src||'rule'});};
+ const L=[];const add=(id,label,t,why,src)=>{if(t)L.push({id,label,t,why:why||'',src:src||'rule'});};const dbIsOwn=()=>dbIsOwnFor(L);const kindLayer=()=>(((L.find(l=>l.id==='hosting')||{}).q)||{}).kind;
  // Quantities for the cost estimate (assets/tier-cost.js): set on the layer added last with that id.
  const qty=(id,q)=>{const l=[...L].reverse().find(x=>x.id===id);if(l)l.q=q;};
  const pub=['azure','aws','gcp','oci','ibm'].includes(cloud)||(!cloud&&!['onprem','private','edge','hybrid'].includes(where));
@@ -128,11 +158,16 @@ function techPlan(c,s,I){
  add('route','Route',s.a.label+(saas?': a product or SaaS does the work; you configure it and build the connections':platform?': built on a platform or low-code product with a partner':''),'Scenario approach','your scenario');
 
  /* Hosting model */
- const owner=I.D.hosting&&typeof HOSTING_MODELS!=='undefined'?HOSTING_MODELS.find(m=>m.id===I.D.hosting):null;
+ // Hosting model: the platform decision (recorded, or its suggestion for this same tier), else the brief's preference.
+ const pfh=typeof platformEffective==='function'?platformEffective():null;
+ const hostId=pfh&&pfh.hosting&&(pfh.decided||pfh.tier===tier)?pfh.hosting:I.D.hosting;
+ const hostSrcTxt=pfh&&hostId===pfh.hosting&&(pfh.decided||pfh.tier===tier)?(pfh.decided?'Recorded in the platform decision':'Suggested platform: '+((pfh.suggested&&pfh.suggested.why&&pfh.suggested.why.hosting)||'fits the brief')):'You chose this hosting model in the brief';
+ const owner=hostId&&typeof HOSTING_MODELS!=='undefined'?HOSTING_MODELS.find(m=>m.id===hostId):null;
+ const hostRole={kubernetes:'k8s',containers:'ctr',paas:'paas',serverless:'fn',vm:'vm',static:'static'};
  let host,hostWhy,hostSrc='rule';
  if(saas){host='The vendor hosts the product (SaaS); your connectors and any add-ons run on '+(T===0?svc('fn'):svc('ctr'));hostWhy='Buying means the vendor runs the main system';}
  else if(platform){host='The partner platform hosts it; custom parts on '+svc('ctr');hostWhy='A low-code or partner platform runs the app';}
- else if(owner){host=owner.name+': '+(owner[cloud]||owner[{onprem:'onprem'}[cloud]||'onprem']||'');hostWhy='You chose this hosting model in the brief';hostSrc='your choice';}
+ else if(owner&&!(ap==='rehost')){host=owner.name+': '+((hostRole[owner.id]&&svc(hostRole[owner.id]))||owner[cloud]||owner.onprem||'');hostWhy=hostSrcTxt;hostSrc=pfh&&pfh.decided?'your choice':'rule';}
  else if(ap==='rehost'||(arch==='keep'&&T===0&&ap!=='replatform')){host='Virtual machines: '+svc('vm');hostWhy='Least change: the app moves as it is';}
  else if(arch==='serverless'){host='Serverless functions: '+svc('fn');hostWhy='The scenario uses a serverless architecture';}
  else if(T===0){host=pub?'Managed web app platform: '+svc('paas'):'Virtual machines: '+svc('vm');hostWhy=pub?'Least to operate on a public cloud':'Private cloud: simplest to run on your own platform';}
@@ -336,15 +371,102 @@ function techPlan(c,s,I){
   'Availability '+I.aSrc,I.aSrc.startsWith('assumed')?'rule':'brief');
 
  /* Operations */
- add('operations','Operations',svc('mon')+' · '+svc('cicd')+' · '+(T===0?'dev and prod':T===1?'dev, test and prod; blue-green releases':'dev, test, prod and a preview per change; canary releases'),'Every option needs monitoring and repeatable releases','rule');
+ add('operations','Delivery and environments',svc('cicd')+' · '+(T===0?'dev and prod':T===1?'dev, test and prod; blue-green releases':'dev, test, prod and a preview per change; canary releases'),'Every option needs monitoring and repeatable releases','rule');
 
- /* Patterns */
- const pat=T===0?['layered application','cache-aside','retry with backoff','health checks']
-  :T===1?['modular monolith','cache-aside','queue-based load levelling','retry with backoff and circuit breaker','health checks']
-  :split?['microservices or event-driven services','outbox','CQRS for busy reads','saga for multi-step work'+(I.f.payments?' such as payments':''),'circuit breaker','strangler fig for the old parts']
-  :['modular monolith with enforced module boundaries','outbox','CQRS read models for busy screens','saga for multi-step work'+(I.f.payments?' such as payments':''),'circuit breaker','feature flags'];
- if(saas)pat.splice(0,pat.length,'anti-corruption layer around the vendor','retry and dead-letter queue','reconciliation job');
- add('patterns','Design patterns',pat.join(', '),'Fits the scenario route and architecture','rule');
+ /* Disaster recovery plan */
+ {
+  const a=I.avail,regions=String(I.D.regions||'').trim();
+  // Strategy from the availability target and the tier.
+  const strat=a>=99.99?['active-active','both regions serve users all the time; either can carry the full load']
+   :(a>=99.95||(T===2&&a>=99.9))?['warm standby','a smaller copy runs in the second region and is scaled up on failover']
+   :(a>=99.5||T===1)?['pilot light','the data is replicated to the second region; the rest is started from infrastructure as code on failover']
+   :['backup and restore','backups are copied to a second region and the system is rebuilt from them'];
+  const rto=a>=99.99?'a few minutes':a>=99.95?'1 hour':a>=99.5?'4 hours':'24 hours';
+  const rpo=a>=99.99?'near zero':a>=99.95?'5 minutes':a>=99.5?'15 minutes':'24 hours';
+  const extra={'active-active':'about 100% more running cost','warm standby':'about 30–50% more running cost','pilot light':'about 10–20% more running cost','backup and restore':'only backup storage'}[strat[0]];
+  const rep=[];
+  if(saas||platform)rep.push('the '+(platform?'partner platform':'vendor product')+'’s own recovery plan (ask for its RTO and RPO in the contract)');
+  if(!saas&&!platform&&dbIsOwn())rep.push('database: '+(strat[0]==='backup and restore'?'point-in-time backups copied to the second region':svc('geodb')));
+  if(I.f.files||I.f.video)rep.push('files: '+svc('geostore'));
+  rep.push('backups: '+svc('backup')+', kept in a second region, restore tested every '+(T===0?'quarter':'month'));
+  rep.push('secrets, keys and configuration replicated to the second region');
+  rep.push('everything else rebuilt from '+svc('iac'));
+  if(strat[0]!=='backup and restore')rep.push('failover of servers: '+(kindLayer()==='vm'?svc('dr'):'redeploy containers from the same images'));
+  const steps=['1 detect and declare (who decides: the service owner or on-call lead)','2 fail over the data','3 start or scale the application in the second region','4 switch traffic with '+svc('dnsfail'),'5 check with smoke tests and the service target','6 tell users and support','7 fail back when the first region is healthy'];
+  add('dr','Disaster recovery plan',
+   'Targets: recover within '+rto+' (RTO), lose at most '+rpo+' of data (RPO) · Strategy: '+strat[0]+' — '+strat[1]+' ('+extra+') · Second region: '+(regions?'another region inside '+regions+' (data residency)':'a second region in the same country or area')+
+   ' · Replicated: '+rep.join('; ')+' · Runbook: '+steps.join(', ')+' · Tests: restore test every '+(T===0?'quarter':'month')+', failover drill '+(T===2||a>=99.95?'every quarter':'twice a year')+
+   (I.f.payments||(L.find(l=>l.id==='payments'))?' · Outside services: check the payment provider’s and other vendors’ recovery commitments':''),
+   'Availability '+a+'% ('+I.aSrc+') sets RTO and RPO; the tier and the target set the strategy'+(regions?'; data residency sets the second region':''),I.aSrc.startsWith('assumed')?'rule':'brief');
+ }
+
+ /* Monitoring and observability */
+ {
+  const slo=I.avail>=99.95?'99.95%':I.avail>=99.9?'99.9%':I.avail>=99.5?'99.5%':I.avail+'%';
+  const parts=[];
+  parts.push('metrics and alerts: '+svc('metrics')+', '+svc('alerting'));
+  parts.push('logs: '+svc('logs')+', kept '+(I.regs.length?'1 year (regulations)':T===0?'30 days':'90 days')+' with structured JSON logs');
+  if(T>=1)parts.push('tracing and app performance: '+svc('apm')+' with OpenTelemetry in every part');
+  parts.push('uptime checks'+(T===2&&I.f.customers?' and real-user monitoring':'')+': '+svc('synthetic'));
+  if(T>=1)parts.push('dashboards: '+svc('dashboards'));
+  if(T===2&&!saas)parts.push('container metrics: '+svc('promm'));
+  parts.push('audit trail: '+svc('audit'));
+  if(T===2||I.regs.length)parts.push('security monitoring (SIEM): '+svc('siem'));
+  if(T>=1)parts.push('cost alerts: '+svc('costmon'));
+  if(I.f.iot)parts.push('device fleet health: connected devices, message rate and errors from the device hub');
+  const watch='Watch: latency (p95), traffic, error rate and saturation'+(dbIsOwn()?', database connections and slow queries':'')+(I.f.payments?', failed payments and webhook backlog':'')+(I.f.iot?', readings per minute':'');
+  const target='Service target (SLO): '+slo+' of requests succeed'+(T>=1?' and 95% answer within 500 ms':'')+(T===2?', with an error budget that pauses risky releases':'');
+  const oncall=T===0?'alerts to a shared mailbox':T===1?'alerts to an on-call rota':'on-call rota with escalation, runbooks per alert and game days';
+  add('observability','Monitoring and observability',parts.join(' · ')+' · '+watch+' · '+target+' · '+oncall,
+   'Availability target '+I.avail+'% sets the service target; tier sets how deep the monitoring goes'+(I.regs.length?'; regulations set log retention':''),'rule');
+ }
+
+ /* Cloud design patterns: each one is picked because a part of this design needs it, and says where */
+ {
+  const has=id=>L.some(l=>l.id===id&&l.t),q=id=>((L.find(l=>l.id===id)||{}).q)||{};
+  const nq=q('north'),mq=q('messaging'),cq=q('cache'),fq=q('files'),dq=q('database');
+  const G={};const pat=(group,name,where)=>{(G[group]=G[group]||[]).push(name+(where?' ('+where+')':''));};
+  // Entry and security
+  if(nq.apigw)pat('Entry and security','Gateway routing and gateway offloading','the API gateway routes calls and handles TLS, tokens and quotas');
+  if(nq.waf)pat('Entry and security','Gatekeeper','the WAF screens traffic before it reaches the app');
+  if(T>=1||I.f.customers)pat('Entry and security','Rate limiting (throttling)','per client at the entry point');
+  if(I.f.customers||I.f.staff)pat('Entry and security','Federated identity','sign-in through the identity service, not in the app');
+  // Resilience
+  pat('Resilience','Retry with backoff and timeouts','every call to the database, queue and outside services');
+  if(T>=1||I.f.payments||saas||platform)pat('Resilience','Circuit breaker','calls to '+(I.f.payments?'the payment provider and ':'')+'outside services');
+  if(T===2)pat('Resilience','Bulkhead','separate pools for slow and critical work');
+  pat('Resilience','Health endpoint monitoring','/health checked by the load balancer and uptime checks');
+  // Scale and load
+  if(cq.nodes)pat('Scale and load','Cache-aside','reads of the catalogue, sessions and reference data');
+  if(mq.kind==='queue'||mq.kind==='stream')pat('Scale and load','Queue-based load leveling and competing consumers','slow work through the '+(mq.kind==='stream'?'event stream':'queue')+', several workers in parallel');
+  if(nq.cdn||I.f.customers&&T===2)pat('Scale and load','Static content hosting','pages, images and scripts from the CDN');
+  if(T===2&&(I.f.reports||(I.peak||0)>=100))pat('Scale and load','CQRS with materialized views','busy screens read from read models kept up to date by events');
+  else if(T>=1&&(I.f.reports||(dq.instances||0)>2))pat('Scale and load','Materialized view','reports read from a replica or prepared tables');
+  if(T===2&&['saas-multi'].includes(I.D.tenancy))pat('Scale and load','Deployment stamps','a copy of the platform per region or per group of tenants');
+  if((I.users||0)>=100000||(I.dataGb||0)>=2000)pat('Scale and load','Sharding','split the data by tenant or region');
+  // Data and messaging
+  if(mq.kind==='stream')pat('Data and messaging','Publisher/subscriber','modules publish events; others subscribe');
+  if(mq.kind==='stream'||T===2)pat('Data and messaging','Transactional outbox','save a change and its event in one transaction, then publish');
+  if(I.f.payments||mq.kind)pat('Data and messaging','Idempotent receiver','process each message or webhook once'+(I.f.payments?', including payment webhooks':''));
+  if(I.f.payments||T===2)pat('Data and messaging','Saga with compensating transactions','multi-step work such as '+(I.f.payments?'order → payment → confirmation':'long business transactions')+', with undo steps');
+  if(fq.objectGb)pat('Data and messaging','Valet key','uploads and downloads through short-lived signed URLs, not through the app');
+  if(I.f.video||I.f.iot||(fq.objectGb&&mq.kind))pat('Data and messaging','Claim check','large payloads stored in object storage; messages carry only a reference');
+  if(I.f.iot)pat('Data and messaging','Pipes and filters','device readings validated, enriched and stored in steps');
+  // Integration and change
+  if(saas||platform||(I.P.integrations||'').trim()||(I.f&&I.f.payments))pat('Integration and change','Anti-corruption layer','a thin adapter around each outside product so its model does not leak into yours');
+  if(['rehost','replatform','refactor','rebuild','replace','encapsulate'].includes(ap)||!isNewProduct())pat('Integration and change','Strangler fig','move one piece at a time behind the gateway');
+  // Platform and recovery
+  if(split)pat('Platform and recovery','Sidecar and ambassador','the service mesh handles mutual TLS, retries and telemetry next to each service');
+  const drt=(L.find(l=>l.id==='dr')||{}).t||'';
+  if(/active-active/.test(drt))pat('Platform and recovery','Geode','both regions serve users');
+  else if(/warm standby/.test(drt))pat('Platform and recovery','Warm standby','a smaller copy waits in the second region');
+  else if(/pilot light/.test(drt))pat('Platform and recovery','Pilot light','data replicated, the rest started from code');
+  // Release
+  pat('Release',T===0?'Rolling release with a quick rollback':T===1?'Blue-green release':'Canary release with feature flags',T===0?'one environment at a time':T===1?'switch traffic to the new version, keep the old one ready':'small share of traffic first, flags to turn features off');
+  if(saas&&!G['Integration and change'])pat('Integration and change','Anti-corruption layer','around the vendor product');
+  const order=['Entry and security','Resilience','Scale and load','Data and messaging','Integration and change','Platform and recovery','Release'];
+  add('patterns','Cloud design patterns',order.filter(g=>G[g]).map(g=>g+': '+G[g].join('; ')).join(' · '),'Each pattern is chosen because a part of this design needs it (gateway, queue, cache, payments, files, devices, recovery strategy, tier)','rule');
+ }
 
  /* Often missed */
  const miss=['audit log of who changed what','admin and support screens','backups tested by restoring'];
@@ -365,7 +487,7 @@ function techPlanTable(c,scen){
  const open=TECH_PLAN_OPEN.has(c.id)?TECH_PLAN_OPEN.get(c.id):typeof systemBlueprintPanel!=='function'&&(!first||first.id===c.id);
  const I=techPlanInputs(c);
  const plans=scen.map(s=>({s,L:techPlan(c,s,I)}));
- const ORDER=['route','hosting','north','compute','servers','east','database','cache','messaging','iot','files','search','integration','payments','ai','identity','authz','security','availability','operations','patterns','missed'];
+ const ORDER=['route','hosting','north','compute','servers','east','database','cache','messaging','iot','files','search','integration','payments','ai','identity','authz','security','availability','dr','observability','operations','patterns','missed'];
  const ids=[];for(const p of plans)for(const l of p.L)if(!ids.find(x=>x[0]===l.id))ids.push([l.id,l.label]);
  ids.sort((a,b)=>ORDER.indexOf(a[0])-ORDER.indexOf(b[0]));
  const srcTag={'your choice':'you chose','brief':'from brief','calculation':'calculated','your scenario':'scenario','rule':'rule'};
