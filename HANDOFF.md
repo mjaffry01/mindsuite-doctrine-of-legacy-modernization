@@ -14,9 +14,9 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 |---|---|
 | GitHub repo | `mjaffry01/mindsuite-pathfinder` (branch `main`; renamed 2026-11-21 from `mindsuite-doctrine-of-legacy-modernization`, GitHub forwards the old repo and git URLs; the Go module path keeps the old name and still builds) |
 | Live site (GitHub Pages) | https://mjaffry01.github.io/mindsuite-pathfinder/ (the old Pages address no longer works) |
-| Working copy (temporary!) | `%TEMP%\lm-repo` (= `C:\Users\X1CARB~1\AppData\Local\Temp\lm-repo`) |
-| Permanent backup of the working files | `C:\Users\X1 CARBON\Downloads\Legecy Modernization\` includes the handoff, app entry point and workflow assets. |
-| Local preview | `python -m http.server 8768` in the working copy → http://localhost:8768/ (also the `legacy-modernization` entry in `.claude/launch.json`) |
+| **Single source of truth** (2026-11-21) | **GitHub `main`** holds the code. The **one** working copy is `C:\Users\X1 CARBON\Downloads\Legecy Modernization\` (a git clone of `main` since 2026-11-21): edit, test, run and push **only there**. `bin\`, `runs\`, `*.log` and workspace backups in that folder are local only (ignored by git). |
+| Retired copy | `%TEMP%\lm-repo` (`C:\Users\X1CARB~1\AppData\Local\Temp\lm-repo`) was the working copy until 2026-11-21. Do not edit or push from it any more; Windows may delete it. Nothing needs copying from one folder to the other now. |
+| Local preview | `python -m http.server 8768` in `Downloads\Legecy Modernization` → http://127.0.0.1:8768/ for testing (http://localhost:8768/ is the owner's own data: never write its storage). |
 | The app | `index.html` loads plain JavaScript and CSS from `assets/` and the team panels from `teams/`. Each workspace has a browser record under `mindsuite-workspace-v1:<id>`. |
 | Agent teams | **One folder per team**, backend and web app alike. Backend: shared core `backend/internal/agents/`, teams in `backend/internal/teams/{code,database,infrastructure,messaging,identity,telemetry,batch,network,documents,incidents}`: all ten evidence teams implemented. Web app: `teams/shared/` (backend connection, explanation-page engine), `teams/<team>/panel.js` (the panel in the app) and `teams/<team>/agents.html` (the explanation page). See `backend/README.md`. |
 | Workflow and decision assets | `assets/project-workspaces.js` opens and saves workspaces. `assets/project-mode.js` owns the two opening cards and product brief fields. `assets/project-workflows.js` defines the steps, first-release scope, launch checks and product export. `assets/workspace.js` renders navigation. Shared design tools live in `assets/rules-page.js`, `assets/rule-catalog.js`, `assets/decision-advisor.js` and `assets/target-options.js`; `assets/compliance.js` holds the compliance catalogue, explainers and suggestions. |
@@ -24,7 +24,7 @@ Read in this order: **this file → `PRODUCT-OUTCOMES.md` (what the product must
 | Backend (one server, 2026-11-21) | **Only :8090.** Every project uses `http://127.0.0.1:8090`. It runs `Downloads\Legecy Modernization\bin\mindsuite-agents-diagram.exe serve -config mindsuite.json -runs "C:/Users/X1 CARBON/Downloads/Legecy Modernization/runs"` from that `bin` folder (log `backend-diagram.log`); runs are saved in `Downloads\Legecy Modernization\runs`. Older builds in `bin` are kept for rollback. **After any Go change in `backend/`:** `go test ./...`, build a new versioned exe into `bin` (the running exe is locked), check `/api/runs` has no run in progress, stop :8090 and start the new exe with the same arguments, then check `/api/health`. Until it is restarted the web app may get 400 "Invalid …request" for new fields. The former test copy on :8091 was retired; do not start a second backend. Restarting :8090 needs the owner's OK. |
 | Claude API key | Console key **L2M** (`sk-ant-usr-…`), saved DPAPI-encrypted in `~/.mindsuite/claude-key.xml`; checked working with billing on 2026-11-20. Never put it in code, config or chat. |
 
-**Local checkpoint, 2026-11-21.** Local `main` and its `origin/main` tracking reference both point to `b59b025`. The two-path opening screen and workflow changes are uncommitted in this checkout. Include the untracked workflow, dictation and Formfiller files in assets/ and backend/ when the owner authorizes publication.
+**Checkpoint, end of 2026-11-21.** `main` = `origin/main` (see the newest change-log entry). The working tree in `Downloads\Legecy Modernization` has no uncommitted code. 8090 runs `bin\mindsuite-agents-policy16k.exe`.
 
 ---
 
@@ -124,6 +124,13 @@ Launch approval covers first-release capabilities. Later capabilities can stay u
 
 ## 6. Change log (newest first)
 
+### 2026-11-21 — One source of truth; legibility stylesheet published; closed for the day (Claude)
+
+- **Confusion found and fixed:** `index.html` has linked `assets/legibility.css?v=leg-4` since b00d498, but the file was never committed, so the live site returned 404 and the legibility work (owner: "improve the quality of the font and the background…") was not visible online. It is now committed and pushed.
+- **ChatGPT's changes:** the owner asked ChatGPT to make changes. Only two copies of the project exist on this machine (`%TEMP%\lm-repo` and `Downloads\Legecy Modernization`). Before this step they were identical (ignoring line endings), and everything else was already pushed in b9555ca: the project-scoped feedback (Formfiller field skips, claim prioritisation, technology preferences per capability) and the "permanent home" note.
+- **Single source of truth:** GitHub `main`. `Downloads\Legecy Modernization` is now the one git working copy (`.git` added; its files were already identical to `main`). `%TEMP%\lm-repo` is retired. Section 1 is updated.
+- **Still open:** "real answers in a new project" (see the entry below); the owner will send a screenshot.
+
 ### Permanent home for Pathfinder agent sources
 
 The owner keeps the full agent and backend source in the existing Legecy Modernization folder in Downloads. Use backend/internal/teams for discovery agents, backend/internal/agents for shared and planning logic, backend/internal/server for HTTP endpoints, and teams and assets for browser controls. Keep these sources synchronized with the Git working copy when changing agents. bin and runs contain local executables and project results.
@@ -152,7 +159,7 @@ Owner: after New project, the Product brief "does not reset". On 127.0.0.1 a new
 ### 2026-11-21 — Pushed b00d498 (Claude)
 
 - **Pushed as b00d498** at the owner's "push it". It includes HLD icons, plan approval covering dates, Architecture validation, the Data policy and Session policy agents (backend and web app) and drop reasons. Before pushing: the remote had no new commits, no secrets, all JS parsed, and `go vet` and `go test ./...` passed. Pages built b00d498; the live index carries `ic-3`, `val-2` and `sp-3`, and the new assets return 200.
-- **Not included:** `assets/legibility.css` (the main session's unfinished legibility work; `index.html` does not link it yet).
+- **Not included by mistake:** `assets/legibility.css`. `index.html` already linked it (`leg-4`), so the live site returned 404 for it until the fix below.
 - **Owner report, same time:** "new project does not reset everything". I couldn't reproduce it on 127.0.0.1. New project → Project from scratch gave an empty brief, no people, rules or platform values, no validation rows or policies, and no text from the previous project on any page; the only "carry-over" was the generic baseline (14 baseline capabilities, 18 default assumptions, one whole-product capability). The test project was removed. I'm waiting for the owner to say which page or value still showed old data; their own localhost storage was not opened.
 
 ### 2026-11-21 — 8090 on the 16k policy build; session rerun succeeds (Claude, NOT pushed)

@@ -1,0 +1,61 @@
+/* MindSuite Pathfinder · legibility layer (loaded after typography.css).
+   Owner: "improve the quality of the font and the background so that it becomes more legible".
+   - Inter as a variable font with optical sizes (small text gets wider, sturdier letters); body weight 430
+     so text is not thin on Windows screens.
+   - Darker ink and secondary text: body ≈ 16:1, secondary ≈ 9:1, labels ≈ 10:1 on white (WCAG AAA).
+   - A neutral grey page with white cards that have a visible edge, instead of a pale blue-lavender wash. */
+:root,html body{
+ --bg:#eef0f4;--surface:#fff;--ink:#141a2b;--muted:#454b61;--line:#d6dbe5;
+ --legible-label:#2f3548;--legible-soft:#5a6076;--legible-accent:#4b3bb5}
+html body{background:var(--bg);color:var(--ink);font-weight:430;font-optical-sizing:auto;font-synthesis:none;
+ -webkit-font-smoothing:auto;-moz-osx-font-smoothing:auto;text-rendering:optimizeLegibility;letter-spacing:.003em}
+html b,html strong,html th{font-weight:620}
+html h1{font-weight:720;color:#10152a}html h2,html h3{font-weight:660;color:#141a2b}html h4,html h5{font-weight:640}
+
+/* Secondary text: one dark grey everywhere, never lighter than about 7:1. */
+html .muted,html small,html .tp-why,html .hint,html .rail-note,html .working-as span,html .field-key,html .source-results,
+html .evidence-line small,html .metric span,html .type-picker small,html .start-folders small,html .card-facts,html .scan-list small{color:var(--muted)}
+html small{font-weight:430}
+
+/* Labels above fields and the fields themselves. */
+html .context-control>span,html .type-label,html label>span{color:var(--legible-label);font-weight:560}
+html .field,html input,html select,html textarea{color:var(--ink);background-color:#fff;border-color:#c5cbd8}
+html .field::placeholder,html input::placeholder,html textarea::placeholder{color:#767c90;opacity:1}
+html .field:focus,html input:focus,html select:focus,html textarea:focus{border-color:#5b4bd0;outline:2px solid #5b4bd033;outline-offset:0}
+
+/* Cards and sections: white on the grey page with a clear edge. */
+html main .summary-section,html main .finding-card,html main .decision-card,html main .rec-step,html main .val-row,html main .val-metric{background:#fff;border-color:var(--line);box-shadow:0 1px 2px #1a1f3008,0 2px 8px #1a1f3006}
+html main table{color:var(--ink)}html main th{color:#1b2134}html main td{color:#1f2536}
+html main thead th{background:#f3f5f9;color:#2a3043}
+
+/* Left rail: darker items, readable group headings. */
+html aside{background:#fff;border-right-color:var(--line)}
+html aside .phase{color:#33394d}html aside .phase:hover{color:#141a2b;background:#f2f3f8}
+html aside .phase.active{color:#141a2b}html .phase.active small{color:var(--legible-accent)}
+html .phase-group,html .rail-label{color:#565c72;font-weight:650}
+html .page-index a{color:#3b4156}html .page-index .pi-head{color:#565c72}
+html .page-index li.on>.pi-sec,html .page-index .pi-tab.on,html .page-index .pi-sub.on{color:var(--legible-accent)}
+
+/* Links and accent text: a deeper violet that stays readable. */
+html main a{color:#3f31a8}html .linkbtn{color:#3f31a8}
+
+/* Badges and chips keep their colour, with darker text. */
+html .badge,html .cap-badge,html .type-chip,html .val-badge{font-weight:560}
+@media print{html body{background:#fff;font-weight:400}}
+
+/* Hard-coded pale greys and purples from the older theme (each measured below 7:1). */
+html .scan-table td,html .ev-table td,html .people-table td{color:#262b3d}
+html .scan-table th,html .ev-table th,html .people-table th{color:#3a2f55;background:#f4f1fa}
+html .summary-section>h2,html .scan-head h2,html .finding-title h3,html main section>h2{color:#2e2452}
+html .btn{color:#2f3548!important;border-color:#c9cfdb}html .btn.primary,html .btn.primary:hover{color:#fff!important}html .btn:hover{color:#141a2b}
+html .btn.primary{background:#4b3bc4;border-color:#4b3bc4;color:#fff}html .btn.primary:hover{background:#3d2fae}
+html .type-chip{color:#3d4257;border-color:#cfd4e0}html .type-chip.on{color:#3a2b9e;border-color:#a99be6}
+html .badge.missing{color:#454b61}
+html .eyebrow,html small.eyebrow{color:#4434ad!important}
+html main summary{color:#3a2ba3!important}
+html .stance-chip{color:#3a2ba3!important}
+html .reason{color:#3d4257}html .reason.pos{color:#0e5a3a!important}html .reason.neg{color:#7a3210!important}
+html .asm-state,html .opt-cat,html li.ok{color:#11502f!important}
+html .phase-group,html .rail-label{color:#454b61!important}
+html .conf-medium{color:#6a4400!important}
+html .page-heading p{color:#3f4559!important}
